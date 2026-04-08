@@ -43,6 +43,11 @@ from markdown.preprocessors import Preprocessor
 from llmwiki import REPO_ROOT
 from llmwiki.context_md import is_context_file
 from llmwiki.freshness import freshness_badge, load_freshness_config
+from llmwiki.models_page import (
+    discover_model_entities,
+    render_model_info_card,
+    render_models_index,
+)
 from llmwiki.viz_heatmap import collect_session_counts, render_heatmap
 from llmwiki.viz_tokens import (
     render_project_token_card,
@@ -429,6 +434,7 @@ def nav_bar(active: str, link_prefix: str = "") -> str:
       {link("index.html", "Home", "home")}
       {link("projects/index.html", "Projects", "projects")}
       {link("sessions/index.html", "Sessions", "sessions")}
+      {link("models/index.html", "Models", "models")}
       {link("changelog.html", "Changelog", "changelog")}
       <button class="nav-search-btn" id="open-palette" aria-label="Open command palette">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -1091,6 +1097,72 @@ def render_changelog(out_dir: Path) -> Optional[Path]:
     return out_path
 
 
+# ─── v0.7 (#55) models section ─────────────────────────────────────────────
+
+def render_models_section(out_dir: Path) -> tuple[Optional[Path], int]:
+    """Discover `wiki/entities/*.md` pages with `entity_kind: ai-model`,
+    render one detail page per model + a sortable `/models/index.html`.
+
+    Returns `(index_path_or_None, model_count)`. If there's no
+    `wiki/entities/` directory OR no model pages there, we still write
+    an empty-state index so the nav link doesn't 404.
+    """
+    entities_dir = REPO_ROOT / "wiki" / "entities"
+    entries = discover_model_entities(entities_dir)
+    models_out = out_dir / "models"
+    models_out.mkdir(parents=True, exist_ok=True)
+
+    # Index page — always write it so the nav link resolves.
+    index_body = render_models_index(entries)
+    index_page = (
+        page_head(
+            "Models — LLM Wiki",
+            "Directory of AI-model entities tracked by the wiki with pricing, "
+            "context windows, and benchmark scores.",
+            css_prefix="../",
+        )
+        + nav_bar("models", link_prefix="../")
+        + hero("Models", f"{len(entries)} model entities tracked")
+        + index_body
+        + "</main>\n"
+        + page_foot(js_prefix="../")
+    )
+    index_path = models_out / "index.html"
+    index_path.write_text(index_page, encoding="utf-8")
+
+    # Per-model detail page — info card + body markdown rendered normally.
+    for path, profile, warnings, body in entries:
+        slug = path.stem
+        title = profile.get("title", slug)
+        info_card = render_model_info_card(profile)
+        body_html = md_to_html(body)
+        warnings_html = ""
+        if warnings:
+            items = "".join(f"<li>{html.escape(w)}</li>" for w in warnings)
+            warnings_html = (
+                '<details class="model-warnings"><summary>Schema warnings '
+                f'({len(warnings)})</summary><ul>{items}</ul></details>'
+            )
+        page = (
+            page_head(
+                f"{title} — LLM Wiki",
+                f"AI-model entity: {title}",
+                css_prefix="../",
+            )
+            + nav_bar("models", link_prefix="../")
+            + hero(title, profile.get("provider", ""))
+            + f'<section class="section">\n  <div class="container narrow">\n'
+            + info_card
+            + warnings_html
+            + f'    <article class="article content">\n      {body_html}\n    </article>\n'
+            + '  </div>\n</section>\n</main>\n'
+            + page_foot(js_prefix="../")
+        )
+        (models_out / f"{slug}.html").write_text(page, encoding="utf-8")
+
+    return index_path, len(entries)
+
+
 # ─── search index ──────────────────────────────────────────────────────────
 
 def build_search_index(
@@ -1570,6 +1642,41 @@ a.token-stat:hover { border-color: var(--accent); }
 .token-stat-value { font-size: 1.4rem; font-weight: 600; font-family: 'JetBrains Mono', monospace; }
 .token-stat-sub { font-size: 0.75rem; margin-top: 4px; }
 
+/* v0.7 (#55): Model entity info card + /models/ sortable table. The
+   `.model-card` is rendered by llmwiki/models_page.py.render_model_info_card;
+   the `.models-table` is inside render_models_index. Both reuse existing
+   theme vars — no new custom properties. */
+.model-card { margin: 20px 0; padding: 18px 22px; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); }
+.model-card-header { display: flex; gap: 10px; align-items: baseline; margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+.model-card-title { font-size: 1.25rem; font-weight: 700; }
+.model-card-provider { font-size: 0.95rem; }
+.model-card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px 18px; margin-bottom: 14px; }
+.model-card-kv { display: flex; flex-direction: column; gap: 2px; font-size: 0.88rem; }
+.model-card-kv .muted { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; }
+.model-card-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.88rem; margin: 8px 0; }
+.model-card-row-label { min-width: 80px; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; }
+.model-price-cell { margin-right: 14px; font-family: 'JetBrains Mono', monospace; }
+.model-card-section-title { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 14px; margin-bottom: 8px; }
+.model-card-benches { margin-top: 4px; }
+.model-bench-row { display: grid; grid-template-columns: 140px 1fr 52px; gap: 10px; align-items: center; margin: 4px 0; font-size: 0.85rem; }
+.model-bench-label { color: var(--text-secondary); }
+.model-bench-bar { height: 10px; background: var(--bg-alt); border-radius: 3px; overflow: hidden; }
+.model-bench-fill { display: block; height: 100%; background: var(--accent); border-radius: 3px; }
+.model-bench-value { text-align: right; font-family: 'JetBrains Mono', monospace; font-size: 0.78rem; color: var(--text-secondary); }
+.model-warnings { margin: 12px 0; padding: 10px 14px; background: rgba(234, 179, 8, 0.08); border: 1px solid #f59e0b; border-radius: 4px; font-size: 0.85rem; }
+.model-warnings summary { cursor: pointer; font-weight: 600; color: #b45309; }
+:root[data-theme="dark"] .model-warnings { background: rgba(234, 179, 8, 0.12); }
+:root[data-theme="dark"] .model-warnings summary { color: #fcd34d; }
+.models-table-wrap { overflow-x: auto; margin: 20px 0; }
+.models-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+.models-table th, .models-table td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border); }
+.models-table th { font-weight: 600; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary); background: var(--bg-alt); }
+.models-table td { font-family: 'JetBrains Mono', monospace; }
+.models-table td:first-child { font-family: inherit; }
+.models-table tr:hover td { background: var(--bg-alt); }
+.models-table a { color: var(--accent); text-decoration: none; font-weight: 500; }
+.models-table a:hover { text-decoration: underline; }
+
 /* v0.4: Deep-link icon next to headings */
 .content h2 .deep-link, .content h3 .deep-link, .content h4 .deep-link { margin-left: 8px; font-size: 0.8em; opacity: 0; text-decoration: none; transition: opacity 0.15s; }
 .content h2:hover .deep-link, .content h3:hover .deep-link, .content h4:hover .deep-link { opacity: 0.7; }
@@ -1637,7 +1744,7 @@ mark { background: var(--accent-bg); color: var(--accent); padding: 0 2px; borde
   .nav, .footer, .palette, .help-dialog, .session-actions, .filter-bar,
   .progress-bar, .nav-search-btn, .theme-toggle, .copy-code-btn,
   .wikilink-preview, .timeline-block, .toc-sidebar, .mobile-bottom-nav,
-  .related-pages, .activity-heatmap, .tool-chart-card, .token-card, .token-stat-grid, .deep-link, .breadcrumbs,
+  .related-pages, .activity-heatmap, .tool-chart-card, .token-card, .token-stat-grid, .model-warnings, .deep-link, .breadcrumbs,
   .meta-tools { display: none !important; }
   body { background: #fff; color: #000; font-size: 11pt; padding-bottom: 0; }
   .hero { padding: 12px 0 8px; background: #fff; border: none; }
@@ -2604,9 +2711,12 @@ def build_site(
     render_sessions_index(sources, groups, out_dir)
     render_index(groups, sources, out_dir, synthesis=synthesis)
     cl_path = render_changelog(out_dir)
+    # v0.7 (#55): models section — sortable index + per-model detail pages.
+    models_index_path, model_count = render_models_section(out_dir)
     print(
         "  wrote index.html, projects/index.html, sessions/index.html"
         + (", changelog.html" if cl_path else "")
+        + f", models/index.html ({model_count} models)"
     )
 
     # Search index
