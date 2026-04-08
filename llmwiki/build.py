@@ -42,6 +42,7 @@ from markdown.preprocessors import Preprocessor
 
 from llmwiki import REPO_ROOT
 from llmwiki.freshness import freshness_badge, load_freshness_config
+from llmwiki.viz_heatmap import collect_session_counts, render_heatmap
 
 # ─── paths ─────────────────────────────────────────────────────────────────
 
@@ -685,7 +686,24 @@ def render_project_page(
         link_prefix="../",
     )
 
-    body = f"""<section class="section">
+    # v0.8 (#64, #72): per-project 365-day heatmap — same window as the
+    # aggregate on the home page, but filtered to just this project's
+    # sessions. Sparse projects (only a handful of sessions) still render
+    # the full grid with the rest as level-0 cells, so the shape matches.
+    proj_entries = [m for _, m, _ in sessions]
+    proj_counts = collect_session_counts(proj_entries, project_slug=project_slug)
+    proj_heatmap = render_heatmap(proj_counts, title_prefix=f"{project_slug} activity")
+    heatmap_block = f"""<section class="section heatmap-section">
+  <div class="container">
+    <div class="activity-heatmap">
+      <div class="heatmap-label muted">Activity · last 365 days · {html.escape(project_slug)}</div>
+      {proj_heatmap}
+    </div>
+  </div>
+</section>"""
+
+    body = f"""{heatmap_block}
+<section class="section">
   <div class="container">
     {crumbs}
     <h2>Main sessions ({len(main_sessions)})</h2>
@@ -893,6 +911,22 @@ def render_index(
   </div>
 </section>"""
 
+    # v0.8 (#64, #72): aggregate 365-day GitHub-style heatmap. Counts all
+    # main sessions across all projects. Rendered as a pure-SVG block just
+    # above the projects grid so the landing page gives a glanceable
+    # "last year of activity" view.
+    heatmap_entries = [m for _, m, _ in all_sources]
+    heatmap_counts = collect_session_counts(heatmap_entries)
+    heatmap_svg = render_heatmap(heatmap_counts, title_prefix="Activity")
+    heatmap_block = f"""<section class="section heatmap-section">
+  <div class="container">
+    <div class="activity-heatmap">
+      <div class="heatmap-label muted">Activity · last 365 days</div>
+      {heatmap_svg}
+    </div>
+  </div>
+</section>"""
+
     cards = []
     for project, sessions in sorted(groups.items(), key=lambda x: -len(x[1])):
         main_count = sum(1 for p, _, _ in sessions if "subagent" not in p.name)
@@ -903,7 +937,8 @@ def render_index(
   </a>"""
         )
 
-    body = f"""<section class="section">
+    body = f"""{heatmap_block}
+<section class="section">
   <div class="container">
     <h2>Projects</h2>
     <div class="card-grid">
@@ -1353,12 +1388,31 @@ kbd { display: inline-block; padding: 2px 6px; font-family: var(--mono); font-si
 .related-pages li { padding: 6px 0; font-size: 0.9rem; border-bottom: 1px solid var(--border); }
 .related-pages li:last-child { border-bottom: none; }
 
-/* v0.4: Activity heatmap */
-.activity-heatmap { margin-bottom: 24px; padding: 14px 16px; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); }
+/* v0.8 (#64, #72): GitHub-style 365-day activity heatmap. Rendered as a
+   build-time SVG in build.py (see llmwiki/viz_heatmap.py). The CSS custom
+   properties below get picked up by the inlined SVG via its own <style>
+   block so the colors swap with the page theme. The pre-v0.8 JS-based
+   tiny-strip heatmap is gone. */
+:root {
+  --heatmap-0: #ebedf0;
+  --heatmap-1: #9be9a8;
+  --heatmap-2: #40c463;
+  --heatmap-3: #30a14e;
+  --heatmap-4: #216e39;
+}
+:root[data-theme="dark"] {
+  --heatmap-0: #161b22;
+  --heatmap-1: #0e4429;
+  --heatmap-2: #006d32;
+  --heatmap-3: #26a641;
+  --heatmap-4: #39d353;
+}
+.heatmap-section { padding-top: 0; padding-bottom: 12px; }
+.activity-heatmap { margin-bottom: 24px; padding: 14px 16px; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); overflow-x: auto; }
 .heatmap-label { font-size: 0.78rem; margin-bottom: 8px; }
-.heatmap-cells { display: flex; flex-wrap: wrap; gap: 2px; }
-.heatmap-cells .cell { width: 12px; height: 12px; border-radius: 2px; display: inline-block; transition: transform 0.1s; }
-.heatmap-cells .cell:hover { transform: scale(1.3); z-index: 2; position: relative; }
+.heatmap-svg { display: block; max-width: 100%; }
+.heatmap-svg rect { transition: stroke 0.1s; }
+.heatmap-svg rect:hover { stroke: var(--accent); stroke-width: 1; }
 
 /* v0.4: Deep-link icon next to headings */
 .content h2 .deep-link, .content h3 .deep-link, .content h4 .deep-link { margin-left: 8px; font-size: 0.8em; opacity: 0; text-decoration: none; transition: opacity 0.15s; }
@@ -2216,46 +2270,11 @@ document.addEventListener("DOMContentLoaded", function () {
   });
 })();
 
-// ─── v0.4: Activity heatmap on home page ──────────────────────────────────
-(function () {
-  document.addEventListener("DOMContentLoaded", function () {
-    const heroSub = document.querySelector(".hero h1");
-    if (!heroSub || heroSub.textContent.trim() !== "LLM Wiki") return;
-    // We're on the home page
-    const url = window.LLMWIKI_INDEX_URL || "search-index.json";
-    fetch(url)
-      .then(function (r) { return r.ok ? r.json() : []; })
-      .then(function (entries) {
-        const counts = new Map();
-        entries.forEach(function (e) {
-          if (e.type !== "session" || !e.date) return;
-          counts.set(e.date, (counts.get(e.date) || 0) + 1);
-        });
-        if (counts.size < 2) return;
-        const dates = Array.from(counts.keys()).sort();
-        const maxCount = Math.max(...counts.values());
-
-        const container = document.querySelector(".section .container");
-        if (!container) return;
-        const block = document.createElement("div");
-        block.className = "activity-heatmap";
-        const cells = dates.map(function (d) {
-          const n = counts.get(d);
-          const intensity = n / maxCount;
-          const hex = Math.round(80 + intensity * 175).toString(16).padStart(2, "0");
-          return '<span class="cell" title="' + d + ' · ' + n + ' sessions" ' +
-            'style="background: #7C3AED' + hex + '"></span>';
-        }).join("");
-        block.innerHTML =
-          '<div class="heatmap-label muted">Activity · ' + dates.length +
-          ' days · peak ' + maxCount + ' sessions</div>' +
-          '<div class="heatmap-cells">' + cells + '</div>';
-        const h2 = container.querySelector("h2");
-        if (h2) container.insertBefore(block, h2);
-      })
-      .catch(function () {});
-  });
-})();
+// v0.8 (#64, #72): the v0.4 JS-based tiny-strip heatmap is gone. The 365-day
+// GitLab/GitHub-style grid is now rendered at build time as pure SVG by
+// llmwiki/viz_heatmap.py and inlined into index.html + each project page.
+// The page CSS (--heatmap-0..4) picks up the current theme automatically —
+// no JS wiring needed.
 
 // ─── v0.4: Search result highlights ──────────────────────────────────────
 // When showing search palette results, highlight the matched query in the
