@@ -118,8 +118,11 @@ def test_write_ai_readme(tmp_path):
 
 def test_build_produces_ai_exports():
     site = REPO_ROOT / "site"
-    if not site.exists():
-        pytest.skip("site/ not built")
+    # `llmwiki init` creates an empty site/ dir with just .gitkeep, which would
+    # make a `site.exists()` skip return False even though no real build has
+    # happened. Key on manifest.json — it's only written by a full build.
+    if not (site / "manifest.json").exists():
+        pytest.skip("site/ not built (no manifest.json — run `llmwiki build`)")
     for expected in (
         "llms.txt",
         "llms-full.txt",
