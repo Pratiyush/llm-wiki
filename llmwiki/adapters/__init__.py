@@ -34,7 +34,10 @@ def discover_adapters() -> None:
     # Order matters only for stable listing.
     from llmwiki.adapters import claude_code  # noqa: F401
     from llmwiki.adapters import codex_cli  # noqa: F401
+    from llmwiki.adapters import cursor  # noqa: F401
+    from llmwiki.adapters import gemini_cli  # noqa: F401
     from llmwiki.adapters import obsidian  # noqa: F401
+    from llmwiki.adapters import pdf  # noqa: F401
 
 
 def get_available() -> dict[str, type[BaseAdapter]]:
