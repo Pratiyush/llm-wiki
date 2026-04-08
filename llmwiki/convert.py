@@ -342,6 +342,79 @@ def extract_tools_used(records: list[dict[str, Any]]) -> list[str]:
     return list(seen.keys())
 
 
+# ─── v0.8 session metrics (#63) ───────────────────────────────────────────
+# Structured per-session metrics emitted into frontmatter as JSON inline
+# values. The build step and the v0.8 visualization modules (#64/#65/#66)
+# consume these without having to re-parse the raw .jsonl. Keep all helpers
+# stdlib-only and tolerant of missing fields.
+
+
+def compute_tool_counts(records: list[dict[str, Any]]) -> dict[str, int]:
+    """Return a {tool_name: count} mapping across all assistant tool_use blocks."""
+    counts: dict[str, int] = {}
+    for r in records:
+        if r.get("type") != "assistant":
+            continue
+        for b in r.get("message", {}).get("content", []) or []:
+            if isinstance(b, dict) and b.get("type") == "tool_use":
+                name = b.get("name") or "Unknown"
+                counts[name] = counts.get(name, 0) + 1
+    # Return with stable ordering (by count desc then name) so the rendered
+    # frontmatter is byte-identical across runs.
+    return dict(sorted(counts.items(), key=lambda kv: (-kv[1], kv[0])))
+
+
+def compute_token_totals(records: list[dict[str, Any]]) -> dict[str, int]:
+    """Sum input / cache_creation / cache_read / output tokens across assistant
+    messages. Missing fields contribute 0.
+    """
+    totals = {"input": 0, "cache_creation": 0, "cache_read": 0, "output": 0}
+    for r in records:
+        if r.get("type") != "assistant":
+            continue
+        usage = r.get("message", {}).get("usage") or {}
+        if not isinstance(usage, dict):
+            continue
+        totals["input"] += int(usage.get("input_tokens") or 0)
+        totals["cache_creation"] += int(usage.get("cache_creation_input_tokens") or 0)
+        totals["cache_read"] += int(usage.get("cache_read_input_tokens") or 0)
+        totals["output"] += int(usage.get("output_tokens") or 0)
+    return totals
+
+
+def compute_turn_count(records: list[dict[str, Any]]) -> int:
+    """Number of user→assistant turn pairs (equivalent to real user prompts)."""
+    return count_user_messages(records)
+
+
+def compute_hour_buckets(records: list[dict[str, Any]]) -> dict[str, int]:
+    """Return {"YYYY-MM-DDTHH": count} keyed by UTC hour-of-activity.
+
+    Sparse — only hours with at least one record. Used by the v0.8 activity
+    heatmap (#64) to size per-day dots without reading the raw jsonl.
+    """
+    buckets: dict[str, int] = {}
+    for r in records:
+        ts = parse_iso(r.get("timestamp"))
+        if ts is None:
+            continue
+        ts_utc = ts.astimezone(timezone.utc) if ts.tzinfo else ts
+        key = ts_utc.strftime("%Y-%m-%dT%H")
+        buckets[key] = buckets.get(key, 0) + 1
+    # Sorted chronologically for stable frontmatter output.
+    return dict(sorted(buckets.items()))
+
+
+def compute_duration_seconds(records: list[dict[str, Any]]) -> int:
+    """Total elapsed session time in whole seconds (last_ts - first_ts)."""
+    first = first_record_time(records)
+    last = latest_record_time(records)
+    if first is None or last is None:
+        return 0
+    delta = last - first
+    return max(0, int(delta.total_seconds()))
+
+
 # ─── tool-use rendering ────────────────────────────────────────────────────
 
 def summarize_tool_use(block: dict[str, Any], redact: Redactor, config: dict[str, Any]) -> str:
@@ -510,6 +583,13 @@ def render_session_markdown(
     u_count = count_user_messages(records)
     t_count = count_tool_calls(records)
 
+    # v0.8 (#63) structured metrics — JSON inline in frontmatter
+    tool_counts = compute_tool_counts(records)
+    token_totals = compute_token_totals(records)
+    turn_count = compute_turn_count(records)
+    hour_buckets = compute_hour_buckets(records)
+    duration_seconds = compute_duration_seconds(records)
+
     title = f"Session: {slug} — {date_str}"
     front = [
         "---",
@@ -530,6 +610,13 @@ def render_session_markdown(
         f"user_messages: {u_count}",
         f"tool_calls: {t_count}",
         f"tools_used: [{', '.join(tools_used)}]",
+        # v0.8 — structured metrics (JSON inline so the simple frontmatter
+        # parser stores them as strings; consumers json.loads() on demand).
+        f"tool_counts: {json.dumps(tool_counts, sort_keys=False)}",
+        f"token_totals: {json.dumps(token_totals, sort_keys=False)}",
+        f"turn_count: {turn_count}",
+        f"hour_buckets: {json.dumps(hour_buckets, sort_keys=False)}",
+        f"duration_seconds: {duration_seconds}",
         f"is_subagent: {str(is_subagent_file).lower()}",
         "---",
         "",
