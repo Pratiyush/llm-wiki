@@ -1,0 +1,100 @@
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "llmwiki"
+version = "0.3.0"
+description = "Karpathy-style LLM wiki from your Claude Code, Codex CLI, Cursor, and Obsidian sessions"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [
+    { name = "Pratiyush", email = "pratiyush1@gmail.com" }
+]
+keywords = [
+    "llm-wiki",
+    "karpathy",
+    "knowledge-base",
+    "claude-code",
+    "codex-cli",
+    "cursor",
+    "obsidian",
+    "session-history",
+    "static-site",
+    "mcp",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: MacOS",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: Microsoft :: Windows",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Documentation",
+    "Topic :: Software Development :: Documentation",
+    "Topic :: Text Processing :: Markup :: Markdown",
+]
+dependencies = [
+    "markdown>=3.4",
+]
+
+[project.optional-dependencies]
+highlight = ["pygments>=2.15"]
+pdf = ["pypdf>=4.0"]
+dev = [
+    "pytest>=7.0",
+    "ruff>=0.1",
+]
+all = [
+    "pygments>=2.15",
+    "pypdf>=4.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/Pratiyush/llm-wiki"
+Documentation = "https://github.com/Pratiyush/llm-wiki/tree/master/docs"
+Repository = "https://github.com/Pratiyush/llm-wiki"
+Issues = "https://github.com/Pratiyush/llm-wiki/issues"
+Changelog = "https://github.com/Pratiyush/llm-wiki/blob/master/CHANGELOG.md"
+Releases = "https://github.com/Pratiyush/llm-wiki/releases"
+
+[project.scripts]
+llmwiki = "llmwiki.cli:main"
+
+[tool.setuptools]
+packages = ["llmwiki", "llmwiki.adapters", "llmwiki.mcp"]
+
+[tool.setuptools.package-data]
+llmwiki = ["py.typed"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py39"
+
+[tool.ruff.lint]
+select = [
+    "E",  # pycodestyle errors
+    "F",  # pyflakes
+    "I",  # isort
+    "B",  # flake8-bugbear
+    "UP", # pyupgrade
+]
+ignore = [
+    "E501",  # line too long — we have long strings for CSS/JS
+    "E402",  # module-level import not at top — we do this in build.py
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-q"
