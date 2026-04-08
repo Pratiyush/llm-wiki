@@ -8,6 +8,41 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
+## [0.3.0] — 2026-04-08
+
+### Added
+
+- **`pyproject.toml`** — full PEP 621 metadata, PyPI-ready. Optional dep groups: `highlight` (pygments), `pdf` (pypdf), `dev` (pytest+ruff), `all`. Declared entry point `llmwiki = llmwiki.cli:main`.
+- **Eval framework** (`llmwiki/eval.py`) — 7 structural quality checks (orphans, broken links, frontmatter coverage, type coverage, cross-linking, size bounds, contradiction tracking) totalling 100 points. New CLI: `llmwiki eval [--check ...] [--json] [--fail-below N]`. Zero LLM calls, pure structural analysis, runs in under a second on a 300-page wiki.
+- **Codex CLI adapter** graduated from v0.2 stub → production with `SUPPORTED_SCHEMA_VERSIONS = ["v0.x", "v1.0"]`, two session store roots, config override, and hashed-path slug derivation.
+- **i18n docs scaffold** — translations of `getting-started.md` in Chinese (`zh-CN`), Japanese (`ja`), and Spanish (`es`) under `docs/i18n/`. Each linked back to the English master with a sync date.
+- **15 new tests** covering the eval framework, pyproject, i18n scaffold, and version bump.
+
+### Deferred to v0.5+
+
+- OpenCode / OpenClaw adapter
+- Homebrew formula
+- Local LLM via Ollama (optional synthesis backend)
+
+(per explicit user direction — none of these block a v0.3.0 release)
+
+## [0.2.0] — 2026-04-08
+
+### Added
+
+- **Three new slash commands**: `/wiki-update` (surgical in-place page update), `/wiki-graph` (knowledge graph generator), `/wiki-reflect` (higher-order self-reflection)
+- **`llmwiki/graph.py`** — walks every `[[wikilink]]` and produces `graph/graph.json` (canonical) + `graph/graph.html` (vis.js). Reports top-linked, top-linking, orphans, broken edges. CLI: `llmwiki graph [--format json|html|both]`.
+- **`llmwiki/watch.py`** — file watcher with polling + debounce. Detects mtime changes in agent session stores and auto-runs `llmwiki sync` after the debounce window. CLI: `llmwiki watch [--adapter ...] [--interval N] [--debounce M]`. Stdlib only, no `watchdog` dep.
+- **`llmwiki/obsidian_output.py`** — bidirectional Obsidian output mode. Copies the compiled wiki into a subfolder of an Obsidian vault with backlinks and a README. CLI: `llmwiki export-obsidian --vault PATH [--subfolder NAME] [--clean] [--dry-run]`.
+- **Full MCP server** (`llmwiki/mcp/server.py`) — graduated from v0.1 2-tool stub to **6 production tools**: `wiki_query` (keyword search + page content), `wiki_search` (raw grep), `wiki_list_sources`, `wiki_read_page` (path-traversal guarded), `wiki_lint` (structural report), `wiki_sync` (trigger converter).
+- **Cursor adapter** (`llmwiki/adapters/cursor.py`) — detects Cursor IDE install on macOS/Linux/Windows, discovers workspace storage.
+- **Gemini CLI adapter** (`llmwiki/adapters/gemini_cli.py`) — detects `~/.gemini/` sessions.
+- **PDF adapter** (`llmwiki/adapters/pdf.py`) — optional `pypdf` dep, user-configurable roots, disabled by default.
+- **Hover-to-preview wikilinks** in the HTML viewer — floating preview cards fetched from the client-side search index.
+- **Timeline view** on the sessions index — compact SVG sparkline showing session frequency per day.
+- **CLAUDE.md** extended with `/wiki-update`, `/wiki-graph`, `/wiki-reflect` slash command docs and new page types (`comparisons/`, `questions/`, `archive/`).
+- **21 new tests** covering adapters, graph builder, Obsidian output, MCP server, file watcher, and CLI subcommands.
+
 ## [0.1.0] — 2026-04-08
 
 Initial public release.
