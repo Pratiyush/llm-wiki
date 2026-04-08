@@ -337,6 +337,7 @@ def nav_bar(active: str, link_prefix: str = "") -> str:
       {link("index.html", "Home", "home")}
       {link("projects/index.html", "Projects", "projects")}
       {link("sessions/index.html", "Sessions", "sessions")}
+      {link("changelog.html", "Changelog", "changelog")}
       <button class="nav-search-btn" id="open-palette" aria-label="Open command palette">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         <span>Search</span>
@@ -839,6 +840,61 @@ def render_index(
     return out_path
 
 
+# ─── changelog page ────────────────────────────────────────────────────────
+
+def render_changelog(out_dir: Path) -> Optional[Path]:
+    """Render ``CHANGELOG.md`` (repo root) to ``site/changelog.html``.
+
+    Returns None if CHANGELOG.md is missing. Shown as its own top-level page
+    so visitors can see what's new / what shipped without clicking through to
+    GitHub. Keep-a-changelog headings become an in-page TOC via the existing
+    `toc` markdown extension.
+    """
+    src = REPO_ROOT / "CHANGELOG.md"
+    if not src.exists():
+        return None
+    raw = src.read_text(encoding="utf-8")
+
+    # Pull the top H1 ("Changelog") and use it as the hero title; render
+    # everything else as the body. Strip the leading H1 line to avoid a
+    # duplicate title.
+    body_md = raw
+    lines = raw.splitlines()
+    if lines and lines[0].lstrip().startswith("# "):
+        body_md = "\n".join(lines[1:]).lstrip("\n")
+
+    content_html = md_to_html(body_md)
+
+    body = f"""<section class="section changelog-body">
+  <div class="container narrow">
+    <article class="article">
+      {content_html}
+    </article>
+  </div>
+</section>
+</main>
+"""
+
+    page = (
+        page_head(
+            "Changelog — LLM Wiki",
+            "Release notes for llmwiki — features, fixes, and version history.",
+            css_prefix="",
+        )
+        + nav_bar("changelog", link_prefix="")
+        + hero(
+            "Changelog",
+            "Every release, every fix. Keep-a-changelog format, semver.",
+        )
+        + body
+        + page_foot(js_prefix="")
+    )
+
+    out_path = out_dir / "changelog.html"
+    out_path.write_text(page, encoding="utf-8")
+    return out_path
+
+
 # ─── search index ──────────────────────────────────────────────────────────
 
 def build_search_index(
@@ -1181,6 +1237,22 @@ kbd { display: inline-block; padding: 2px 6px; font-family: var(--mono); font-si
 /* Footer */
 .footer { padding: 32px 0; border-top: 1px solid var(--border); margin-top: 48px; background: var(--bg-alt); }
 .footer p { font-size: 0.85rem; color: var(--text-muted); text-align: center; }
+
+/* Changelog page — narrow reading column + keep-a-changelog typography */
+.container.narrow { max-width: 760px; }
+.changelog-body { padding: 40px 0 64px; }
+.changelog-body .article h2 { margin-top: 48px; padding-bottom: 8px; border-bottom: 1px solid var(--border); font-size: 1.5rem; }
+.changelog-body .article h2:first-child { margin-top: 0; }
+.changelog-body .article h3 { margin-top: 28px; font-size: 1.1rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.04em; }
+.changelog-body .article h4 { margin-top: 20px; font-size: 0.98rem; }
+.changelog-body .article ul { margin: 12px 0 20px; padding-left: 22px; }
+.changelog-body .article li { margin: 6px 0; line-height: 1.6; }
+.changelog-body .article li > code,
+.changelog-body .article p > code { font-size: 0.86rem; padding: 1px 6px; background: var(--bg-code); border-radius: 4px; }
+.changelog-body .article p { line-height: 1.7; }
+.changelog-body .article a { color: var(--accent); }
+.changelog-body .article hr { margin: 36px 0; border: 0; border-top: 1px solid var(--border); }
+.changelog-body .article blockquote { margin: 16px 0; padding: 8px 16px; border-left: 3px solid var(--accent); color: var(--text-secondary); background: var(--bg-alt); border-radius: 0 4px 4px 0; }
 
 /* v0.4: Related pages panel */
 .related-pages { margin-top: 48px; padding-top: 24px; border-top: 1px solid var(--border); }
@@ -2243,7 +2315,11 @@ def build_site(
     render_projects_index(groups, out_dir)
     render_sessions_index(sources, groups, out_dir)
     render_index(groups, sources, out_dir, synthesis=synthesis)
-    print("  wrote index.html, projects/index.html, sessions/index.html")
+    cl_path = render_changelog(out_dir)
+    print(
+        "  wrote index.html, projects/index.html, sessions/index.html"
+        + (", changelog.html" if cl_path else "")
+    )
 
     # Search index
     idx_path = build_search_index(sources, groups, out_dir)

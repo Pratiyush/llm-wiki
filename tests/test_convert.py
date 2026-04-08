@@ -43,6 +43,54 @@ def test_truncate_lines_long():
     assert "truncated" in out
 
 
+# ─── #72: code-fence balance preservation ───────────────────────────────
+# When truncate_chars / truncate_lines cuts mid-code-block, the opening
+# ``` must get a matching close fence so downstream markdown parsers
+# don't consume the entire rest of the page.
+
+
+def test_truncate_chars_closes_open_fence():
+    src = "```\nline1\nline2\nline3\nline4\nline5\nline6\nline7\n"
+    out = truncate_chars(src, 20)
+    # fence count in the returned text should be even (open + auto-close)
+    fences = [ln for ln in out.splitlines() if ln.lstrip().startswith("```")]
+    assert len(fences) % 2 == 0
+    assert len(fences) >= 2  # at least the original open + one close
+    assert "truncated" in out
+
+
+def test_truncate_lines_closes_open_fence():
+    src = "```\nroot/\n├── a\n├── b\n├── c\n├── d\n"
+    out = truncate_lines(src, 3)
+    fences = [ln for ln in out.splitlines() if ln.lstrip().startswith("```")]
+    assert len(fences) % 2 == 0
+    assert "truncated" in out
+
+
+def test_truncate_chars_balanced_fence_unchanged():
+    # Already balanced ``` open + close — truncation should NOT add extras.
+    src = "```\nshort\n```\nmore text that pushes over the char budget"
+    out = truncate_chars(src, 20)
+    fences = [ln for ln in out.splitlines() if ln.lstrip().startswith("```")]
+    # Only the original two fences should be present; no phantom third.
+    assert len(fences) == 2
+
+
+def test_truncate_chars_no_fence_no_change():
+    # Plain text without any fence — no injected close.
+    src = "a" * 100
+    out = truncate_chars(src, 10)
+    assert "```" not in out
+
+
+def test_truncate_chars_fenced_lang_marker():
+    # Fence with a language marker (```python) must still be detected.
+    src = "```python\n" + "x = 1\n" * 50
+    out = truncate_chars(src, 30)
+    fences = [ln for ln in out.splitlines() if ln.lstrip().startswith("```")]
+    assert len(fences) % 2 == 0
+
+
 def test_redactor_username_in_path():
     config = {"redaction": {"real_username": "alice", "replacement_username": "USER", "extra_patterns": []}}
     r = Redactor(config)

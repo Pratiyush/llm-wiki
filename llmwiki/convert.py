@@ -197,15 +197,23 @@ class IgnoreMatcher:
 def parse_jsonl(path: Path) -> list[dict[str, Any]]:
     out: list[dict[str, Any]] = []
     try:
-        with path.open(encoding="utf-8") as f:
+        # ``errors="replace"`` lets us survive the occasional corrupt byte in a
+        # session transcript (e.g. a truncated UTF-8 sequence from a killed
+        # tool). Before the fix a single bad byte would abort the whole sync.
+        with path.open(encoding="utf-8", errors="replace") as f:
             for line_no, line in enumerate(f, 1):
                 line = line.strip()
                 if not line:
                     continue
                 try:
-                    out.append(json.loads(line))
+                    rec = json.loads(line)
                 except json.JSONDecodeError:
-                    pass
+                    continue
+                # Only keep dict-shaped records. JSONL files occasionally
+                # contain stray scalars (e.g. numbers, strings) from partial
+                # writes, which used to crash downstream filter_records.
+                if isinstance(rec, dict):
+                    out.append(rec)
     except OSError:
         pass
     return out
@@ -283,10 +291,26 @@ class Redactor:
         return text
 
 
+def _close_open_fence(text: str) -> str:
+    """If ``text`` contains an odd number of ``\\`\\`\\``` fence markers,
+    append a closing fence so downstream markdown parsers don't swallow the
+    rest of the page as one giant code block. Counts only lines whose first
+    non-whitespace characters are triple backticks (real fences, not inline
+    code). See #72 — truncated tool results used to eat everything below them.
+    """
+    fence_count = sum(
+        1 for line in text.splitlines() if line.lstrip().startswith("```")
+    )
+    if fence_count % 2 == 1:
+        return text + "\n```"
+    return text
+
+
 def truncate_chars(text: str, max_chars: int) -> str:
     if not text or len(text) <= max_chars:
         return text
-    return text[:max_chars] + f"\n…(truncated, {len(text) - max_chars} more chars)"
+    kept = _close_open_fence(text[:max_chars])
+    return kept + f"\n…(truncated, {len(text) - max_chars} more chars)"
 
 
 def truncate_lines(text: str, max_lines: int) -> str:
@@ -295,7 +319,7 @@ def truncate_lines(text: str, max_lines: int) -> str:
     lines = text.splitlines()
     if len(lines) <= max_lines:
         return text
-    kept = "\n".join(lines[:max_lines])
+    kept = _close_open_fence("\n".join(lines[:max_lines]))
     return kept + f"\n…(truncated, {len(lines) - max_lines} more lines)"
 
 

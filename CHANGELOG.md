@@ -11,6 +11,12 @@ Versions below 1.0 are pre-production — API and file formats may change.
 ### Added
 
 - **Session metrics frontmatter** (#63) — converter now emits five new keys per session as JSON inline: `tool_counts`, `token_totals` (input / cache_creation / cache_read / output), `turn_count`, `hour_buckets` (UTC-normalised ISO-hour → activity count), and `duration_seconds`. Foundation for the v0.8 visualization stack (#64 heatmap / #65 tool chart / #66 token card). Stdlib-only; byte-identical on re-run. 24 new tests.
+- **Changelog page** (#72) — `CHANGELOG.md` now renders as a first-class page at `site/changelog.html` with a nav-bar link, narrow reading column, keep-a-changelog typography, and the same theme/print styles as the rest of the wiki.
+
+### Fixed
+
+- **Code-fence truncation eating pages** (#72) — `truncate_chars` / `truncate_lines` used to cut content mid-code-block, leaving the opening ` ``` ` without a closing fence. The markdown parser then swallowed everything that followed as one giant block (user-visible example: the "Full Directory Tree" section on subagent pages). Fixed by counting unbalanced fences in the kept portion and injecting a closing fence before the truncation marker. 5 new tests; 30 previously-mangled session files regenerated.
+- **Sync crash on corrupt JSONL bytes** (#72) — a single stray non-UTF-8 byte in a session transcript used to abort the entire `llmwiki sync` run with `UnicodeDecodeError`. `parse_jsonl` now opens with `errors="replace"` and silently drops non-dict records (rare stray scalars from partial writes that previously crashed `filter_records` with `AttributeError`).
 
 ## [0.4.0] — 2026-04-08
 
