@@ -81,7 +81,13 @@ jobs:
         run: |
           python -m llmwiki init
           if [ -d tests/fixtures/demo ]; then
+            # Stage demo fixtures as if they'd been produced by `llmwiki sync`.
+            cp -a tests/fixtures/demo/. raw/sessions/
             time python -m llmwiki build --out ./perf-site
+            if [ ! -d ./perf-site ]; then
+              echo "ERROR: build produced no output directory" >&2
+              exit 1
+            fi
             # Budget: build under 15 seconds, site under 50 MB
             SIZE=$(du -sb ./perf-site | cut -f1)
             MB=$((SIZE / 1024 / 1024))
