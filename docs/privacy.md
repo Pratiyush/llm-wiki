@@ -44,7 +44,7 @@ Edit `config.json`:
 ```jsonc
 {
   "redaction": {
-    "real_username": "deepshikhasingh",
+    "real_username": "your-unix-username",
     "replacement_username": "USER",
     "extra_patterns": [
       // defaults...

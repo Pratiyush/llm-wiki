@@ -17,11 +17,13 @@ Minimal config:
 ```json
 {
   "redaction": {
-    "real_username": "deepshikhasingh",
+    "real_username": "your-unix-username",
     "replacement_username": "USER"
   }
 }
 ```
+
+> Replace `your-unix-username` with the output of `whoami`. The converter uses it to scrub paths like `/Users/<name>/…` or `/home/<name>/…` before writing to `raw/`.
 
 ## Full schema
 

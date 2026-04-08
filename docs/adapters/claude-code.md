@@ -25,9 +25,9 @@ The adapter walks both locations recursively.
 Claude Code encodes the full absolute path of the project into the directory name, with slashes replaced by dashes:
 
 ```
-/Users/deepshikhasingh/Desktop/2026/production-draft/ai-newsletter
+/Users/USER/Desktop/2026/production-draft/ai-newsletter
   ↓
--Users-deepshikhasingh-Desktop-2026-production-draft-ai-newsletter
+-Users-USER-Desktop-2026-production-draft-ai-newsletter
 ```
 
 The adapter strips the common prefix (`-Users-<user>-Desktop-...-production-draft-`) and returns the friendly project name. So the slug used in `raw/sessions/<project>/…` becomes just `ai-newsletter`.

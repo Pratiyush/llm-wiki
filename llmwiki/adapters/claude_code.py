@@ -7,7 +7,7 @@ Sub-agent runs live in:
     ~/.claude/projects/<project-dir-slug>/<session-uuid>/subagents/agent-*.jsonl
 
 Project directory names encode the full absolute path with slashes replaced by
-dashes, e.g. '-Users-deepshikhasingh-Desktop-2026-production-draft-ai-newsletter'.
+dashes, e.g. '-Users-USER-Desktop-2026-production-draft-ai-newsletter'.
 We strip the common prefix to produce a friendly slug.
 """
 
