@@ -38,6 +38,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 import markdown
+from markdown.preprocessors import Preprocessor
 
 from llmwiki import REPO_ROOT
 from llmwiki.freshness import freshness_badge, load_freshness_config
@@ -153,6 +154,54 @@ def normalize_markdown(body: str) -> str:
     return "\n".join(out)
 
 
+# v0.5 (#74): Session content frequently mentions HTML-ish strings in prose —
+# e.g. an assistant describing how a hidden `<textarea class="md-source">` works.
+# The default Python markdown library passes raw HTML tags through unchanged,
+# which means a session that mentions `<textarea>` outside of backticks leaks
+# an unclosed textarea into the DOM, swallowing every following element
+# (including the <script> tag that boots highlight.js). The v0.5 hljs swap
+# made this pre-existing bug catastrophic — before, Pygments rendered code
+# server-side so the broken tail didn't visibly matter; now, a single
+# unescaped tag breaks the whole page's syntax highlighting.
+#
+# The preprocessor below escapes anything that *looks* like an HTML tag start
+# (`<tagname` or `</tagname`) outside of inline backticks. Fenced code blocks
+# are already extracted into placeholders by `fenced_code` (priority 25) before
+# this runs (priority 22). Priority 22 also ensures we run *before*
+# `html_block` (priority 20) so raw HTML blocks never get a chance to be
+# preserved as-is. Bare `<` / `<space>` (e.g. `x < 10`) are left alone —
+# markdown's own escaper handles those. HTML comments (`<!-- ... -->`) are
+# preserved because the regex only matches `<[letter]`, not `<!`, and
+# build.py emits an `<!-- llmwiki:metadata -->` comment that AI agents parse.
+_TAG_START_RE = re.compile(r"<(/?[A-Za-z][A-Za-z0-9:_-]*)")
+_INLINE_CODE_RE = re.compile(r"`[^`]*`")
+
+
+class _EscapeRawHtmlPreprocessor(Preprocessor):
+    """Escape HTML tag-start patterns outside code spans so raw `<textarea>`
+    etc. in session prose can never leak into the DOM as live elements.
+    See the comment above `md_to_html` for the full rationale."""
+
+    def run(self, lines: list[str]) -> list[str]:
+        out: list[str] = []
+        for line in lines:
+            parts: list[tuple[str, str]] = []
+            last = 0
+            for m in _INLINE_CODE_RE.finditer(line):
+                parts.append(("text", line[last : m.start()]))
+                parts.append(("code", m.group(0)))
+                last = m.end()
+            parts.append(("text", line[last:]))
+            rebuilt: list[str] = []
+            for kind, part in parts:
+                if kind == "text":
+                    rebuilt.append(_TAG_START_RE.sub(r"&lt;\1", part))
+                else:
+                    rebuilt.append(part)
+            out.append("".join(rebuilt))
+        return out
+
+
 def md_to_html(body: str) -> str:
     body = normalize_markdown(body)
     # v0.5: highlight.js replaces server-side Pygments/codehilite. The
@@ -165,6 +214,14 @@ def md_to_html(body: str) -> str:
         "toc": {"permalink": True, "toc_depth": "2-3"},
     }
     md = markdown.Markdown(extensions=extensions, extension_configs=ext_configs)
+    # v0.5 (#74): escape raw HTML tags in prose so session content mentioning
+    # `<textarea>` etc. can't break the page. Runs after fenced_code (25) and
+    # before html_block (20), so fenced code is preserved verbatim (through
+    # placeholders), inline code via backticks is preserved by this
+    # preprocessor's own backtick-skipping, and everything else is safe.
+    md.preprocessors.register(
+        _EscapeRawHtmlPreprocessor(md), "escape_raw_html_tags", 22
+    )
     return md.convert(body)
 
 

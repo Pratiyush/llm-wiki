@@ -135,6 +135,115 @@ def test_page_foot_runs_highlightall_init():
     assert "window.hljs" in html
 
 
+# ─── raw HTML tags in prose must NOT leak as live elements (#74) ─────────
+
+
+def test_md_to_html_escapes_raw_textarea_in_prose():
+    """Regression for the v0.5 hljs-breakage bug: session content mentions
+    `<textarea>` in prose. Before the fix, the tag passed through the markdown
+    library unescaped, leaked into the DOM, and swallowed every following
+    element — including the `<script>` tag that boots hljs. After the fix,
+    any tag-shaped substring in prose is escaped so the page stays intact."""
+    body = "The markdown inside the <textarea> is correct.\n"
+    html_out = md_to_html(body)
+    assert "<textarea>" not in html_out
+    assert "&lt;textarea&gt;" in html_out
+
+
+def test_md_to_html_escapes_block_level_raw_html():
+    body = "paragraph\n\n<textarea>\nhi\n</textarea>\n\nmore\n"
+    html_out = md_to_html(body)
+    assert "<textarea>" not in html_out
+    assert "</textarea>" not in html_out
+    assert "&lt;textarea&gt;" in html_out
+    assert "&lt;/textarea&gt;" in html_out
+
+
+def test_md_to_html_escapes_unknown_custom_elements():
+    """Even non-standard tags like <module>, <slug>, <date>, <project> (all
+    seen in real session content) need to be escaped — the browser parses
+    them as custom elements and still mis-nests the rest of the document."""
+    body = "Nested tag mess: <module><project><slug>foo</slug></project></module>\n"
+    html_out = md_to_html(body)
+    for tag in ("module", "project", "slug"):
+        assert f"<{tag}>" not in html_out
+        assert f"&lt;{tag}&gt;" in html_out
+
+
+def test_md_to_html_preserves_inline_code_with_html_syntax():
+    """Inline code spans MUST continue to render as `<code>&lt;tag&gt;</code>`
+    so the docs can show HTML syntax. The preprocessor skips backtick spans
+    so the markdown library's own inline-code handling is untouched.
+    Note: `"` inside `<code>` is NOT entity-escaped by Python markdown
+    (valid HTML — quote chars inside element text don't need entities)."""
+    body = "Use `<textarea class=\"foo\">` for hidden copy source.\n"
+    html_out = md_to_html(body)
+    assert "<code>" in html_out
+    assert '&lt;textarea class="foo"&gt;' in html_out
+    # And critically: the raw tag form must be absent so nothing leaks.
+    assert "<textarea" not in html_out
+
+
+def test_md_to_html_preserves_fenced_code_with_html():
+    """Fenced code blocks are extracted into placeholders by `fenced_code`
+    (priority 25) *before* the escape preprocessor (priority 22) runs, so
+    HTML inside fences is preserved verbatim and later escaped by the
+    fenced_code extension itself."""
+    body = "```html\n<div>hi</div>\n```\n"
+    html_out = md_to_html(body)
+    assert '<pre><code class="language-html">' in html_out
+    # The fenced-code extension takes care of escaping < and > inside.
+    assert "&lt;div&gt;hi&lt;/div&gt;" in html_out
+
+
+def test_md_to_html_preserves_html_comments():
+    """`<!-- ... -->` is NOT escaped — build.py emits an
+    `<!-- llmwiki:metadata ... -->` comment that AI agents parse directly
+    from the HTML body. The preprocessor regex only matches `<[letter]`,
+    never `<!`, so comments survive."""
+    body = "text\n\n<!-- llmwiki:metadata\nslug: foo\n-->\nmore text\n"
+    html_out = md_to_html(body)
+    assert "<!-- llmwiki:metadata" in html_out
+    assert "&lt;!" not in html_out
+
+
+def test_md_to_html_does_not_escape_bare_less_than_in_math():
+    """`x < 10 and y > 5` must still render as literal text without the
+    preprocessor trying to treat it as a tag. The regex only matches
+    `<letter` so a space or digit after `<` is left alone for markdown's
+    own escaper to handle (it turns bare `<` into `&lt;`)."""
+    body = "Condition: x < 10 and y > 5 works.\n"
+    html_out = md_to_html(body)
+    assert "x &lt; 10" in html_out
+    assert "y &gt; 5" in html_out
+
+
+def test_md_to_html_preserves_markdown_syntax_around_tags():
+    body = "**bold** and *italic* and [link](https://example.com) with <br> tag\n"
+    html_out = md_to_html(body)
+    assert "<strong>bold</strong>" in html_out
+    assert "<em>italic</em>" in html_out
+    assert '<a href="https://example.com">link</a>' in html_out
+    assert "&lt;br&gt;" in html_out
+    assert "<br>" not in html_out
+
+
+def test_md_to_html_session_tail_script_survives_raw_tag():
+    """Direct simulation of the pre-fix page-breakage: a body that mentions
+    `<textarea>` must not cause any downstream HTML to appear inside the
+    literal textarea. We assert the body contains NO raw textarea open tag
+    at all — which is what saves the `<script>` tag at the end of every
+    session page."""
+    body = (
+        "# Session\n\n"
+        "The check failed because the raw dash was inside the <textarea>.\n\n"
+        "Fix: escape the content before writing.\n"
+    )
+    html_out = md_to_html(body)
+    assert "<textarea" not in html_out
+    assert "&lt;textarea&gt;" in html_out
+
+
 # ─── the Pygments codepath is gone ───────────────────────────────────────
 
 
