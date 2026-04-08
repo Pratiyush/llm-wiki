@@ -128,10 +128,11 @@ One-paragraph description.
 Triggered by `/wiki-query <question>`.
 
 1. Read `wiki/index.md` and `wiki/overview.md` to identify relevant pages.
-2. Use Read on the matching pages.
-3. Synthesise an answer with inline `[[wikilink]]` citations.
-4. If the answer is substantial (3+ paragraphs), ask the user if they want it saved to `wiki/syntheses/<slug>.md`.
-5. Append to `wiki/log.md` with `## [YYYY-MM-DD] query | <question>`.
+2. **(v0.5, #60) Before descending into a folder, read its `_context.md`** if one exists (e.g. `wiki/entities/_context.md`, `wiki/concepts/_context.md`). The context file is a one- or two-paragraph description of what lives in that folder — use it to decide whether the folder is worth walking into for the current query, and which of its pages to read in full versus skip. This saves context tokens on every deep query.
+3. Use Read on the matching pages.
+4. Synthesise an answer with inline `[[wikilink]]` citations.
+5. If the answer is substantial (3+ paragraphs), ask the user if they want it saved to `wiki/syntheses/<slug>.md`.
+6. Append to `wiki/log.md` with `## [YYYY-MM-DD] query | <question>`.
 
 ## Lint Workflow
 
@@ -145,6 +146,7 @@ Use Grep and Read to find:
 4. **Stale summaries** — pages whose `last_updated` is older than the newest source that contributes to them.
 5. **Missing entity pages** — entities mentioned in 3+ source pages but lacking their own page.
 6. **Data gaps** — questions the wiki can't answer; suggest new sources or queries.
+7. **(v0.5, #60) Uncontexted folders** — any `wiki/` subfolder containing >10 `.md` files that lacks a `_context.md` stub. Large knowledge folders without a context description make deep queries more expensive per call — suggest creating a stub that describes what lives there. Use `python3 -c "from llmwiki.context_md import find_uncontexted_folders; from pathlib import Path; print(list(find_uncontexted_folders(Path('wiki'))))"` or load the helper directly.
 
 Output a report to the chat. Ask the user if they want it saved to `wiki/lint-report.md`.
 

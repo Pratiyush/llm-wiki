@@ -41,6 +41,7 @@ import markdown
 from markdown.preprocessors import Preprocessor
 
 from llmwiki import REPO_ROOT
+from llmwiki.context_md import is_context_file
 from llmwiki.freshness import freshness_badge, load_freshness_config
 from llmwiki.viz_heatmap import collect_session_counts, render_heatmap
 from llmwiki.viz_tokens import (
@@ -95,6 +96,11 @@ def discover_sources(root: Path) -> list[tuple[Path, dict[str, Any], str]]:
     if not root.exists():
         return out
     for p in sorted(root.rglob("*.md")):
+        # v0.5 (#60): `_context.md` files are folder metadata for LLM
+        # navigation, not pages. Skip them so they never appear in the
+        # session index, search index, or AI-consumable exports.
+        if is_context_file(p):
+            continue
         try:
             text = p.read_text(encoding="utf-8")
         except OSError:
