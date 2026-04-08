@@ -43,6 +43,11 @@ from markdown.preprocessors import Preprocessor
 from llmwiki import REPO_ROOT
 from llmwiki.freshness import freshness_badge, load_freshness_config
 from llmwiki.viz_heatmap import collect_session_counts, render_heatmap
+from llmwiki.viz_tokens import (
+    render_project_token_card,
+    render_session_token_card,
+    render_site_token_stats,
+)
 from llmwiki.viz_tools import (
     render_project_tool_chart,
     render_session_tool_chart,
@@ -608,6 +613,11 @@ def render_session(
             '</div>'
         )
 
+    # v0.8 (#66): session token-usage card. Input / cache_creation /
+    # cache_read / output plus a cache-hit-ratio tier badge. Sessions
+    # missing token_totals (older converter output) render nothing.
+    token_card_block = render_session_token_card(meta)
+
     # IMPORTANT: The HTML file is named `<path.stem>.html` (e.g. date-slug),
     # NOT `<slug>.html`. The siblings + canonical must use path.stem.
     html_stem = path.stem
@@ -647,7 +657,7 @@ def render_session(
         )
         + nav_bar("sessions", link_prefix="../../")
         + hero(str(title_raw), meta_strip, size="hero-sm", subtitle_is_html=True)
-        + f'<section class="section">\n  <div class="container">\n{breadcrumbs}\n{tools_preview}\n{actions_html}\n{tool_chart_block}\n    <article class="content" itemscope itemtype="https://schema.org/Article">\n'
+        + f'<section class="section">\n  <div class="container">\n{breadcrumbs}\n{tools_preview}\n{actions_html}\n{tool_chart_block}\n{token_card_block}\n    <article class="content" itemscope itemtype="https://schema.org/Article">\n'
         + f'<meta itemprop="headline" content="{html.escape(str(title_raw))}">\n'
         + f'<meta itemprop="datePublished" content="{html.escape(str(meta.get("started") or date))}">\n'
         + f'<meta itemprop="inLanguage" content="en">\n'
@@ -733,8 +743,21 @@ def render_project_page(
   </div>
 </section>"""
 
+    # v0.8 (#66): project token timeline card (log-scale area chart of
+    # total tokens per session date + aggregate cache hit ratio in the
+    # header). Empty for projects without any token data.
+    proj_token_card_html = render_project_token_card(proj_entries, project_slug)
+    token_timeline_block = ""
+    if proj_token_card_html:
+        token_timeline_block = f"""<section class="section token-timeline-section">
+  <div class="container">
+    {proj_token_card_html}
+  </div>
+</section>"""
+
     body = f"""{heatmap_block}
 {tool_chart_block}
+{token_timeline_block}
 <section class="section">
   <div class="container">
     {crumbs}
@@ -959,6 +982,14 @@ def render_index(
   </div>
 </section>"""
 
+    # v0.8 (#66): site-wide token summary stats — four cards showing
+    # total tokens processed, average per session, best cache hit project,
+    # heaviest project. Empty if no session has token_totals data.
+    metas_by_project: dict[str, list[dict[str, Any]]] = {}
+    for project, sessions in groups.items():
+        metas_by_project[project] = [m for _, m, _ in sessions]
+    token_stats_block = render_site_token_stats(metas_by_project, link_prefix="")
+
     cards = []
     for project, sessions in sorted(groups.items(), key=lambda x: -len(x[1])):
         main_count = sum(1 for p, _, _ in sessions if "subagent" not in p.name)
@@ -970,6 +1001,7 @@ def render_index(
         )
 
     body = f"""{heatmap_block}
+{token_stats_block}
 <section class="section">
   <div class="container">
     <h2>Projects</h2>
@@ -1473,6 +1505,65 @@ kbd { display: inline-block; padding: 2px 6px; font-family: var(--mono); font-si
 .tool-chart-svg rect { transition: opacity 0.1s; }
 .tool-chart-svg rect:hover { opacity: 0.85; }
 
+/* v0.8 (#66): Token usage card — stacked bars for four token categories
+   plus a cache hit ratio badge. Rendered as plain HTML by
+   llmwiki/viz_tokens.py. Colors follow the same category convention as
+   the tool chart (blue = input, amber = cache_creation, green = cache_read,
+   purple = output). */
+:root {
+  --token-input: #3b82f6;
+  --token-cache-creation: #f59e0b;
+  --token-cache-read: #10b981;
+  --token-output: #a855f7;
+  --token-area-fill: rgba(59, 130, 246, 0.22);
+  --token-area-stroke: #3b82f6;
+}
+:root[data-theme="dark"] {
+  --token-input: #60a5fa;
+  --token-cache-creation: #fbbf24;
+  --token-cache-read: #34d399;
+  --token-output: #c084fc;
+  --token-area-fill: rgba(96, 165, 250, 0.22);
+  --token-area-stroke: #60a5fa;
+}
+.token-card { margin: 16px 0 24px; padding: 14px 16px; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); }
+.token-card-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; }
+.token-card-title { font-weight: 600; font-size: 0.9rem; }
+.token-card-total { font-size: 0.78rem; }
+.token-row { display: grid; grid-template-columns: 120px 1fr 64px; gap: 10px; align-items: center; margin: 4px 0; font-size: 0.82rem; }
+.token-label { color: var(--text-secondary); }
+.token-bar-wrap { height: 10px; background: var(--bg-alt); border-radius: 3px; overflow: hidden; }
+.token-bar { display: block; height: 100%; border-radius: 3px; }
+.token-bar-input { background: var(--token-input); }
+.token-bar-cache_creation { background: var(--token-cache-creation); }
+.token-bar-cache_read { background: var(--token-cache-read); }
+.token-bar-output { background: var(--token-output); }
+.token-value { text-align: right; font-family: 'JetBrains Mono', monospace; font-size: 0.78rem; color: var(--text-secondary); }
+.token-ratio { margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--border); font-size: 0.8rem; display: flex; gap: 8px; align-items: baseline; }
+.token-ratio-label { color: var(--text-secondary); }
+.token-ratio-value { font-weight: 600; font-size: 0.95rem; }
+.token-ratio-value.tier-green   { color: #15803d; }
+.token-ratio-value.tier-yellow  { color: #b45309; }
+.token-ratio-value.tier-red     { color: #b91c1c; }
+.token-ratio-value.tier-unknown { color: var(--text-secondary); }
+:root[data-theme="dark"] .token-ratio-value.tier-green  { color: #86efac; }
+:root[data-theme="dark"] .token-ratio-value.tier-yellow { color: #fcd34d; }
+:root[data-theme="dark"] .token-ratio-value.tier-red    { color: #fca5a5; }
+.token-ratio.tier-green   { background: rgba(34, 197, 94, 0.08); }
+.token-ratio.tier-yellow  { background: rgba(234, 179, 8, 0.08); }
+.token-ratio.tier-red     { background: rgba(239, 68, 68, 0.08); }
+.token-ratio { padding: 8px 10px; border-radius: 4px; }
+.token-timeline-svg { display: block; max-width: 100%; }
+
+/* Site-wide token stats on the home page */
+.token-stats-section { padding-top: 0; padding-bottom: 12px; }
+.token-stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin: 8px 0 24px; }
+.token-stat { padding: 14px 16px; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); text-decoration: none; color: var(--text); display: block; }
+a.token-stat:hover { border-color: var(--accent); }
+.token-stat-label { font-size: 0.76rem; margin-bottom: 4px; }
+.token-stat-value { font-size: 1.4rem; font-weight: 600; font-family: 'JetBrains Mono', monospace; }
+.token-stat-sub { font-size: 0.75rem; margin-top: 4px; }
+
 /* v0.4: Deep-link icon next to headings */
 .content h2 .deep-link, .content h3 .deep-link, .content h4 .deep-link { margin-left: 8px; font-size: 0.8em; opacity: 0; text-decoration: none; transition: opacity 0.15s; }
 .content h2:hover .deep-link, .content h3:hover .deep-link, .content h4:hover .deep-link { opacity: 0.7; }
@@ -1540,7 +1631,7 @@ mark { background: var(--accent-bg); color: var(--accent); padding: 0 2px; borde
   .nav, .footer, .palette, .help-dialog, .session-actions, .filter-bar,
   .progress-bar, .nav-search-btn, .theme-toggle, .copy-code-btn,
   .wikilink-preview, .timeline-block, .toc-sidebar, .mobile-bottom-nav,
-  .related-pages, .activity-heatmap, .tool-chart-card, .deep-link, .breadcrumbs,
+  .related-pages, .activity-heatmap, .tool-chart-card, .token-card, .token-stat-grid, .deep-link, .breadcrumbs,
   .meta-tools { display: none !important; }
   body { background: #fff; color: #000; font-size: 11pt; padding-bottom: 0; }
   .hero { padding: 12px 0 8px; background: #fff; border: none; }
