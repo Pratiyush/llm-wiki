@@ -1009,9 +1009,21 @@ kbd { display: inline-block; padding: 2px 6px; font-family: var(--mono); font-si
 .footer { padding: 32px 0; border-top: 1px solid var(--border); margin-top: 48px; background: var(--bg-alt); }
 .footer p { font-size: 0.85rem; color: var(--text-muted); text-align: center; }
 
+/* Hover-to-preview wikilinks */
+.wikilink-preview { position: fixed; max-width: 360px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; box-shadow: var(--shadow); padding: 12px 14px; z-index: 250; pointer-events: auto; font-size: 0.85rem; animation: fadeIn 0.1s ease-out; }
+.wikilink-preview .wl-title { font-weight: 600; color: var(--text); margin-bottom: 6px; }
+.wikilink-preview .wl-body { color: var(--text-secondary); font-size: 0.8rem; line-height: 1.5; max-height: 140px; overflow: hidden; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+
+/* Timeline block on sessions index */
+.timeline-block { margin-bottom: 16px; padding: 12px 16px; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); }
+.timeline-label { font-size: 0.78rem; margin-bottom: 6px; }
+.timeline-block svg rect { transition: opacity 0.15s; }
+.timeline-block svg rect:hover { opacity: 1 !important; }
+
 /* Print */
 @media print {
-  .nav, .footer, .palette, .help-dialog, .session-actions, .filter-bar, .progress-bar, .nav-search-btn, .theme-toggle, .copy-code-btn { display: none !important; }
+  .nav, .footer, .palette, .help-dialog, .session-actions, .filter-bar, .progress-bar, .nav-search-btn, .theme-toggle, .copy-code-btn, .wikilink-preview, .timeline-block { display: none !important; }
   body { background: #fff; color: #000; }
   .content { font-size: 11pt; }
   a { color: #000; text-decoration: underline; }
@@ -1384,6 +1396,164 @@ document.addEventListener("DOMContentLoaded", function () {
   });
   apply();
 });
+
+// ─── Hover-to-preview wikilinks ───────────────────────────────────────────
+// When the user hovers over a wikilink (an <a> whose text starts with "[["
+// or whose href is a wiki page), fetch the target's first ~300 chars and
+// show a floating preview card. Uses the client-side search index.
+(function () {
+  let idx = null;
+  let previewEl = null;
+  let hideTimer = null;
+
+  function getPreviewEl() {
+    if (previewEl) return previewEl;
+    previewEl = document.createElement("div");
+    previewEl.className = "wikilink-preview";
+    previewEl.setAttribute("hidden", "");
+    previewEl.innerHTML = '<div class="wl-title"></div><div class="wl-body"></div>';
+    document.body.appendChild(previewEl);
+    previewEl.addEventListener("mouseenter", function () {
+      if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
+    });
+    previewEl.addEventListener("mouseleave", function () {
+      hidePreview();
+    });
+    return previewEl;
+  }
+
+  function loadIndex() {
+    if (idx) return Promise.resolve(idx);
+    const url = window.LLMWIKI_INDEX_URL || "search-index.json";
+    return fetch(url)
+      .then(function (r) { return r.ok ? r.json() : []; })
+      .then(function (data) { idx = data || []; return idx; })
+      .catch(function () { idx = []; return idx; });
+  }
+
+  function findEntry(keyOrText) {
+    if (!idx) return null;
+    const needle = (keyOrText || "").toLowerCase().trim();
+    if (!needle) return null;
+    // Try exact title match first
+    for (const e of idx) {
+      if ((e.title || "").toLowerCase() === needle) return e;
+    }
+    // Fall back to prefix
+    for (const e of idx) {
+      if ((e.title || "").toLowerCase().startsWith(needle)) return e;
+    }
+    // Fall back to substring
+    for (const e of idx) {
+      if ((e.title || "").toLowerCase().indexOf(needle) !== -1) return e;
+    }
+    return null;
+  }
+
+  function showPreview(target, entry) {
+    const el = getPreviewEl();
+    el.querySelector(".wl-title").textContent = entry.title || entry.id || "";
+    el.querySelector(".wl-body").textContent = (entry.body || "").slice(0, 300);
+    // Position below the target
+    const rect = target.getBoundingClientRect();
+    el.style.position = "fixed";
+    el.style.top = (rect.bottom + 8) + "px";
+    el.style.left = Math.min(window.innerWidth - 380, Math.max(16, rect.left)) + "px";
+    el.removeAttribute("hidden");
+  }
+
+  function hidePreview() {
+    if (previewEl) previewEl.setAttribute("hidden", "");
+  }
+
+  function attach(a) {
+    const text = (a.textContent || "").trim();
+    // Only target links that look like wikilinks (starting with [[) or that
+    // point to another page in site/sessions, site/projects, or site/.
+    const isWiki = text.startsWith("[[") || /sessions\/|projects\//.test(a.getAttribute("href") || "");
+    if (!isWiki) return;
+    let key = text.replace(/^\[\[|\]\]$/g, "").trim();
+    if (!key) {
+      // Derive from href
+      const href = a.getAttribute("href") || "";
+      const m = href.match(/([^/]+)\.html$/);
+      if (m) key = m[1];
+    }
+    if (!key) return;
+
+    a.addEventListener("mouseenter", function () {
+      if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
+      loadIndex().then(function () {
+        const entry = findEntry(key);
+        if (entry) showPreview(a, entry);
+      });
+    });
+    a.addEventListener("mouseleave", function () {
+      hideTimer = setTimeout(hidePreview, 200);
+    });
+  }
+
+  document.addEventListener("DOMContentLoaded", function () {
+    document.querySelectorAll(".content a").forEach(attach);
+  });
+})();
+
+// ─── Timeline view on sessions index ──────────────────────────────────────
+// Render a compact sparkline above the sessions table showing session count
+// per day over the last 60 days.
+(function () {
+  document.addEventListener("DOMContentLoaded", function () {
+    const tbody = document.getElementById("sessions-tbody");
+    if (!tbody) return;
+    // Only run on the sessions index page
+    const container = document.querySelector(".section .container");
+    if (!container || !container.querySelector(".filter-bar")) return;
+
+    // Collect dates
+    const rows = Array.from(tbody.querySelectorAll("tr"));
+    const counts = new Map();
+    rows.forEach(function (r) {
+      const d = r.getAttribute("data-date");
+      if (!d) return;
+      counts.set(d, (counts.get(d) || 0) + 1);
+    });
+    if (!counts.size) return;
+
+    // Sort dates ascending
+    const dates = Array.from(counts.keys()).sort();
+    const maxCount = Math.max(...counts.values());
+
+    // Build an SVG sparkline
+    const w = 800;
+    const h = 60;
+    const padX = 4;
+    const bars = dates.map(function (d, i) {
+      const count = counts.get(d);
+      const barW = Math.max(2, (w - 2 * padX) / dates.length - 2);
+      const x = padX + i * ((w - 2 * padX) / dates.length);
+      const barH = (count / maxCount) * (h - 16);
+      const y = h - barH - 4;
+      return '<rect x="' + x + '" y="' + y + '" width="' + barW + '" height="' + barH +
+             '" fill="var(--accent)" opacity="0.7" data-date="' + d + '" data-count="' + count + '"></rect>';
+    }).join("");
+
+    const svg =
+      '<svg viewBox="0 0 ' + w + ' ' + h + '" preserveAspectRatio="none" ' +
+      'style="width:100%;height:' + h + 'px;display:block" aria-label="Session activity timeline">' +
+      bars + '</svg>';
+
+    // Create the timeline block
+    const tl = document.createElement("div");
+    tl.className = "timeline-block";
+    tl.innerHTML =
+      '<div class="timeline-label muted">Activity timeline · ' + dates.length +
+      ' days · peak ' + maxCount + ' sessions</div>' + svg;
+
+    // Insert above the filter bar
+    const filter = container.querySelector(".filter-bar");
+    if (filter) container.insertBefore(tl, filter);
+  });
+})();
 """
 
 
