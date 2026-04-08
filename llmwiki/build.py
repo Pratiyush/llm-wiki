@@ -43,6 +43,10 @@ from markdown.preprocessors import Preprocessor
 from llmwiki import REPO_ROOT
 from llmwiki.freshness import freshness_badge, load_freshness_config
 from llmwiki.viz_heatmap import collect_session_counts, render_heatmap
+from llmwiki.viz_tools import (
+    render_project_tool_chart,
+    render_session_tool_chart,
+)
 
 # ─── paths ─────────────────────────────────────────────────────────────────
 
@@ -591,6 +595,19 @@ def render_session(
             preview += f", +{len(tools_list) - 6} more"
         tools_preview = f'<div class="meta-tools muted">tools: {html.escape(preview)}</div>'
 
+    # v0.8 (#65): horizontal bar chart of tool calls in this session.
+    # Uses the `tool_counts` JSON dict from frontmatter (#63). Empty
+    # sessions (no recorded calls) render nothing.
+    tool_chart_svg = render_session_tool_chart(meta)
+    tool_chart_block = ""
+    if tool_chart_svg:
+        tool_chart_block = (
+            '<div class="tool-chart-card">'
+            '<div class="tool-chart-label muted">Tool calls</div>'
+            f'{tool_chart_svg}'
+            '</div>'
+        )
+
     # IMPORTANT: The HTML file is named `<path.stem>.html` (e.g. date-slug),
     # NOT `<slug>.html`. The siblings + canonical must use path.stem.
     html_stem = path.stem
@@ -630,7 +647,7 @@ def render_session(
         )
         + nav_bar("sessions", link_prefix="../../")
         + hero(str(title_raw), meta_strip, size="hero-sm", subtitle_is_html=True)
-        + f'<section class="section">\n  <div class="container">\n{breadcrumbs}\n{tools_preview}\n{actions_html}\n    <article class="content" itemscope itemtype="https://schema.org/Article">\n'
+        + f'<section class="section">\n  <div class="container">\n{breadcrumbs}\n{tools_preview}\n{actions_html}\n{tool_chart_block}\n    <article class="content" itemscope itemtype="https://schema.org/Article">\n'
         + f'<meta itemprop="headline" content="{html.escape(str(title_raw))}">\n'
         + f'<meta itemprop="datePublished" content="{html.escape(str(meta.get("started") or date))}">\n'
         + f'<meta itemprop="inLanguage" content="en">\n'
@@ -702,7 +719,22 @@ def render_project_page(
   </div>
 </section>"""
 
+    # v0.8 (#65): aggregate tool-call bar chart across all sessions in
+    # this project. Projects with no recorded tool calls render nothing.
+    proj_tool_chart = render_project_tool_chart(proj_entries, project_slug)
+    tool_chart_block = ""
+    if proj_tool_chart:
+        tool_chart_block = f"""<section class="section tool-chart-section">
+  <div class="container">
+    <div class="tool-chart-card">
+      <div class="tool-chart-label muted">Tool calls · {html.escape(project_slug)} aggregate</div>
+      {proj_tool_chart}
+    </div>
+  </div>
+</section>"""
+
     body = f"""{heatmap_block}
+{tool_chart_block}
 <section class="section">
   <div class="container">
     {crumbs}
@@ -1414,6 +1446,33 @@ kbd { display: inline-block; padding: 2px 6px; font-family: var(--mono); font-si
 .heatmap-svg rect { transition: stroke 0.1s; }
 .heatmap-svg rect:hover { stroke: var(--accent); stroke-width: 1; }
 
+/* v0.8 (#65): Tool-call bar chart — rendered as pure SVG by
+   llmwiki/viz_tools.py. CSS custom properties drive the category
+   colors so the page theme can override them; dark-mode variants
+   use saturated fills that read against the dark card background. */
+:root {
+  --tool-cat-io: #3b82f6;
+  --tool-cat-search: #a855f7;
+  --tool-cat-exec: #f97316;
+  --tool-cat-network: #10b981;
+  --tool-cat-plan: #64748b;
+  --tool-cat-other: #9ca3af;
+}
+:root[data-theme="dark"] {
+  --tool-cat-io: #60a5fa;
+  --tool-cat-search: #c084fc;
+  --tool-cat-exec: #fb923c;
+  --tool-cat-network: #34d399;
+  --tool-cat-plan: #94a3b8;
+  --tool-cat-other: #9ca3af;
+}
+.tool-chart-section { padding-top: 0; padding-bottom: 12px; }
+.tool-chart-card { margin: 16px 0 24px; padding: 14px 16px; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); overflow-x: auto; }
+.tool-chart-label { font-size: 0.78rem; margin-bottom: 8px; }
+.tool-chart-svg { display: block; max-width: 100%; }
+.tool-chart-svg rect { transition: opacity 0.1s; }
+.tool-chart-svg rect:hover { opacity: 0.85; }
+
 /* v0.4: Deep-link icon next to headings */
 .content h2 .deep-link, .content h3 .deep-link, .content h4 .deep-link { margin-left: 8px; font-size: 0.8em; opacity: 0; text-decoration: none; transition: opacity 0.15s; }
 .content h2:hover .deep-link, .content h3:hover .deep-link, .content h4:hover .deep-link { opacity: 0.7; }
@@ -1481,7 +1540,7 @@ mark { background: var(--accent-bg); color: var(--accent); padding: 0 2px; borde
   .nav, .footer, .palette, .help-dialog, .session-actions, .filter-bar,
   .progress-bar, .nav-search-btn, .theme-toggle, .copy-code-btn,
   .wikilink-preview, .timeline-block, .toc-sidebar, .mobile-bottom-nav,
-  .related-pages, .activity-heatmap, .deep-link, .breadcrumbs,
+  .related-pages, .activity-heatmap, .tool-chart-card, .deep-link, .breadcrumbs,
   .meta-tools { display: none !important; }
   body { background: #fff; color: #000; font-size: 11pt; padding-bottom: 0; }
   .hero { padding: 12px 0 8px; background: #fff; border: none; }
