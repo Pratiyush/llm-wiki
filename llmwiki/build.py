@@ -359,6 +359,28 @@ def page_foot(js_prefix: str = "") -> str:
     <p class="muted">llmwiki · <a href="{js_prefix}index.html">home</a> · press <kbd>?</kbd> for shortcuts</p>
   </div>
 </footer>
+<nav class="mobile-bottom-nav" aria-label="Mobile navigation">
+  <a href="{js_prefix}index.html" class="mbn-link" data-page="home">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+    <span>Home</span>
+  </a>
+  <a href="{js_prefix}projects/index.html" class="mbn-link" data-page="projects">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+    <span>Projects</span>
+  </a>
+  <a href="{js_prefix}sessions/index.html" class="mbn-link" data-page="sessions">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+    <span>Sessions</span>
+  </a>
+  <button type="button" class="mbn-link" id="mbn-search" aria-label="Search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <span>Search</span>
+  </button>
+  <button type="button" class="mbn-link" id="mbn-theme" aria-label="Toggle theme">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+    <span>Theme</span>
+  </button>
+</nav>
 <div id="palette" class="palette" aria-hidden="true">
   <div class="palette-backdrop" id="palette-backdrop"></div>
   <div class="palette-modal" role="dialog" aria-modal="true" aria-label="Command palette">
@@ -1133,12 +1155,70 @@ mark { background: var(--accent-bg); color: var(--accent); padding: 0 2px; borde
 .timeline-block svg rect { transition: opacity 0.15s; }
 .timeline-block svg rect:hover { opacity: 1 !important; }
 
+/* TOC sidebar (session pages, desktop only, injected by JS) */
+.toc-sidebar { position: fixed; top: 88px; left: max(16px, calc((100vw - 1080px) / 2 - 240px)); width: 220px; max-height: calc(100vh - 120px); overflow-y: auto; padding: 12px 14px; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); font-size: 0.82rem; z-index: 50; display: none; }
+.toc-sidebar .toc-title { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); font-weight: 600; margin-bottom: 8px; }
+.toc-sidebar ul { list-style: none; padding: 0; margin: 0; }
+.toc-sidebar li { margin: 0; }
+.toc-sidebar li.toc-h3 { padding-left: 12px; }
+.toc-sidebar li.toc-h4 { padding-left: 24px; }
+.toc-sidebar .toc-link { display: block; padding: 4px 8px; color: var(--text-secondary); border-left: 2px solid transparent; line-height: 1.4; text-decoration: none; border-radius: 0 4px 4px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.toc-sidebar .toc-link:hover { color: var(--text); background: var(--bg-alt); text-decoration: none; }
+.toc-sidebar .toc-link.active { color: var(--accent); border-left-color: var(--accent); background: var(--bg-alt); font-weight: 500; }
+@media (min-width: 1340px) { .toc-sidebar { display: block; } }
+
+/* Mobile bottom navigation */
+.mobile-bottom-nav { display: none; }
+@media (max-width: 720px) {
+  .mobile-bottom-nav {
+    display: flex; position: fixed; bottom: 0; left: 0; right: 0;
+    background: var(--bg-card); border-top: 1px solid var(--border);
+    padding: 6px 0 calc(6px + env(safe-area-inset-bottom, 0px));
+    justify-content: space-around; align-items: center;
+    z-index: 150; backdrop-filter: saturate(1.5) blur(8px);
+    -webkit-backdrop-filter: saturate(1.5) blur(8px);
+  }
+  .mbn-link {
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+    background: none; border: none; color: var(--text-secondary);
+    padding: 4px 10px; font-size: 0.66rem; font-weight: 500;
+    text-decoration: none; cursor: pointer; font-family: inherit;
+    min-width: 52px; transition: color 0.15s;
+  }
+  .mbn-link svg { width: 20px; height: 20px; stroke-width: 2; }
+  .mbn-link:hover, .mbn-link:active { color: var(--accent); text-decoration: none; }
+  .mbn-link.active { color: var(--accent); }
+  body { padding-bottom: 76px; }
+  .nav-links .nav-search-btn, .nav-links .theme-toggle { display: none; }
+}
+
 /* Print */
 @media print {
-  .nav, .footer, .palette, .help-dialog, .session-actions, .filter-bar, .progress-bar, .nav-search-btn, .theme-toggle, .copy-code-btn, .wikilink-preview, .timeline-block { display: none !important; }
-  body { background: #fff; color: #000; }
+  :root {
+    --bg: #fff; --bg-alt: #fff; --bg-card: #fff; --bg-code: #f5f5f5;
+    --text: #000; --text-secondary: #333; --text-muted: #555;
+    --border: #ccc; --accent: #000;
+  }
+  .nav, .footer, .palette, .help-dialog, .session-actions, .filter-bar,
+  .progress-bar, .nav-search-btn, .theme-toggle, .copy-code-btn,
+  .wikilink-preview, .timeline-block, .toc-sidebar, .mobile-bottom-nav,
+  .related-pages, .activity-heatmap, .deep-link, .breadcrumbs,
+  .meta-tools { display: none !important; }
+  body { background: #fff; color: #000; font-size: 11pt; padding-bottom: 0; }
+  .hero { padding: 12px 0 8px; background: #fff; border: none; }
+  .hero h1 { font-size: 18pt; color: #000; }
+  .hero .hero-sub { color: #333; font-size: 10pt; }
+  .container { max-width: 100%; padding: 0 12pt; }
   .content { font-size: 11pt; }
-  a { color: #000; text-decoration: underline; }
+  .content h1, .content h2, .content h3, .content h4 { page-break-after: avoid; break-after: avoid; color: #000; }
+  .content pre, .content blockquote, .content table, .content img, .content figure { page-break-inside: avoid; break-inside: avoid; }
+  .content pre { border: 1px solid #ccc; background: #f8f8f8; font-size: 9pt; }
+  .content code { font-size: 9pt; }
+  .content a { color: #000; text-decoration: underline; }
+  .content a[href^="http"]:after { content: " (" attr(href) ")"; font-size: 8pt; color: #555; word-break: break-all; }
+  .content img, .content svg { max-width: 100%; height: auto; }
+  article { max-width: 100% !important; }
+  .section { padding: 0 !important; }
 }
 """
 
@@ -1154,7 +1234,12 @@ JS = r"""// llmwiki viewer — theme + copy + search palette + keyboard shortcut
     const btn = document.getElementById("theme-toggle");
     if (!btn) return;
     btn.addEventListener("click", function () {
-      const current = root.getAttribute("data-theme");
+      // When no explicit theme is set, the page follows the OS preference.
+      // Resolve that to a concrete value so the first toggle always flips.
+      let current = root.getAttribute("data-theme");
+      if (!current) {
+        current = (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) ? "dark" : "light";
+      }
       const next = current === "dark" ? "light" : "dark";
       root.setAttribute("data-theme", next);
       localStorage.setItem("llmwiki-theme", next);
@@ -1175,6 +1260,156 @@ JS = r"""// llmwiki viewer — theme + copy + search palette + keyboard shortcut
   }
   window.addEventListener("scroll", update, { passive: true });
   update();
+})();
+
+// ─── Reading position persistence (session pages only, localStorage) ─────
+(function () {
+  const CAP_KEY = "llmwiki-scroll-log";
+  const MAX_ENTRIES = 30;
+  const article = document.querySelector(".content[itemscope]");
+  if (!article) return;
+  const key = location.pathname;
+  let log = {};
+  try { log = JSON.parse(localStorage.getItem(CAP_KEY) || "{}") || {}; } catch (e) { log = {}; }
+
+  function restore() {
+    // Restore only if deep into page (5%-95%) and no URL hash override
+    if (location.hash || !log[key] || typeof log[key].pct !== "number") return;
+    const pct = log[key].pct;
+    if (pct <= 0.05 || pct >= 0.95) return;
+    const h = document.documentElement;
+    const height = h.scrollHeight - h.clientHeight;
+    window.scrollTo(0, Math.max(0, height * pct));
+  }
+  // Restore after `load` so images/fonts are in and scrollHeight is accurate.
+  // If the document is already loaded (e.g. script injected late), run now.
+  if (document.readyState === "complete") restore();
+  else window.addEventListener("load", restore);
+
+  let timer = null;
+  function save() {
+    const h = document.documentElement;
+    const height = h.scrollHeight - h.clientHeight;
+    const pct = height > 0 ? h.scrollTop / height : 0;
+    log[key] = { pct: Math.round(pct * 10000) / 10000, t: Date.now() };
+    const entries = Object.entries(log);
+    if (entries.length > MAX_ENTRIES) {
+      entries.sort(function (a, b) { return (b[1].t || 0) - (a[1].t || 0); });
+      log = {};
+      entries.slice(0, MAX_ENTRIES).forEach(function (e) { log[e[0]] = e[1]; });
+    }
+    try { localStorage.setItem(CAP_KEY, JSON.stringify(log)); } catch (e) { /* quota exceeded */ }
+  }
+  window.addEventListener("scroll", function () {
+    if (timer) return;
+    timer = setTimeout(function () { timer = null; save(); }, 400);
+  }, { passive: true });
+})();
+
+// ─── TOC sidebar + scroll-spy (session pages only, desktop only) ─────────
+(function () {
+  document.addEventListener("DOMContentLoaded", function () {
+    const article = document.querySelector(".content[itemscope]");
+    if (!article) return;
+    const headings = article.querySelectorAll("h2[id], h3[id], h4[id]");
+    if (headings.length < 3) return;
+    const aside = document.createElement("aside");
+    aside.className = "toc-sidebar";
+    aside.setAttribute("aria-label", "Page contents");
+    const title = document.createElement("div");
+    title.className = "toc-title";
+    title.textContent = "On this page";
+    aside.appendChild(title);
+    const ul = document.createElement("ul");
+    const linkMap = new Map();
+    headings.forEach(function (h) {
+      const li = document.createElement("li");
+      li.className = "toc-" + h.tagName.toLowerCase();
+      const a = document.createElement("a");
+      a.href = "#" + h.id;
+      a.className = "toc-link";
+      // The `toc` markdown extension appends a permalink anchor; strip its text.
+      const clean = (h.textContent || "").replace(/\u00b6\s*$/, "").trim();
+      a.textContent = clean;
+      a.title = clean;
+      li.appendChild(a);
+      ul.appendChild(li);
+      linkMap.set(h.id, a);
+    });
+    aside.appendChild(ul);
+    document.body.appendChild(aside);
+    // Scroll-spy via IntersectionObserver
+    if (!("IntersectionObserver" in window)) return;
+    const visible = new Set();
+    function clearActive() { linkMap.forEach(function (a) { a.classList.remove("active"); }); }
+    function setActive(id) {
+      const link = linkMap.get(id);
+      if (link) link.classList.add("active");
+    }
+    function applySpy() {
+      clearActive();
+      // Near-bottom fallback: the rootMargin creates a dead zone at the bottom
+      // of the page, so the last heading would otherwise never activate.
+      const doc = document.documentElement;
+      const atBottom = (window.innerHeight + window.scrollY) >= (doc.scrollHeight - 24);
+      if (atBottom) {
+        setActive(headings[headings.length - 1].id);
+        return;
+      }
+      if (visible.size > 0) {
+        for (const h of headings) {
+          if (visible.has(h.id)) { setActive(h.id); return; }
+        }
+      }
+    }
+    const obs = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) {
+        if (e.isIntersecting) visible.add(e.target.id);
+        else visible.delete(e.target.id);
+      });
+      applySpy();
+    }, { rootMargin: "-80px 0px -70% 0px", threshold: 0 });
+    headings.forEach(function (h) { obs.observe(h); });
+    // Scroll listener handles the bottom-of-page edge case.
+    window.addEventListener("scroll", applySpy, { passive: true });
+  });
+})();
+
+// ─── Mobile bottom nav active-state + button wiring ──────────────────────
+(function () {
+  document.addEventListener("DOMContentLoaded", function () {
+    // Mark the active link based on current path
+    const path = location.pathname;
+    document.querySelectorAll(".mobile-bottom-nav .mbn-link[data-page]").forEach(function (a) {
+      const page = a.getAttribute("data-page");
+      if (page === "home" && (path.endsWith("/") || path.endsWith("/index.html"))) a.classList.add("active");
+      else if (page === "projects" && path.indexOf("/projects/") !== -1) a.classList.add("active");
+      else if (page === "sessions" && path.indexOf("/sessions/") !== -1) a.classList.add("active");
+    });
+    // Wire the search button — delegate to the header palette trigger so that
+    // the existing openPalette() runs (clears input, loads index, renders).
+    const searchBtn = document.getElementById("mbn-search");
+    if (searchBtn) {
+      searchBtn.addEventListener("click", function () {
+        const trigger = document.getElementById("open-palette");
+        if (trigger) trigger.click();
+      });
+    }
+    // Wire the theme button to toggle
+    const themeBtn = document.getElementById("mbn-theme");
+    if (themeBtn) {
+      themeBtn.addEventListener("click", function () {
+        const root = document.documentElement;
+        let current = root.getAttribute("data-theme");
+        if (!current) {
+          current = (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) ? "dark" : "light";
+        }
+        const next = current === "dark" ? "light" : "dark";
+        root.setAttribute("data-theme", next);
+        localStorage.setItem("llmwiki-theme", next);
+      });
+    }
+  });
 })();
 
 // ─── Copy-as-markdown (inline handler) ───────────────────────────────────
