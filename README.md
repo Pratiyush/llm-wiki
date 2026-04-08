@@ -6,7 +6,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/)
 [![Version](https://img.shields.io/badge/version-v0.4.0-7C3AED.svg)](CHANGELOG.md)
-[![Tests](https://img.shields.io/badge/tests-71%20passing-10B981.svg)](tests/)
+[![Tests](https://img.shields.io/badge/tests-95%20passing-10B981.svg)](tests/)
 [![Works with Claude Code](https://img.shields.io/badge/Claude%20Code-✓-7C3AED.svg)](https://claude.com/claude-code)
 [![Works with Codex CLI](https://img.shields.io/badge/Codex%20CLI-✓-7C3AED.svg)](https://github.com/openai/codex)
 
@@ -311,7 +311,25 @@ Per-adapter docs:
 | [v0.1.0](https://github.com/Pratiyush/llm-wiki/releases/tag/v0.1.0) | Core release — Claude Code adapter, god-level HTML UI, schema, CI, plugin scaffolding | `v0.1.0` |
 | [v0.2.0](https://github.com/Pratiyush/llm-wiki/releases/tag/v0.2.0) | Extensions — 3 new slash commands, 3 new adapters, Obsidian bidirectional, full MCP server | `v0.2.0` |
 | [v0.3.0](https://github.com/Pratiyush/llm-wiki/releases/tag/v0.3.0) | PyPI packaging, eval framework, i18n scaffold | `v0.3.0` |
-| **v0.4.0** | **AI + human dual format** — per-page .txt/.json siblings, llms.txt, JSON-LD graph, sitemap, RSS, schema.org microdata, reading time, related pages, activity heatmap, deep-link anchors, build manifest, link checker, `wiki_export` MCP tool | `v0.4.0` |
+| [v0.4.0](https://github.com/Pratiyush/llm-wiki/releases/tag/v0.4.0) | AI + human dual format — per-page .txt/.json siblings, llms.txt, JSON-LD graph, sitemap, RSS, schema.org microdata, reading time, related pages, activity heatmap, deep-link anchors, build manifest, link checker, `wiki_export` MCP tool | `v0.4.0` |
+
+## Roadmap
+
+Active milestones on GitHub: [v0.5.0](https://github.com/Pratiyush/llm-wiki/milestone/4) · [v0.6.0](https://github.com/Pratiyush/llm-wiki/milestone/5) · [v0.7.0](https://github.com/Pratiyush/llm-wiki/milestone/7) · [v0.8.0](https://github.com/Pratiyush/llm-wiki/milestone/8) · [v0.4.x polish](https://github.com/Pratiyush/llm-wiki/milestone/6).
+
+| Milestone | Focus | Tracking |
+|---|---|---|
+| **v0.5.0 — Synthesis & Automation** | Optional local LLM synthesis via Ollama, auto-ingest hook on sync, candidate/approval workflow, `_context.md` folder metadata, and graduating three scaffold adapters (Cursor, Gemini CLI, PDF) to production. Default install stays stdlib + `markdown` only. | [Epic #34](https://github.com/Pratiyush/llm-wiki/issues/34) |
+| **v0.6.0 — Distribution & Reach** | `brew install llmwiki`, PyPI release automation via OIDC, two more adapters (OpenCode/OpenClaw, ChatGPT conversation export, qmd export), content-freshness badges, and GitLab Pages deployment workflow alongside the existing GitHub Pages one. | [Epic #40](https://github.com/Pratiyush/llm-wiki/issues/40) |
+| **v0.7.0 — Structured Data** | Structured model-profile schema with YAML frontmatter (context window, pricing, license, benchmarks), append-only changelog field for time-series tracking, and auto-generated vs-comparison pages. | [Milestone](https://github.com/Pratiyush/llm-wiki/milestone/7) |
+| **v0.8.0 — Analytics & Visualization** | Session metrics frontmatter, GitLab-style activity heatmap, per-session tool-calling bar chart, and token-usage card with cache-hit-ratio — all rendered as pure SVG at build time (stdlib only). | [Milestone](https://github.com/Pratiyush/llm-wiki/milestone/8) |
+| **v0.4.x — Quality & Polish** | Cross-cutting quality work — Playwright E2E tests, WCAG 2.1 AA accessibility audit, lazy-loading the search index in per-project chunks, and scheduled-sync templates for launchd/systemd/Windows Task Scheduler. | [Milestone](https://github.com/Pratiyush/llm-wiki/milestone/6) |
+
+### Deployment targets
+
+- **GitHub Pages** — shipped in v0.1 via `.github/workflows/deploy.yml` (triggers on tag push).
+- **GitLab Pages** — tracked in [#49](https://github.com/Pratiyush/llm-wiki/issues/49), landing in v0.6.
+- **Any static host** — `llmwiki build` writes to `site/`, which you can `rsync`/`scp` anywhere.
 
 ## Acknowledgements
 

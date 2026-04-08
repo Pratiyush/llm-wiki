@@ -3,8 +3,8 @@
   "configurations": [
     {
       "name": "llmwiki-serve",
-      "runtimeExecutable": "python3",
-      "runtimeArgs": ["-m", "llmwiki", "serve", "--port", "8765"],
+      "runtimeExecutable": "/usr/bin/python3",
+      "runtimeArgs": ["/Users/deepshikhasingh/Desktop/2026/production-draft/llm-wiki/scripts/preview_serve.py"],
       "port": 8765
     }
   ]
