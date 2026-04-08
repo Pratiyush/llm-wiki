@@ -33,12 +33,14 @@ import shutil
 import subprocess
 import sys
 from collections import defaultdict
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional
 
 import markdown
 
 from llmwiki import REPO_ROOT
+from llmwiki.freshness import freshness_badge, load_freshness_config
 
 # ─── paths ─────────────────────────────────────────────────────────────────
 
@@ -211,6 +213,29 @@ def get_tools_list(meta: dict[str, Any]) -> list[str]:
 def short_started(meta: dict[str, Any]) -> str:
     s = str(meta.get("started", ""))
     return s[:16].replace("T", " ")
+
+
+# ─── freshness (content staleness) ────────────────────────────────────────
+# Cached once per build so every page sees the same "now" and the same
+# thresholds. Populated lazily by render_freshness().
+_FRESHNESS_CONFIG: Optional[tuple[int, int]] = None
+_BUILD_NOW: Optional[datetime] = None
+
+
+def render_freshness(meta: dict[str, Any]) -> str:
+    """Render a freshness badge for a page's frontmatter using cached config.
+
+    Thresholds come from ``config.json`` (freshness.green_days /
+    yellow_days) or the module defaults. Build-time "now" is cached the
+    first call so the whole site renders with one consistent clock.
+    """
+    global _FRESHNESS_CONFIG, _BUILD_NOW
+    if _FRESHNESS_CONFIG is None:
+        _FRESHNESS_CONFIG = load_freshness_config()
+    if _BUILD_NOW is None:
+        _BUILD_NOW = datetime.utcnow()
+    green, yellow = _FRESHNESS_CONFIG
+    return freshness_badge(meta, now=_BUILD_NOW, green_days=green, yellow_days=yellow)
 
 
 # ─── html template helpers ─────────────────────────────────────────────────
@@ -462,6 +487,7 @@ def render_session(
     if meta.get("tool_calls"):
         bits.append(f'{html.escape(str(meta["tool_calls"]))} tools')
     bits.append(f'<span class="muted">{reading_min} min read</span>')
+    bits.append(render_freshness(meta))
     meta_strip = " · ".join(bits) if bits else ""
 
     tools_list = get_tools_list(meta)
@@ -541,10 +567,12 @@ def render_project_page(
         umsgs = meta.get("user_messages", "")
         tcalls = meta.get("tool_calls", "")
         href = f"../sessions/{project_slug}/{p.stem}.html"
+        badge = render_freshness(meta)
         return f"""  <a class="card" href="{href}">
     <div class="card-title">{html.escape(str(slug))}</div>
     <div class="card-meta">{html.escape(str(date))} · {html.escape(str(model))}</div>
     <div class="card-stats muted">{html.escape(str(umsgs))} messages · {html.escape(str(tcalls))} tool calls</div>
+    <div class="card-badge">{badge}</div>
   </a>"""
 
     cards_main = "\n".join(card(p, m) for p, m, _ in main_sessions)
@@ -607,10 +635,18 @@ def render_projects_index(
     for project, sessions in sorted(groups.items(), key=lambda x: -len(x[1])):
         main_count = sum(1 for p, _, _ in sessions if "subagent" not in p.name)
         sub_count = len(sessions) - main_count
+        # Freshness reflects the newest session in the project.
+        newest_meta = max(
+            (m for _, m, _ in sessions),
+            key=lambda m: str(m.get("ended") or m.get("started") or m.get("date") or ""),
+            default={},
+        )
+        badge = render_freshness(newest_meta)
         cards.append(
             f"""  <a class="card" href="{html.escape(project)}.html">
     <div class="card-title">{html.escape(project)}</div>
     <div class="card-meta">{main_count} main · {sub_count} sub-agent</div>
+    <div class="card-badge">{badge}</div>
   </a>"""
         )
 
@@ -1058,6 +1094,31 @@ kbd { display: inline-block; padding: 2px 6px; font-family: var(--mono); font-si
 .card-title { font-weight: 600; font-size: 0.95rem; margin-bottom: 4px; color: var(--text); }
 .card-meta { font-size: 0.82rem; color: var(--text-secondary); }
 .card-stats { font-size: 0.78rem; margin-top: 6px; }
+.card-badge { margin-top: 8px; }
+
+/* Content-freshness badge (#57) */
+.freshness {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 2px 10px; border-radius: 999px;
+  font-size: 0.72rem; font-weight: 600; white-space: nowrap;
+  border: 1px solid;
+}
+.freshness::before {
+  content: ""; width: 6px; height: 6px; border-radius: 50%;
+  background: currentColor;
+}
+.fresh-green   { color: #15803d; background: #dcfce7; border-color: #86efac; }
+.fresh-yellow  { color: #b45309; background: #fef3c7; border-color: #fcd34d; }
+.fresh-red     { color: #b91c1c; background: #fee2e2; border-color: #fca5a5; }
+.fresh-unknown { color: #6b7280; background: #f3f4f6; border-color: #d1d5db; }
+:root[data-theme="dark"] .fresh-green   { color: #86efac; background: #052e16; border-color: #065f46; }
+:root[data-theme="dark"] .fresh-yellow  { color: #fcd34d; background: #3a2a06; border-color: #78350f; }
+:root[data-theme="dark"] .fresh-red     { color: #fca5a5; background: #3a0a0a; border-color: #7f1d1d; }
+:root[data-theme="dark"] .fresh-unknown { color: #9ca3af; background: #1f2937; border-color: #374151; }
+@media print {
+  .freshness { background: #fff !important; color: #000 !important; border-color: #ccc !important; }
+  .freshness::before { background: #000 !important; }
+}
 
 /* Sub-agent collapsible */
 .sub-section { margin-top: 32px; }
