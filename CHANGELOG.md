@@ -12,6 +12,13 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 - **Session metrics frontmatter** (#63) — converter now emits five new keys per session as JSON inline: `tool_counts`, `token_totals` (input / cache_creation / cache_read / output), `turn_count`, `hour_buckets` (UTC-normalised ISO-hour → activity count), and `duration_seconds`. Foundation for the v0.8 visualization stack (#64 heatmap / #65 tool chart / #66 token card). Stdlib-only; byte-identical on re-run. 24 new tests.
 - **Changelog page** (#72) — `CHANGELOG.md` now renders as a first-class page at `site/changelog.html` with a nav-bar link, narrow reading column, keep-a-changelog typography, and the same theme/print styles as the rest of the wiki.
+- **highlight.js syntax highlighting** (#73) — replaced server-side Pygments/codehilite with client-side [highlight.js](https://highlightjs.org/) v11.9.0 loaded from a pinned jsdelivr CDN. Both GitHub light (`github.min.css`) and GitHub dark (`github-dark.min.css`) themes are preloaded; the runtime swaps the `disabled` flag on `<link>` tags when the theme toggles so code blocks stay in sync with the rest of the page. Code fences now emit plain `<pre><code class="language-xxx">` via the `fenced_code` extension. Lighter build (no optional Python dep), consistent look across every page, auto-detection for untagged blocks. 15 new tests.
+- **Public demo deployment** (#73) — `.github/workflows/pages.yml` now builds a demo site from the eight dummy sessions under [`examples/demo-sessions/`](examples/demo-sessions) on every push to `master` and deploys it to GitHub Pages. No personal data. Three fictional projects (`demo-blog-engine` Rust SSG, `demo-ml-pipeline` DistilBERT fine-tune, `demo-todo-api` FastAPI CRUD) with realistic code fences so visitors can see highlight.js and the full session UX immediately.
+- **README screenshots** (#73) — added six embedded screenshots under [`docs/images/`](docs/images) (home, sessions index, session detail, changelog, projects index, code-heavy session) captured from the demo site with headless Chrome at 2x device pixel ratio.
+
+### Changed
+
+- **No optional highlight dependency** (#73) — `pip install -e '.[highlight]'` is now a no-op alias kept only for backwards-compatibility with v0.4 install docs. `setup.sh`, `setup.bat`, `pyproject.toml`, and CI workflows no longer install Pygments.
 
 ### Fixed
 

@@ -9,7 +9,7 @@ site under `site/` with:
 - Global search index (site/search-index.json) — client-side fuzzy matcher
 - Cmd+K command palette (vanilla JS, no framework)
 - Keyboard shortcuts: /, g h, g p, g s, j/k, ?
-- Pygments syntax highlighting (via codehilite) — optional dep
+- highlight.js client-side syntax highlighting (CDN, light + dark themes)
 - Collapsible tool-result sections (<details>) for long outputs
 - Copy-as-markdown + copy-code buttons (Clipboard API + execCommand fallback)
 - Breadcrumbs + reading progress bar
@@ -17,7 +17,7 @@ site under `site/` with:
 - Mobile-responsive, print-friendly
 - ARIA focus rings and prefers-reduced-motion support
 
-Stdlib + `markdown` (required) + `pygments` (optional for highlighting).
+Stdlib + `markdown` (required). No optional deps — highlight.js loads from CDN.
 Usage:
     python3 -m llmwiki build [--synthesize] [--out <dir>]
 """
@@ -47,14 +47,6 @@ from llmwiki.freshness import freshness_badge, load_freshness_config
 RAW_DIR = REPO_ROOT / "raw"
 RAW_SESSIONS = RAW_DIR / "sessions"
 DEFAULT_OUT_DIR = REPO_ROOT / "site"
-
-# ─── pygments detection ────────────────────────────────────────────────────
-
-try:
-    import pygments  # noqa: F401
-    HAS_PYGMENTS = True
-except ImportError:
-    HAS_PYGMENTS = False
 
 
 # ─── frontmatter ───────────────────────────────────────────────────────────
@@ -163,17 +155,15 @@ def normalize_markdown(body: str) -> str:
 
 def md_to_html(body: str) -> str:
     body = normalize_markdown(body)
+    # v0.5: highlight.js replaces server-side Pygments/codehilite. The
+    # fenced_code extension emits `<pre><code class="language-xxx">` and
+    # highlight.js (loaded via CDN in page_head) picks it up client-side.
+    # Benefits: lighter builds, no optional dep, consistent look across pages,
+    # and auto-detection for untagged blocks.
     extensions = ["fenced_code", "tables", "toc", "sane_lists"]
     ext_configs: dict[str, dict[str, Any]] = {
         "toc": {"permalink": True, "toc_depth": "2-3"},
     }
-    if HAS_PYGMENTS:
-        extensions.append("codehilite")
-        ext_configs["codehilite"] = {
-            "css_class": "codehilite",
-            "linenums": False,
-            "guess_lang": True,
-        }
     md = markdown.Markdown(extensions=extensions, extension_configs=ext_configs)
     return md.convert(body)
 
@@ -240,6 +230,35 @@ def render_freshness(meta: dict[str, Any]) -> str:
 
 # ─── html template helpers ─────────────────────────────────────────────────
 
+# v0.5: highlight.js for client-side syntax highlighting. Two themes so the
+# switcher can swap between light/dark without a network round-trip. Pinned
+# to a major version for stability, served from jsdelivr.
+HLJS_VERSION = "11.9.0"
+HLJS_LIGHT_CSS = (
+    f"https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@{HLJS_VERSION}"
+    "/build/styles/github.min.css"
+)
+HLJS_DARK_CSS = (
+    f"https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@{HLJS_VERSION}"
+    "/build/styles/github-dark.min.css"
+)
+HLJS_SCRIPT = (
+    f"https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@{HLJS_VERSION}"
+    "/build/highlight.min.js"
+)
+
+
+def _hljs_head_tags() -> str:
+    """Return the `<link>` tags for highlight.js themes. The dark theme is
+    loaded with ``disabled`` and the light theme is the default — the runtime
+    swaps the ``disabled`` flag when the theme toggles, so code blocks stay in
+    sync with the rest of the page."""
+    return (
+        f'  <link id="hljs-light" rel="stylesheet" href="{HLJS_LIGHT_CSS}">\n'
+        f'  <link id="hljs-dark" rel="stylesheet" href="{HLJS_DARK_CSS}" disabled>\n'
+    )
+
+
 def page_head(title: str, description: str, css_prefix: str = "") -> str:
     return f"""<!DOCTYPE html>
 <html lang="en">
@@ -251,7 +270,7 @@ def page_head(title: str, description: str, css_prefix: str = "") -> str:
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{css_prefix}style.css">
+{_hljs_head_tags()}  <link rel="stylesheet" href="{css_prefix}style.css">
 </head>
 <body>
 <div class="progress-bar" id="progress-bar"></div>
@@ -287,7 +306,7 @@ def page_head_article(
 {canonical_tag}{og_tags}  <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{css_prefix}style.css">
+{_hljs_head_tags()}  <link rel="stylesheet" href="{css_prefix}style.css">
 </head>
 <body>
 {metadata_comment}<div class="progress-bar" id="progress-bar"></div>
@@ -442,6 +461,21 @@ def page_foot(js_prefix: str = "") -> str:
 </div>
 <script src="{js_prefix}search-index.json" type="application/json" id="search-index-hint"></script>
 <script>window.LLMWIKI_INDEX_URL = "{js_prefix}search-index.json";</script>
+<script src="{HLJS_SCRIPT}" defer></script>
+<script>
+  // v0.5: Run highlight.js once the CDN script lands. Defer keeps it out of
+  // the critical path; the DOMContentLoaded fallback covers the case where
+  // hljs arrives before/after DOM ready depending on cache state.
+  function __llmwikiHljsInit() {{
+    if (window.hljs) {{ window.hljs.highlightAll(); }}
+    else {{ window.addEventListener('load', function() {{ if (window.hljs) window.hljs.highlightAll(); }}); }}
+  }}
+  if (document.readyState === 'loading') {{
+    document.addEventListener('DOMContentLoaded', __llmwikiHljsInit);
+  }} else {{
+    __llmwikiHljsInit();
+  }}
+</script>
 <script src="{js_prefix}script.js"></script>
 </body>
 </html>
@@ -1129,19 +1163,20 @@ kbd { display: inline-block; padding: 2px 6px; font-family: var(--mono); font-si
 .content .headerlink { opacity: 0; margin-left: 8px; color: var(--text-muted); font-weight: 400; text-decoration: none; }
 .content h1:hover .headerlink, .content h2:hover .headerlink, .content h3:hover .headerlink, .content h4:hover .headerlink { opacity: 1; }
 
-/* Pygments codehilite */
-.codehilite { background: var(--bg-code); border-radius: var(--radius); border: 1px solid var(--border); margin: 16px 0; overflow-x: auto; }
-.codehilite pre { border: none; margin: 0; }
-.codehilite .k, .codehilite .kd, .codehilite .kn { color: #7C3AED; font-weight: 600; } /* keyword */
-.codehilite .s, .codehilite .s1, .codehilite .s2 { color: #059669; } /* string */
-.codehilite .c, .codehilite .c1, .codehilite .cm { color: #64748b; font-style: italic; } /* comment */
-.codehilite .n, .codehilite .nx { color: var(--text); } /* name */
-.codehilite .nf, .codehilite .na { color: #2563eb; } /* function, attr */
-.codehilite .mi, .codehilite .mf { color: #d97706; } /* number */
-.codehilite .o, .codehilite .p { color: var(--text-secondary); } /* operator */
-:root[data-theme="dark"] .codehilite .s, :root[data-theme="dark"] .codehilite .s1, :root[data-theme="dark"] .codehilite .s2 { color: #34d399; }
-:root[data-theme="dark"] .codehilite .nf, :root[data-theme="dark"] .codehilite .na { color: #60a5fa; }
-:root[data-theme="dark"] .codehilite .mi, :root[data-theme="dark"] .codehilite .mf { color: #fbbf24; }
+/* v0.5: highlight.js owns token colours (see hljs-light / hljs-dark <link>
+   tags in page_head). We only style the code block container so it matches
+   the rest of the wiki's visual language. */
+.article pre,
+.article pre code.hljs {
+  background: var(--bg-code);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin: 16px 0;
+  overflow-x: auto;
+}
+.article pre code.hljs { padding: 14px 16px; display: block; }
+.article pre { padding: 0; }
+.article :not(pre) > code.hljs { background: transparent; padding: 0; }
 
 /* Cards */
 .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; margin: 16px 0; }
@@ -1361,9 +1396,26 @@ JS = r"""// llmwiki viewer — theme + copy + search palette + keyboard shortcut
 // ─── Theme toggle ─────────────────────────────────────────────────────────
 (function () {
   const root = document.documentElement;
+  // v0.5: Keep the highlight.js theme in sync with the page theme by
+  // swapping which stylesheet is "disabled". Runs on page load and on every
+  // toggle. Falls back silently if the tags are absent.
+  function syncHljsTheme() {
+    const light = document.getElementById("hljs-light");
+    const dark = document.getElementById("hljs-dark");
+    if (!light || !dark) return;
+    let active = root.getAttribute("data-theme");
+    if (!active) {
+      active = (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) ? "dark" : "light";
+    }
+    const isDark = active === "dark";
+    light.disabled = isDark;
+    dark.disabled = !isDark;
+  }
   const saved = localStorage.getItem("llmwiki-theme");
   if (saved === "dark" || saved === "light") root.setAttribute("data-theme", saved);
+  syncHljsTheme();
   document.addEventListener("DOMContentLoaded", function () {
+    syncHljsTheme();
     const btn = document.getElementById("theme-toggle");
     if (!btn) return;
     btn.addEventListener("click", function () {
@@ -1376,8 +1428,11 @@ JS = r"""// llmwiki viewer — theme + copy + search palette + keyboard shortcut
       const next = current === "dark" ? "light" : "dark";
       root.setAttribute("data-theme", next);
       localStorage.setItem("llmwiki-theme", next);
+      syncHljsTheme();
     });
   });
+  // Also respond to the mobile bottom nav theme button (bound later in script.js).
+  window.__llmwikiSyncHljsTheme = syncHljsTheme;
 })();
 
 // ─── Reading progress bar ────────────────────────────────────────────────
@@ -1540,6 +1595,7 @@ JS = r"""// llmwiki viewer — theme + copy + search palette + keyboard shortcut
         const next = current === "dark" ? "light" : "dark";
         root.setAttribute("data-theme", next);
         localStorage.setItem("llmwiki-theme", next);
+        if (window.__llmwikiSyncHljsTheme) window.__llmwikiSyncHljsTheme();
       });
     }
   });

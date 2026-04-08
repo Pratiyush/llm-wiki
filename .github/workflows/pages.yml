@@ -1,10 +1,12 @@
 name: Deploy demo site to GitHub Pages
 
-# Phase 6.5 Self-Demo — build from synthetic fixtures on tag push and publish
-# to https://pratiyush.github.io/llm-wiki/.
+# Builds a public demo from dummy example sessions (no personal data) and
+# publishes it to GitHub Pages. Triggered on tag pushes, pushes to main, and
+# manual runs. Highlight.js loads client-side from CDN so no extra deps.
 
 on:
   push:
+    branches: ["master", "main"]
     tags: ["v*"]
   workflow_dispatch:
 
@@ -29,19 +31,33 @@ jobs:
           python-version: "3.12"
 
       - name: Install deps
-        run: python -m pip install markdown pygments
+        run: python -m pip install markdown
 
-      - name: Scaffold + seed fixtures
+      - name: Scaffold wiki layout
+        run: python -m llmwiki init
+
+      - name: Seed demo sessions (no real user data)
         run: |
-          python -m llmwiki init
-          # Copy synthetic fixtures (when present) into raw/sessions/
-          if [ -d tests/fixtures/demo ]; then
-            mkdir -p raw/sessions
-            cp -r tests/fixtures/demo/* raw/sessions/
+          set -e
+          mkdir -p raw/sessions
+          # Primary: richer multi-project demo under examples/demo-sessions/.
+          if [ -d examples/demo-sessions ] && [ "$(ls -A examples/demo-sessions 2>/dev/null)" ]; then
+            cp -r examples/demo-sessions/* raw/sessions/
+            echo "Seeded raw/sessions/ from examples/demo-sessions/"
           fi
+          # Fallback: older synthetic fixtures (kept for test parity).
+          if [ -d tests/fixtures/demo ] && [ "$(ls -A tests/fixtures/demo 2>/dev/null)" ]; then
+            cp -r tests/fixtures/demo/* raw/sessions/
+            echo "Seeded raw/sessions/ from tests/fixtures/demo/"
+          fi
+          echo "--- raw/sessions contents ---"
+          find raw/sessions -maxdepth 2 -type f | sort
 
       - name: Build static site
         run: python -m llmwiki build --out ./site
+
+      - name: Ensure .nojekyll for Pages
+        run: touch ./site/.nojekyll
 
       - name: Setup Pages
         uses: actions/configure-pages@v5

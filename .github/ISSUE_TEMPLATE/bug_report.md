@@ -29,7 +29,7 @@ cd llm-wiki
 - Python version: <!-- `python3 --version` -->
 - llmwiki version: <!-- `python3 -m llmwiki --version` -->
 - Claude Code version (if relevant): <!-- `claude --version` -->
-- `pygments` installed? <!-- yes / no -->
+- Browser (for rendering issues): <!-- highlight.js loads from a CDN; version matters if blocked -->
 
 ## Logs
 

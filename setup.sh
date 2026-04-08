@@ -25,11 +25,8 @@ if ! python3 -c "import markdown" 2>/dev/null; then
   python3 -m pip install --user --quiet markdown 2>&1 | tail -2 || true
 fi
 
-# 3. Optional: pygments for syntax highlighting
-if ! python3 -c "import pygments" 2>/dev/null; then
-  echo "==> installing python 'pygments' (optional, for syntax highlighting)"
-  python3 -m pip install --user --quiet pygments 2>&1 | tail -2 || true
-fi
+# 3. Syntax highlighting (v0.5): highlight.js loads from CDN at view time,
+#    so there is no longer an optional Python dep to install here.
 
 # 4. Scaffold raw/ wiki/ site/
 python3 -m llmwiki init

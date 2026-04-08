@@ -21,6 +21,27 @@ Every Claude Code, Codex CLI, and Cursor session writes a full transcript to dis
 ./build.sh && ./serve.sh           # build + serve at http://127.0.0.1:8765
 ```
 
+> **Live demo:** https://pratiyush.github.io/llm-wiki/ — built from the dummy sessions in [`examples/demo-sessions/`](examples/demo-sessions) by [`.github/workflows/pages.yml`](.github/workflows/pages.yml). No personal data.
+
+## Screenshots
+
+All screenshots below are from the **public demo site** which is built on every `master` push from the dummy example sessions. Your own wiki will look identical — just with your real work.
+
+### Home — projects overview with activity heatmap
+![llmwiki home page — LLM Wiki header, activity heatmap, and a grid of three demo projects (demo-blog-engine, demo-ml-pipeline, demo-todo-api)](docs/images/home.png)
+
+### All sessions — filterable table across every project
+![llmwiki sessions index — activity timeline above a table of eight demo sessions with project, model, date, message count, and tool-call columns](docs/images/sessions.png)
+
+### Session detail — full conversation + tool calls
+![llmwiki session detail — Rust blog engine scaffolding session showing summary, breadcrumbs, a TOML Cargo.toml block and a Rust main.rs block, both highlighted by highlight.js](docs/images/session-rust.png)
+
+### Changelog — renders `CHANGELOG.md` as a first-class page
+![llmwiki changelog page — keep-a-changelog format with colored headings for Added / Fixed / Changed and auto-linked PR references](docs/images/changelog.png)
+
+### Projects index — freshness badges + per-project stats
+![llmwiki projects index — three demo project cards with green/yellow/red freshness badges showing how recently each project was touched](docs/images/projects.png)
+
 ## What you get
 
 ### Human-readable
@@ -28,7 +49,7 @@ Every Claude Code, Codex CLI, and Cursor session writes a full transcript to dis
 - **A Karpathy-style wiki** — `sources/`, `entities/`, `concepts/`, `syntheses/`, `comparisons/`, `questions/` linked with `[[wikilinks]]`
 - **A beautiful static site** you can browse locally or deploy to GitHub Pages
   - Global search (Cmd+K command palette with fuzzy match over pre-built index)
-  - Pygments syntax highlighting
+  - [highlight.js](https://highlightjs.org/) client-side syntax highlighting (light + dark themes)
   - Dark mode (system-aware + manual toggle with `data-theme`)
   - Keyboard shortcuts: `/` search · `g h/p/s` nav · `j/k` rows · `?` help
   - Collapsible tool-result sections (auto-expand > 500 chars)
@@ -68,7 +89,7 @@ Every page also includes an `<!-- llmwiki:metadata -->` HTML comment that AI age
 - **SessionStart hook** — auto-syncs new sessions in the background on every Claude Code launch
 - **File watcher** — `llmwiki watch` polls agent stores with debounce and runs sync on change
 - **MCP server** — 7 production tools (`wiki_query`, `wiki_search`, `wiki_list_sources`, `wiki_read_page`, `wiki_lint`, `wiki_sync`, `wiki_export`) queryable from any MCP client (Claude Desktop, Cline, Cursor, ChatGPT desktop)
-- **No servers, no database, no npm** — Python stdlib + `markdown` (Pygments optional)
+- **No servers, no database, no npm** — Python stdlib + `markdown`. Syntax highlighting loads from a highlight.js CDN at view time.
 
 ## How it works
 
@@ -137,12 +158,13 @@ setup.bat
 ### With pip (v0.3+)
 
 ```bash
-pip install -e .                # basic
-pip install -e '.[highlight]'   # + Pygments syntax highlighting
+pip install -e .                # basic — everything you need
 pip install -e '.[pdf]'         # + PDF ingestion
 pip install -e '.[dev]'         # + pytest + ruff
 pip install -e '.[all]'         # all of the above
 ```
+
+Syntax highlighting is now powered by [highlight.js](https://highlightjs.org/), loaded from a CDN at view time — no optional deps required.
 
 ### What setup does
 

@@ -47,14 +47,16 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-highlight = ["pygments>=2.15"]
+# `highlight` is kept as an empty alias for v0.4 users who wrote
+# `pip install -e '.[highlight]'` in docs or CI scripts. v0.5+ uses
+# highlight.js via CDN, so no Python-side highlighter dep is needed.
+highlight = []
 pdf = ["pypdf>=4.0"]
 dev = [
     "pytest>=7.0",
     "ruff>=0.1",
 ]
 all = [
-    "pygments>=2.15",
     "pypdf>=4.0",
 ]
 

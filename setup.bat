@@ -25,12 +25,8 @@ if errorlevel 1 (
   python -m pip install --user --quiet markdown
 )
 
-REM 3. Optional: pygments
-python -c "import pygments" 2>nul
-if errorlevel 1 (
-  echo ==^> installing python 'pygments' (optional)
-  python -m pip install --user --quiet pygments
-)
+REM 3. Syntax highlighting (v0.5): highlight.js loads from CDN at view time,
+REM    so there is no longer an optional Python dep to install here.
 
 REM 4. Scaffold raw/ wiki/ site/
 python -m llmwiki init
