@@ -8,6 +8,10 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
+### Added
+
+- **Session metrics frontmatter** (#63) — converter now emits five new keys per session as JSON inline: `tool_counts`, `token_totals` (input / cache_creation / cache_read / output), `turn_count`, `hour_buckets` (UTC-normalised ISO-hour → activity count), and `duration_seconds`. Foundation for the v0.8 visualization stack (#64 heatmap / #65 tool chart / #66 token card). Stdlib-only; byte-identical on re-run. 24 new tests.
+
 ## [0.4.0] — 2026-04-08
 
 **Theme:** AI + human dual-format. Every page ships both as HTML for humans AND as machine-readable `.txt` + `.json` siblings for AI agents, alongside site-level exports that follow open standards (`llms.txt`, JSON-LD, sitemap, RSS).
