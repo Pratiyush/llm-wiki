@@ -456,8 +456,8 @@ Active milestones on GitHub: [v0.5.0](https://github.com/Pratiyush/llm-wiki/mile
 
 ### Deployment targets
 
-- **GitHub Pages** — shipped in v0.1 via `.github/workflows/deploy.yml` (triggers on tag push).
-- **GitLab Pages** — tracked in [#49](https://github.com/Pratiyush/llm-wiki/issues/49), landing in v0.6.
+- **GitHub Pages** — shipped in v0.1 via `.github/workflows/pages.yml` (triggers on push to master).
+- **GitLab Pages** — copy [`.gitlab-ci.yml.example`](.gitlab-ci.yml.example) → `.gitlab-ci.yml`. See [`docs/deploy/gitlab-pages.md`](docs/deploy/gitlab-pages.md) for full setup.
 - **Any static host** — `llmwiki build` writes to `site/`, which you can `rsync`/`scp` anywhere.
 
 ## Acknowledgements

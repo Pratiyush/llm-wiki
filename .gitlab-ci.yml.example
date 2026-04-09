@@ -1,0 +1,70 @@
+# llmwiki → GitLab Pages deployment
+#
+# Copy this file to `.gitlab-ci.yml` at your repo root.
+# GitLab will auto-detect it and deploy to:
+#   https://<namespace>.gitlab.io/<project>/
+#
+# Requirements:
+#   - GitLab Pages enabled for the project (Settings > Pages)
+#   - Python 3.9+ image (default: python:3.12-slim)
+#
+# Privacy note: the `privacy_check` job greps the build output for
+# common PII patterns and fails the pipeline if any are found.
+# Customize the patterns in the `grep -rE` line below.
+
+stages:
+  - build
+  - privacy_check
+  - deploy
+
+variables:
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+
+cache:
+  key: "$CI_COMMIT_REF_SLUG"
+  paths:
+    - .cache/pip/
+
+build_site:
+  stage: build
+  image: python:3.12-slim
+  script:
+    - pip install --upgrade pip
+    - pip install -e .
+    - llmwiki build
+    # GitLab Pages requires output in public/
+    - mv site public
+  artifacts:
+    paths:
+      - public
+    expire_in: 1 week
+
+privacy_check:
+  stage: privacy_check
+  image: alpine:latest
+  needs:
+    - build_site
+  script:
+    - |
+      echo "Checking for common PII patterns in build output..."
+      # Fail if real usernames, emails, or API keys leak into the site
+      if grep -rE '(sk-[A-Za-z0-9]{20,}|/Users/[a-z]+/|/home/[a-z]+/)' public/ 2>/dev/null; then
+        echo "ERROR: PII pattern detected in build output. Check your redaction config."
+        exit 1
+      fi
+      echo "No PII patterns detected."
+  allow_failure: false
+
+pages:
+  stage: deploy
+  needs:
+    - build_site
+    - privacy_check
+  script:
+    - echo "Deploying to GitLab Pages..."
+  artifacts:
+    paths:
+      - public
+  rules:
+    # Deploy only on the default branch
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
