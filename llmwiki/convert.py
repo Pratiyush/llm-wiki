@@ -798,6 +798,25 @@ def convert_all(
                 converted += 1
                 continue
 
+            # PDF adapter routes through convert_pdf() which produces
+            # frontmatter'd markdown directly.
+            if path.suffix == ".pdf":
+                from llmwiki.adapters.pdf import PdfAdapter
+                if isinstance(adapter, PdfAdapter):
+                    md, out_name = adapter.convert_pdf(path, redact=redact)
+                    if not md:
+                        filtered += 1
+                        continue
+                    out_path = out_dir / project_slug / out_name
+                    if dry_run:
+                        print(f"  [dry-run] {out_path.relative_to(REPO_ROOT) if out_path.is_relative_to(REPO_ROOT) else out_path} ({len(md)} bytes)")
+                    else:
+                        out_path.parent.mkdir(parents=True, exist_ok=True)
+                        out_path.write_text(md, encoding="utf-8")
+                        state[key] = mtime
+                    converted += 1
+                    continue
+
             records = parse_jsonl(path)
             records = filter_records(records, drop_types)
             if not records:
