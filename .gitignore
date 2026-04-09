@@ -33,6 +33,12 @@ wiki/lint-report.md
 # so the structured schema + changelog timeline are visible on the
 # live demo build.
 !wiki/entities/ClaudeSonnet4.md
+# Project topics (v0.9): `wiki/projects/<slug>.md` is hand-curated
+# per-project metadata (topics, description, homepage). Small, stable,
+# user-curated — committed so the demo build ships with topic chips
+# on every project card. Users can add their own project profiles
+# and they'll be picked up automatically.
+!wiki/projects/
 
 # Generated static HTML site (Karpathy layer 3).
 site/

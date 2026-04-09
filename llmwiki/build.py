@@ -57,6 +57,11 @@ from llmwiki.models_page import (
     render_model_info_card,
     render_models_index,
 )
+from llmwiki.project_topics import (
+    get_project_topics,
+    load_project_profile,
+    render_topic_chips,
+)
 from llmwiki.viz_heatmap import collect_session_counts, render_heatmap
 from llmwiki.viz_tokens import (
     render_project_token_card,
@@ -73,6 +78,9 @@ from llmwiki.viz_tools import (
 RAW_DIR = REPO_ROOT / "raw"
 RAW_SESSIONS = RAW_DIR / "sessions"
 DEFAULT_OUT_DIR = REPO_ROOT / "site"
+# v0.7+: optional per-project metadata (topics, description, homepage).
+# Users drop a `wiki/projects/<slug>.md` file with frontmatter.
+PROJECTS_META_DIR = REPO_ROOT / "wiki" / "projects"
 
 
 # ─── frontmatter ───────────────────────────────────────────────────────────
@@ -776,7 +784,42 @@ def render_project_page(
   </div>
 </section>"""
 
-    body = f"""{heatmap_block}
+    # Project topics strip — renders below the hero, above the heatmap.
+    # Explicit profile via wiki/projects/<slug>.md wins over the
+    # session-tag fallback. Projects with no topics render an empty
+    # strip (no chip row at all).
+    proj_profile = load_project_profile(PROJECTS_META_DIR, project_slug)
+    proj_topics = get_project_topics(PROJECTS_META_DIR, project_slug, proj_entries)
+    topics_html = render_topic_chips(
+        proj_topics, max_visible=12, classname="project-topics project-hero-topics"
+    )
+    description_html = ""
+    if proj_profile and proj_profile.get("description"):
+        description_html = (
+            f'<p class="project-description muted">'
+            f'{html.escape(proj_profile["description"])}</p>'
+        )
+    homepage_html = ""
+    if proj_profile and proj_profile.get("homepage"):
+        hp = proj_profile["homepage"]
+        homepage_html = (
+            f'<a class="project-homepage" href="{html.escape(hp)}" '
+            f'rel="noopener">{html.escape(hp)} ↗</a>'
+        )
+    topics_strip = ""
+    if topics_html or description_html or homepage_html:
+        topics_strip = (
+            '<section class="section project-topics-section">\n'
+            '  <div class="container">\n'
+            f'    {description_html}\n'
+            f'    {topics_html}\n'
+            f'    {homepage_html}\n'
+            '  </div>\n'
+            '</section>\n'
+        )
+
+    body = f"""{topics_strip}
+{heatmap_block}
 {tool_chart_block}
 {token_timeline_block}
 <section class="section">
@@ -1033,10 +1076,18 @@ def render_index(
     cards = []
     for project, sessions in sorted(groups.items(), key=lambda x: -len(x[1])):
         main_count = sum(1 for p, _, _ in sessions if "subagent" not in p.name)
+        # Project topics — explicit profile in wiki/projects/<slug>.md
+        # takes precedence, falls back to aggregated session tags with
+        # noise filtered out. Rendered as chips below the card meta.
+        proj_metas = [m for _, m, _ in sessions]
+        topics = get_project_topics(PROJECTS_META_DIR, project, proj_metas)
+        topics_html = render_topic_chips(topics, max_visible=4,
+                                         classname="project-topics card-topics")
         cards.append(
-            f"""  <a class="card" href="projects/{html.escape(project)}.html">
+            f"""  <a class="card card-project" href="projects/{html.escape(project)}.html">
     <div class="card-title">{html.escape(project)}</div>
     <div class="card-meta">{main_count} main · {len(sessions) - main_count} sub-agent</div>
+    {topics_html}
   </a>"""
         )
 
@@ -1773,6 +1824,40 @@ a.token-stat:hover { border-color: var(--accent); }
 .recently-updated-item a { color: var(--accent); text-decoration: none; font-weight: 500; }
 .recently-updated-item a:hover { text-decoration: underline; }
 .recently-updated-date { font-family: 'JetBrains Mono', monospace; font-size: 0.78rem; }
+
+/* Project topics — GitHub-style tag chips on project cards, project
+   detail pages, and the home-page grid. Rendered by
+   llmwiki/project_topics.py. Tag colors are theme-neutral so the
+   same style reads on both project cards (light background) and
+   the project hero strip. */
+.project-topics { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.topic-chip {
+  display: inline-block;
+  padding: 3px 10px;
+  background: var(--bg-alt);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 500;
+  line-height: 1.4;
+  text-decoration: none;
+  transition: all 0.1s;
+}
+a.topic-chip:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--bg-card);
+}
+.topic-chip-more { opacity: 0.7; }
+.card-topics { margin-top: 8px; }
+.card-topics .topic-chip { font-size: 0.68rem; padding: 2px 8px; }
+.project-topics-section { padding-top: 0; padding-bottom: 0; }
+.project-topics-section .container { padding-top: 16px; padding-bottom: 4px; }
+.project-description { margin: 0 0 10px; font-size: 0.92rem; line-height: 1.5; max-width: 680px; }
+.project-hero-topics { margin-bottom: 6px; }
+.project-homepage { display: inline-block; margin-top: 6px; font-size: 0.82rem; color: var(--accent); text-decoration: none; }
+.project-homepage:hover { text-decoration: underline; }
 
 /* v0.4: Deep-link icon next to headings */
 .content h2 .deep-link, .content h3 .deep-link, .content h4 .deep-link { margin-left: 8px; font-size: 0.8em; opacity: 0; text-decoration: none; transition: opacity 0.15s; }
