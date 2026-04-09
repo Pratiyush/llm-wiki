@@ -41,10 +41,19 @@ import markdown
 from markdown.preprocessors import Preprocessor
 
 from llmwiki import REPO_ROOT
+from llmwiki.changelog_timeline import (
+    extract_price_points,
+    find_recently_updated,
+    parse_changelog,
+    render_changelog_timeline,
+    render_price_sparkline,
+    render_recently_updated,
+)
 from llmwiki.context_md import is_context_file
 from llmwiki.freshness import freshness_badge, load_freshness_config
 from llmwiki.models_page import (
     discover_model_entities,
+    discover_model_entities_with_meta,
     render_model_info_card,
     render_models_index,
 )
@@ -1002,6 +1011,25 @@ def render_index(
         metas_by_project[project] = [m for _, m, _ in sessions]
     token_stats_block = render_site_token_stats(metas_by_project, link_prefix="")
 
+    # v0.7 (#56): "Recently updated" list of model entities whose
+    # changelog has an entry in the last 30 days. Empty if no model
+    # pages exist or none have a recent changelog entry.
+    from llmwiki.models_page import discover_model_entities_with_meta as _dm
+    model_entries_meta = _dm(REPO_ROOT / "wiki" / "entities")
+    recent_updates = find_recently_updated(
+        [(p.stem, m) for p, m, _, _, _ in model_entries_meta]
+    )
+    recent_block_inner = render_recently_updated(
+        recent_updates, link_prefix="models/"
+    )
+    recent_block = (
+        f'<section class="section recently-updated-section">\n'
+        f'  <div class="container">\n'
+        f'    {recent_block_inner}\n'
+        f'  </div>\n'
+        f'</section>\n'
+    ) if recent_block_inner else ""
+
     cards = []
     for project, sessions in sorted(groups.items(), key=lambda x: -len(x[1])):
         main_count = sum(1 for p, _, _ in sessions if "subagent" not in p.name)
@@ -1014,6 +1042,7 @@ def render_index(
 
     body = f"""{heatmap_block}
 {token_stats_block}
+{recent_block}
 <section class="section">
   <div class="container">
     <h2>Projects</h2>
@@ -1108,7 +1137,12 @@ def render_models_section(out_dir: Path) -> tuple[Optional[Path], int]:
     an empty-state index so the nav link doesn't 404.
     """
     entities_dir = REPO_ROOT / "wiki" / "entities"
-    entries = discover_model_entities(entities_dir)
+    entries_with_meta = discover_model_entities_with_meta(entities_dir)
+    # Backwards-compatible list without meta for render_models_index.
+    entries = [
+        (path, profile, warnings, body)
+        for path, _meta, profile, warnings, body in entries_with_meta
+    ]
     models_out = out_dir / "models"
     models_out.mkdir(parents=True, exist_ok=True)
 
@@ -1131,10 +1165,37 @@ def render_models_section(out_dir: Path) -> tuple[Optional[Path], int]:
     index_path.write_text(index_page, encoding="utf-8")
 
     # Per-model detail page — info card + body markdown rendered normally.
-    for path, profile, warnings, body in entries:
+    for path, meta, profile, warnings, body in entries_with_meta:
         slug = path.stem
         title = profile.get("title", slug)
         info_card = render_model_info_card(profile)
+
+        # v0.7 (#56): changelog timeline + pricing sparkline below the
+        # info card. The sparkline only shows if there are ≥2 dated
+        # input-price changes in the changelog.
+        changelog_entries, changelog_warnings = parse_changelog(meta)
+        warnings = list(warnings) + changelog_warnings
+        timeline_html = render_changelog_timeline(changelog_entries)
+        timeline_block = ""
+        if timeline_html:
+            price_pts = extract_price_points(
+                changelog_entries, field_suffix="pricing.input_per_1m"
+            )
+            sparkline = render_price_sparkline(price_pts)
+            sparkline_block = (
+                f'<div class="timeline-sparkline">'
+                f'<span class="muted">Input pricing trend</span> {sparkline}'
+                f'</div>'
+                if sparkline else ""
+            )
+            timeline_block = (
+                '<div class="timeline-card">'
+                '<div class="timeline-card-title">Changelog</div>'
+                + sparkline_block
+                + timeline_html
+                + '</div>'
+            )
+
         body_html = md_to_html(body)
         warnings_html = ""
         if warnings:
@@ -1153,6 +1214,7 @@ def render_models_section(out_dir: Path) -> tuple[Optional[Path], int]:
             + hero(title, profile.get("provider", ""))
             + f'<section class="section">\n  <div class="container narrow">\n'
             + info_card
+            + timeline_block
             + warnings_html
             + f'    <article class="article content">\n      {body_html}\n    </article>\n'
             + '  </div>\n</section>\n</main>\n'
@@ -1677,6 +1739,41 @@ a.token-stat:hover { border-color: var(--accent); }
 .models-table a { color: var(--accent); text-decoration: none; font-weight: 500; }
 .models-table a:hover { text-decoration: underline; }
 
+/* v0.7 (#56): Changelog timeline + inline pricing sparkline + home
+   "Recently updated" card. All rendered by llmwiki/changelog_timeline.py.
+   Timeline is a vertical list with a connecting line on the left,
+   newest entry first, numeric deltas colored by direction. */
+.timeline-card { margin: 20px 0; padding: 18px 22px; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); }
+.timeline-card-title { font-size: 0.88rem; font-weight: 600; margin-bottom: 12px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; }
+.timeline-sparkline { display: flex; align-items: center; gap: 12px; padding: 6px 0 12px; font-size: 0.78rem; }
+.timeline-sparkline .price-sparkline { flex: 0 0 auto; }
+.changelog-timeline { list-style: none; margin: 0; padding: 0 0 0 18px; position: relative; border-left: 2px solid var(--border); }
+.timeline-item { position: relative; padding: 8px 0 8px 16px; font-size: 0.88rem; }
+.timeline-date { display: block; font-size: 0.76rem; color: var(--text-secondary); font-family: 'JetBrains Mono', monospace; margin-bottom: 2px; }
+.timeline-dot { position: absolute; left: -23px; top: 14px; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); border: 2px solid var(--bg-card); }
+.timeline-body { display: block; }
+.timeline-event { font-weight: 500; }
+.timeline-detail { font-size: 0.82rem; color: var(--text-secondary); margin-top: 4px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.timeline-field { font-size: 0.78rem; padding: 1px 6px; background: var(--bg-alt); border-radius: 3px; }
+.timeline-delta { display: inline-flex; gap: 6px; align-items: baseline; font-family: 'JetBrains Mono', monospace; }
+.timeline-from { color: var(--text-secondary); text-decoration: line-through; text-decoration-thickness: 1px; }
+.timeline-to { font-weight: 600; color: var(--text); }
+.timeline-arrow { color: var(--text-secondary); }
+.timeline-arrow-down { color: #15803d; }
+.timeline-arrow-up { color: #b91c1c; }
+:root[data-theme="dark"] .timeline-arrow-down { color: #86efac; }
+:root[data-theme="dark"] .timeline-arrow-up { color: #fca5a5; }
+
+.recently-updated-section { padding-top: 0; padding-bottom: 12px; }
+.recently-updated-card { margin: 8px 0 24px; padding: 14px 16px; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); }
+.recently-updated-title { font-size: 0.78rem; margin-bottom: 10px; }
+.recently-updated-list { list-style: none; margin: 0; padding: 0; }
+.recently-updated-item { display: grid; grid-template-columns: 180px 100px 1fr; gap: 10px; align-items: baseline; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 0.88rem; }
+.recently-updated-item:last-child { border-bottom: none; }
+.recently-updated-item a { color: var(--accent); text-decoration: none; font-weight: 500; }
+.recently-updated-item a:hover { text-decoration: underline; }
+.recently-updated-date { font-family: 'JetBrains Mono', monospace; font-size: 0.78rem; }
+
 /* v0.4: Deep-link icon next to headings */
 .content h2 .deep-link, .content h3 .deep-link, .content h4 .deep-link { margin-left: 8px; font-size: 0.8em; opacity: 0; text-decoration: none; transition: opacity 0.15s; }
 .content h2:hover .deep-link, .content h3:hover .deep-link, .content h4:hover .deep-link { opacity: 0.7; }
@@ -1744,7 +1841,7 @@ mark { background: var(--accent-bg); color: var(--accent); padding: 0 2px; borde
   .nav, .footer, .palette, .help-dialog, .session-actions, .filter-bar,
   .progress-bar, .nav-search-btn, .theme-toggle, .copy-code-btn,
   .wikilink-preview, .timeline-block, .toc-sidebar, .mobile-bottom-nav,
-  .related-pages, .activity-heatmap, .tool-chart-card, .token-card, .token-stat-grid, .model-warnings, .deep-link, .breadcrumbs,
+  .related-pages, .activity-heatmap, .tool-chart-card, .token-card, .token-stat-grid, .model-warnings, .timeline-card, .recently-updated-card, .deep-link, .breadcrumbs,
   .meta-tools { display: none !important; }
   body { background: #fff; color: #000; font-size: 11pt; padding-bottom: 0; }
   .hero { padding: 12px 0 8px; background: #fff; border: none; }

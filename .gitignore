@@ -11,16 +11,28 @@ raw/
 !raw/.gitkeep
 
 # LLM-generated wiki pages (Karpathy layer 2). Generated locally from raw/.
-wiki/sources/
-wiki/entities/
-wiki/concepts/
-wiki/syntheses/
+# Ignore *contents* rather than the folders themselves so specific
+# seed files (_context.md stubs from #60, seeded model entity from
+# #55/#56) can be un-ignored via `!` patterns below.
+wiki/sources/*
+wiki/entities/*
+wiki/concepts/*
+wiki/syntheses/*
 wiki/index.md
 wiki/overview.md
 wiki/log.md
 wiki/lint-report.md
 !wiki/.gitkeep
 !wiki/README.md
+# v0.5 (#60): seeded folder-context files ship with the repo so the
+# navigation convention is self-documenting.
+!wiki/entities/_context.md
+!wiki/concepts/_context.md
+!wiki/sources/_context.md
+# v0.7 (#55, #56): seeded reference model entity ships with the repo
+# so the structured schema + changelog timeline are visible on the
+# live demo build.
+!wiki/entities/ClaudeSonnet4.md
 
 # Generated static HTML site (Karpathy layer 3).
 site/

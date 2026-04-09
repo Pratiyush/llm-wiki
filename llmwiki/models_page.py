@@ -71,8 +71,26 @@ def discover_model_entities(
     Returns a list of `(path, profile, warnings, body)` tuples. Pages
     without the right `entity_kind` are silently skipped. Parse errors
     surface as warnings — the page is still returned.
+
+    Note: `build.py` also needs the raw meta dict for #56 (changelog
+    timeline). Use `discover_model_entities_with_meta()` when you
+    need the full frontmatter, not just the validated profile.
     """
-    out: list[tuple[Path, ModelProfile, list[str], str]] = []
+    return [
+        (path, profile, warnings, body)
+        for path, _meta, profile, warnings, body in discover_model_entities_with_meta(
+            entities_dir
+        )
+    ]
+
+
+def discover_model_entities_with_meta(
+    entities_dir: Path,
+) -> list[tuple[Path, dict[str, Any], ModelProfile, list[str], str]]:
+    """Same walker as `discover_model_entities` but also yields the raw
+    frontmatter dict so callers can extract fields outside the core
+    schema (e.g. `changelog:` for #56)."""
+    out: list[tuple[Path, dict[str, Any], ModelProfile, list[str], str]] = []
     if not entities_dir.is_dir():
         return out
     for path in sorted(entities_dir.glob("*.md")):
@@ -86,7 +104,7 @@ def discover_model_entities(
         if not is_model_entity(meta):
             continue
         profile, warnings = parse_model_profile(meta)
-        out.append((path, profile, warnings, body))
+        out.append((path, meta, profile, warnings, body))
     return out
 
 
