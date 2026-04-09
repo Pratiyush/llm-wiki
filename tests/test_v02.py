@@ -38,8 +38,12 @@ def test_new_adapters_have_schema_versions():
 
 
 def test_pdf_adapter_requires_explicit_config():
-    # PDF adapter should report unavailable unless user configures roots
-    assert PdfAdapter.is_available() is False
+    # PDF adapter is_available() returns True when pypdf is installed.
+    # The real gate is the `enabled` flag in config — discover_sessions()
+    # returns [] when enabled is False (the default). This test verifies
+    # the practical behavior: no configured roots → no sessions.
+    adapter = PdfAdapter()
+    assert adapter.discover_sessions() == []
 
 
 def test_cursor_adapter_slug_fallback():
