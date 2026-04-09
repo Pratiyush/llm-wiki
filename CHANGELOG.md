@@ -164,3 +164,4 @@ Initial public release.
 - Idempotent incremental sync via `.ingestion-state.json` mtime tracking
 - Live-session detection — skips sessions with activity in the last 60 minutes
 - Sub-agent session support — rendered as separate pages linked from parent
+

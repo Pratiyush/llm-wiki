@@ -537,7 +537,7 @@ def page_foot(js_prefix: str = "") -> str:
   <div class="palette-modal" role="dialog" aria-modal="true" aria-label="Command palette">
     <div class="palette-header">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-      <input type="text" id="palette-input" placeholder="Jump to a page or search the wiki…" autocomplete="off" spellcheck="false">
+      <input type="text" id="palette-input" placeholder="Search… or type:session project:llm-wiki date:>2026-03 sort:date" autocomplete="off" spellcheck="false">
       <kbd>ESC</kbd>
     </div>
     <ul class="palette-results" id="palette-results"></ul>
@@ -562,6 +562,18 @@ def page_foot(js_prefix: str = "") -> str:
       <tr><td><kbd>?</kbd></td><td>Show this help</td></tr>
       <tr><td><kbd>Esc</kbd></td><td>Close dialogs</td></tr>
     </table>
+    <h3>Structured queries</h3>
+    <p class="muted" style="font-size: 0.82rem; margin: 4px 0 8px;">Mix key:value filters with free text in the palette:</p>
+    <table>
+      <tr><td><code>type:session</code></td><td>Only session pages</td></tr>
+      <tr><td><code>project:llm-wiki</code></td><td>Filter by project name (substring)</td></tr>
+      <tr><td><code>model:claude</code></td><td>Filter by model name (substring)</td></tr>
+      <tr><td><code>date:&gt;2026-03-01</code></td><td>Sessions after a date</td></tr>
+      <tr><td><code>date:&lt;2026-04-01</code></td><td>Sessions before a date</td></tr>
+      <tr><td><code>tags:rust</code></td><td>Pages mentioning a tag/topic</td></tr>
+      <tr><td><code>sort:date</code></td><td>Sort results by date (newest first)</td></tr>
+    </table>
+    <p class="muted" style="font-size: 0.82rem; margin-top: 6px;">Example: <code>type:session project:llm-wiki date:&gt;2026-04 sort:date</code></p>
     <button class="btn" id="help-close">Close</button>
   </div>
 </div>
@@ -2446,11 +2458,60 @@ document.addEventListener("DOMContentLoaded", function () {
     return s;
   }
 
+  // v0.8 (#97): Dataview-style structured queries. Users can type
+  // key:value pairs alongside free text to filter by metadata:
+  //   type:session project:llm-wiki model:claude date:>2026-03-01 sort:date rust
+  // Supported keys: type, project, model, date (range with > / <), tags, sort
+  // Anything that doesn't match key:value is treated as free-text fuzzy search.
+  function parseStructuredQuery(raw) {
+    var filters = {};
+    var freeText = [];
+    var tokens = raw.split(/\s+/).filter(Boolean);
+    tokens.forEach(function (t) {
+      var m = t.match(/^(type|project|model|date|tags|sort):(.+)$/i);
+      if (m) { filters[m[1].toLowerCase()] = m[2]; }
+      else { freeText.push(t); }
+    });
+    return { filters: filters, freeText: freeText.join(" ") };
+  }
+
+  function matchesFilters(entry, filters) {
+    if (filters.type && (entry.type || "").toLowerCase() !== filters.type.toLowerCase()) return false;
+    if (filters.project && (entry.project || "").toLowerCase().indexOf(filters.project.toLowerCase()) === -1) return false;
+    if (filters.model && (entry.model || "").toLowerCase().indexOf(filters.model.toLowerCase()) === -1) return false;
+    if (filters.tags) {
+      var want = filters.tags.toLowerCase();
+      var entryBody = ((entry.body || "") + " " + (entry.title || "")).toLowerCase();
+      if (entryBody.indexOf(want) === -1) return false;
+    }
+    if (filters.date) {
+      var d = entry.date || "";
+      var op = filters.date.charAt(0);
+      if (op === ">" && d <= filters.date.substring(1)) return false;
+      if (op === "<" && d >= filters.date.substring(1)) return false;
+      if (op !== ">" && op !== "<" && d.indexOf(filters.date) === -1) return false;
+    }
+    return true;
+  }
+
   function search(query) {
     if (!idx) return [];
     if (!query) return idx.slice(0, 10);
-    return idx
-      .map(function (e) { return { entry: e, score: score(e, query) }; })
+    var parsed = parseStructuredQuery(query);
+    var filtered = idx;
+    if (Object.keys(parsed.filters).length > 0) {
+      filtered = idx.filter(function (e) { return matchesFilters(e, parsed.filters); });
+    }
+    var sortKey = parsed.filters.sort;
+    if (sortKey === "date") {
+      return filtered
+        .slice()
+        .sort(function (a, b) { return (b.date || "").localeCompare(a.date || ""); })
+        .slice(0, 20);
+    }
+    if (!parsed.freeText) return filtered.slice(0, 20);
+    return filtered
+      .map(function (e) { return { entry: e, score: score(e, parsed.freeText) }; })
       .filter(function (r) { return r.score > 0; })
       .sort(function (a, b) { return b.score - a.score; })
       .slice(0, 15)
