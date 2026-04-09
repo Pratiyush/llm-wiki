@@ -30,7 +30,7 @@ from __future__ import annotations
 
 import html
 import json
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from typing import Any, Iterable, Mapping, Optional, TypedDict
 
 # ─── types ───────────────────────────────────────────────────────────────
@@ -339,7 +339,7 @@ def find_recently_updated(
     scores revised lately.
     """
     if now is None:
-        now = datetime.utcnow().date()
+        now = datetime.now(timezone.utc).date()
     cutoff = now - timedelta(days=within_days)
     out: list[tuple[str, ChangelogEntry, date]] = []
     for slug, meta in pages:

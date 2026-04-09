@@ -12,6 +12,10 @@ Subcommands:
     watch             Watch agent session stores and auto-sync on change
     export-obsidian   Export the compiled wiki into an Obsidian vault
     export-qmd        Export the wiki as a self-contained qmd collection
+    eval              Run structural eval checks over wiki/
+    check-links       Verify every internal link in site/ resolves
+    export            Export AI-consumable formats (llms-txt, jsonld, etc.)
+    manifest          Build site manifest with SHA-256 hashes + perf budget
     adapters          List available session-store adapters
     version           Print version and exit
 """

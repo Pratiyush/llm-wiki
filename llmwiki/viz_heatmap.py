@@ -38,7 +38,7 @@ from __future__ import annotations
 
 import html
 from collections import Counter
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from typing import Iterable, Mapping, Optional
 
 # ─── layout constants ─────────────────────────────────────────────────────
@@ -202,7 +202,7 @@ def render_heatmap(
     2026-04-09"; per-cell "Activity 2026-04-07 — 12 sessions").
     """
     if end_date is None:
-        end_date = datetime.utcnow().date()
+        end_date = datetime.now(timezone.utc).date()
     start, end = window_bounds(end_date)
 
     thresholds = compute_quantile_thresholds(counts)

@@ -37,7 +37,7 @@
 
 ## Key Decisions
 
-1. **Stdlib-first**: the converter and HTML generator use only Python stdlib + `markdown` + optional `pygments` (for syntax highlighting). No npm, no database, no daemons.
+1. **Stdlib-first**: the converter and HTML generator use only Python stdlib + `markdown`. Syntax highlighting uses highlight.js loaded from a CDN at view time. No npm, no database, no daemons.
 2. **Adapter pattern**: separate adapters per agent (`claude_code.py`, `codex_cli.py`) so adding a new agent is adding one file.
 3. **Follow Karpathy's LLM Wiki spec**: `raw/` → `wiki/` → schema (CLAUDE.md / AGENTS.md).
 4. **Click-to-run scripts**: `setup.sh` / `setup.bat` / `build.sh` / etc. — no pre-requisites beyond Python 3.9+.

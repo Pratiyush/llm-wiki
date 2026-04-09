@@ -58,7 +58,7 @@ Sorted **first by priority (M → S → C → W), then by layer (L0 → L7)**. E
 | M | L1 | M-L1-12 | Contradiction-tracking rule | Never silently overwrite, record both claims |
 | M | L2 | M-L2-01 | **HTML builder with god-level CSS** (Inter + JetBrains Mono + purple accent) | Single `build.py` |
 | M | L2 | M-L2-02 | Python-markdown with `fenced_code`, `tables`, `toc`, `sane_lists` | Plus normaliser for bad list indent |
-| M | L2 | M-L2-03 | **Pygments syntax highlighting** for all fenced code blocks | Graceful fallback when pygments missing |
+| M | L2 | M-L2-03 | **highlight.js syntax highlighting** for all fenced code blocks | Client-side, loaded from CDN |
 | M | L2 | M-L2-04 | Per-session HTML page with breadcrumbs | Home › project › session |
 | M | L2 | M-L2-05 | Per-project HTML page with session cards | Main sessions + sub-agents collapsed |
 | M | L2 | M-L2-06 | Projects index page | Card grid |

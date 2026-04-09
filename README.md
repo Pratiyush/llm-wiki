@@ -10,7 +10,7 @@ Rebuilt on every `master` push from the synthetic sessions in [`examples/demo-se
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/)
 [![Version](https://img.shields.io/badge/version-v0.9.0-7C3AED.svg)](CHANGELOG.md)
-[![Tests](https://img.shields.io/badge/tests-420%20passing-10B981.svg)](tests/)
+[![Tests](https://img.shields.io/badge/tests-472%20passing-10B981.svg)](tests/)
 [![Works with Claude Code](https://img.shields.io/badge/Claude%20Code-✓-7C3AED.svg)](https://claude.com/claude-code)
 [![Works with Codex CLI](https://img.shields.io/badge/Codex%20CLI-✓-7C3AED.svg)](https://github.com/openai/codex)
 
@@ -203,7 +203,7 @@ Four Claude Code slash commands automate the common ops:
 
 ## Running E2E tests
 
-The unit suite (`pytest tests/` — 439 tests) runs in milliseconds and
+The unit suite (`pytest tests/` — 472 tests) runs in milliseconds and
 covers every module. The **end-to-end suite** under `tests/e2e/` is
 separate: it builds a minimal demo site, serves it on a random port,
 drives a real browser via [Playwright](https://playwright.dev/python),
@@ -292,6 +292,7 @@ llmwiki adapters                # list available adapters
 llmwiki graph                   # build knowledge graph (v0.2)
 llmwiki watch                   # file watcher with debounce (v0.2)
 llmwiki export-obsidian         # write wiki to Obsidian vault (v0.2)
+llmwiki export-qmd              # export wiki as a qmd collection (v0.6)
 llmwiki eval                    # 7-check structural quality score /100 (v0.3)
 llmwiki check-links             # verify internal links in site/ (v0.4)
 llmwiki export <format>         # AI-consumable exports (v0.4)
@@ -406,8 +407,8 @@ See [docs/architecture.md](docs/architecture.md) for the full breakdown and how 
 
 ## Design principles
 
-- **Stdlib first** — only mandatory runtime dep is `markdown`. `pygments` and `pypdf` are optional.
-- **Works offline** — no CDN, no fonts from Google by default (use system fonts).
+- **Stdlib first** — only mandatory runtime dep is `markdown`. `pypdf` is an optional extra for PDF ingestion.
+- **Works offline** — no Google fonts, no external CSS. Syntax highlighting loads from a highlight.js CDN but degrades gracefully without it.
 - **Redact by default** — username, API keys, tokens, emails all get redacted before entering the wiki.
 - **Idempotent everything** — re-running any command is safe and cheap.
 - **Agent-agnostic core** — the converter doesn't know which agent produced the `.jsonl`; adapters translate.
@@ -431,7 +432,10 @@ See [docs/architecture.md](docs/architecture.md) for the full breakdown and how 
 Per-adapter docs:
 - [Claude Code adapter](docs/adapters/claude-code.md)
 - [Codex CLI adapter](docs/adapters/codex-cli.md)
+- [Cursor adapter](docs/adapters/cursor.md)
+- [Gemini CLI adapter](docs/adapters/gemini-cli.md)
 - [Obsidian adapter](docs/adapters/obsidian.md)
+- [PDF adapter](docs/adapters/pdf.md)
 
 ## Releases
 
@@ -464,7 +468,7 @@ Active milestones on GitHub: [v0.5.0](https://github.com/Pratiyush/llm-wiki/mile
 
 - [Andrej Karpathy](https://twitter.com/karpathy) for [the LLM Wiki idea](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f)
 - [SamurAIGPT/llm-wiki-agent](https://github.com/SamurAIGPT/llm-wiki-agent), [lucasastorian/llmwiki](https://github.com/lucasastorian/llmwiki), [xoai/sage-wiki](https://github.com/xoai/sage-wiki), and [bashiraziz/llm-wiki-template](https://github.com/bashiraziz/llm-wiki-template) — prior art that shaped this.
-- [Python Markdown](https://python-markdown.github.io/) and [Pygments](https://pygments.org/) for the rendering pipeline.
+- [Python Markdown](https://python-markdown.github.io/) for the rendering pipeline, and [highlight.js](https://highlightjs.org/) for client-side syntax highlighting.
 - [llmstxt.org](https://llmstxt.org) for the llms.txt spec used in v0.4.
 
 ## License

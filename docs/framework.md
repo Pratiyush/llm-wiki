@@ -70,7 +70,7 @@ Same scoring (/25). llmwiki scored **22/25** on 2026-04-08 (see `_progress.md`).
 | Decision | Choice | Rationale |
 |---|---|---|
 | Runtime dep floor | Python 3.9+ stdlib + `markdown` | Matches oldest common macOS system Python |
-| Optional deps | `pygments` (syntax highlighting) | Detected, not required |
+| Optional deps | `pypdf` (PDF ingestion) | Detected, not required |
 | No-network by default | True | Privacy + offline-first |
 | Binding default | `127.0.0.1` only | Privacy-first — user must opt-in to LAN |
 | Redaction default | ON | Username, API keys, tokens, emails — all redacted |
@@ -172,7 +172,7 @@ Same as parent. For llmwiki specifically:
 
 - **CSS/JS are Python string constants** inside `build.py` — single-file rendering, no template loader, no file watching complexity.
 - **No templates directory as separate files** (the `templates/` subdirectory is a stub for future split when the files grow beyond 2000 lines).
-- **Pygments is auto-detected**: `try: import pygments` + fall back to unstyled code blocks.
+- **Syntax highlighting** uses highlight.js loaded from a CDN at view time. No build-time syntax parsing required.
 
 ### Performance Budget (cross-cutting rule)
 
