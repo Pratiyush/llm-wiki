@@ -1529,7 +1529,12 @@ kbd { display: inline-block; padding: 2px 6px; font-family: var(--mono); font-si
 .nav-search-btn { display: flex; align-items: center; gap: 8px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px; padding: 6px 10px; font-family: var(--font); color: var(--text-secondary); cursor: pointer; font-size: 0.82rem; transition: all 0.15s; }
 .nav-search-btn:hover { border-color: var(--accent); color: var(--accent); }
 .nav-search-btn svg { flex-shrink: 0; }
-@media (max-width: 720px) { .nav-search-btn span, .nav-search-btn kbd { display: none; } }
+@media (max-width: 767px) { .nav-search-btn span, .nav-search-btn kbd { display: none; } }
+/* Tablet + mobile: the six text anchors (Home/Projects/Sessions/Models/Compare/Changelog)
+   overflow a 768px viewport at 0.9rem/gap-20, so collapse them below the
+   1024 desktop breakpoint. Users still have Search + Theme in the top nav,
+   the command palette via Cmd+K, and the mobile bottom nav below 767. */
+@media (max-width: 1023px) { .nav-links > a { display: none; } }
 
 .theme-toggle { background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text-secondary); transition: all 0.2s; padding: 0; flex-shrink: 0; }
 .theme-toggle:hover { border-color: var(--accent); color: var(--accent); }
@@ -1913,11 +1918,18 @@ a.token-stat:hover { border-color: var(--accent); }
 .recently-updated-card { margin: 8px 0 24px; padding: 14px 16px; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); }
 .recently-updated-title { font-size: 0.78rem; margin-bottom: 10px; }
 .recently-updated-list { list-style: none; margin: 0; padding: 0; }
-.recently-updated-item { display: grid; grid-template-columns: 180px 100px 1fr; gap: 10px; align-items: baseline; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 0.88rem; }
+.recently-updated-item { display: grid; grid-template-columns: 180px 100px 1fr; gap: 10px; align-items: baseline; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 0.88rem; min-width: 0; }
 .recently-updated-item:last-child { border-bottom: none; }
+.recently-updated-item > * { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .recently-updated-item a { color: var(--accent); text-decoration: none; font-weight: 500; }
 .recently-updated-item a:hover { text-decoration: underline; }
 .recently-updated-date { font-family: 'JetBrains Mono', monospace; font-size: 0.78rem; }
+/* Below 640px the 180+100+1fr grid is too wide — collapse to a single
+   column so each item stacks vertically instead of overflowing. */
+@media (max-width: 639px) {
+  .recently-updated-item { grid-template-columns: 1fr; gap: 2px; padding: 8px 0; }
+  .recently-updated-item > * { white-space: normal; }
+}
 
 /* Project topics — GitHub-style tag chips on project cards, project
    detail pages, and the home-page grid. Rendered by
@@ -2010,7 +2022,10 @@ mark { background: var(--accent-bg); color: var(--accent); padding: 0 2px; borde
 
 /* Mobile bottom navigation */
 .mobile-bottom-nav { display: none; }
-@media (max-width: 720px) {
+/* Mobile bottom nav breakpoint at 767 matches the common 768 tablet cutoff
+   (Bootstrap/Tailwind). At 767 and below we show the bottom nav; at 768+
+   we assume the user has enough horizontal room for the top-nav controls. */
+@media (max-width: 767px) {
   .mobile-bottom-nav {
     display: flex; position: fixed; bottom: 0; left: 0; right: 0;
     background: var(--bg-card); border-top: 1px solid var(--border);
