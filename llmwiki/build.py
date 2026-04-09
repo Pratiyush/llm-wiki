@@ -3118,6 +3118,16 @@ def build_site(
     shutil.copytree(RAW_SESSIONS, sources_out)
     print(f"  copied raw .md sources to sources/")
 
+    # v0.7 (#96): copy downloaded image assets into site/assets/
+    raw_assets = RAW_DIR / "assets"
+    if raw_assets.exists() and any(raw_assets.iterdir()):
+        site_assets = out_dir / "assets"
+        if site_assets.exists():
+            shutil.rmtree(site_assets)
+        shutil.copytree(raw_assets, site_assets)
+        asset_count = sum(1 for _ in site_assets.iterdir() if _.is_file())
+        print(f"  copied {asset_count} image assets to assets/")
+
     # Synthesis
     synthesis = None
     if synthesize:
