@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2015/06/nuspec.xsd">
+  <metadata>
+    <id>llmwiki</id>
+    <version>0.9.0</version>
+    <title>llm-wiki</title>
+    <authors>Pratiyush</authors>
+    <owners>Pratiyush</owners>
+    <projectUrl>https://github.com/Pratiyush/llm-wiki</projectUrl>
+    <licenseUrl>https://github.com/Pratiyush/llm-wiki/blob/master/LICENSE</licenseUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <description>Karpathy-style LLM wiki from your Claude Code, Codex CLI, Cursor, and Obsidian sessions</description>
+    <summary>Karpathy-style LLM wiki from your Claude Code, Codex CLI, Cursor, and Obsidian sessions</summary>
+    <tags>llm wiki python knowledge-base cli</tags>
+    <releaseNotes>https://github.com/Pratiyush/llm-wiki/blob/master/CHANGELOG.md</releaseNotes>
+    <copyright>Copyright (c) 2026 Pratiyush</copyright>
+    <dependencies>
+      <dependency id="python3" />
+    </dependencies>
+  </metadata>
+</package>

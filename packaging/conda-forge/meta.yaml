@@ -1,0 +1,43 @@
+{% set name = "llmwiki" %}
+{% set version = "0.9.0" %}
+
+package:
+  name: {{ name }}
+  version: {{ version }}
+
+source:
+  url: https://pypi.org/packages/source/l/{{ name }}/{{ name }}-{{ version }}.tar.gz
+  sha256: REPLACE_WITH_ACTUAL_SHA256
+
+build:
+  noarch: python
+  number: 0
+  script: {{ PYTHON }} -m pip install . -vv --no-deps --no-build-isolation
+  entry_points:
+    - llmwiki = llmwiki.cli:main
+
+requirements:
+  host:
+    - python >=3.9
+    - pip
+    - setuptools >=64
+    - wheel
+  run:
+    - python >=3.9
+    - markdown >=3.4
+
+test:
+  commands:
+    - llmwiki --version
+
+about:
+  home: https://github.com/Pratiyush/llm-wiki
+  summary: "Karpathy-style LLM wiki from your Claude Code, Codex CLI, Cursor, and Obsidian sessions"
+  license: MIT
+  license_file: LICENSE
+  doc_url: https://github.com/Pratiyush/llm-wiki/tree/master/docs
+  dev_url: https://github.com/Pratiyush/llm-wiki
+
+extra:
+  recipe-maintainers:
+    - Pratiyush

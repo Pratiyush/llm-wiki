@@ -52,6 +52,7 @@ dist-site/
 # Converter state — tracks mtimes to avoid re-processing unchanged files.
 .ingestion-state.json
 .llmwiki-state.json
+.llmwiki-synth-state.json
 
 # Local config (user-specific).
 config.json
