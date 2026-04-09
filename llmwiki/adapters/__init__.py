@@ -34,6 +34,8 @@ def discover_adapters() -> None:
     # Order matters only for stable listing.
     from llmwiki.adapters import claude_code  # noqa: F401
     from llmwiki.adapters import codex_cli  # noqa: F401
+    from llmwiki.adapters import copilot_chat  # noqa: F401
+    from llmwiki.adapters import copilot_cli  # noqa: F401
     from llmwiki.adapters import cursor  # noqa: F401
     from llmwiki.adapters import gemini_cli  # noqa: F401
     from llmwiki.adapters import obsidian  # noqa: F401

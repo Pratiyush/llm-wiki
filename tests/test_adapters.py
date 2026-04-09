@@ -6,6 +6,8 @@ from llmwiki.adapters import REGISTRY, discover_adapters
 from llmwiki.adapters.base import BaseAdapter
 from llmwiki.adapters.claude_code import ClaudeCodeAdapter
 from llmwiki.adapters.codex_cli import CodexCliAdapter
+from llmwiki.adapters.copilot_chat import CopilotChatAdapter
+from llmwiki.adapters.copilot_cli import CopilotCliAdapter
 from llmwiki.adapters.cursor import CursorAdapter
 from llmwiki.adapters.gemini_cli import GeminiCliAdapter
 from llmwiki.adapters.obsidian import ObsidianAdapter
@@ -16,6 +18,8 @@ def test_registry_discovers_all_adapters():
     discover_adapters()
     assert "claude_code" in REGISTRY
     assert "codex_cli" in REGISTRY
+    assert "copilot-chat" in REGISTRY
+    assert "copilot-cli" in REGISTRY
     assert "cursor" in REGISTRY
     assert "gemini_cli" in REGISTRY
     assert "obsidian" in REGISTRY
@@ -25,6 +29,8 @@ def test_registry_discovers_all_adapters():
 def test_all_adapters_subclass_base():
     assert issubclass(ClaudeCodeAdapter, BaseAdapter)
     assert issubclass(CodexCliAdapter, BaseAdapter)
+    assert issubclass(CopilotChatAdapter, BaseAdapter)
+    assert issubclass(CopilotCliAdapter, BaseAdapter)
     assert issubclass(CursorAdapter, BaseAdapter)
     assert issubclass(GeminiCliAdapter, BaseAdapter)
     assert issubclass(ObsidianAdapter, BaseAdapter)
