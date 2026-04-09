@@ -12,7 +12,7 @@ ended: 2026-04-01T16:15:00+00:00
 cwd: /Users/demo/code/demo-blog-engine
 gitBranch: feat/dark-mode
 permissionMode: default
-model: claude-haiku-4-5
+model: gemini-2.5-pro
 user_messages: 3
 tool_calls: 8
 tools_used: [Read, Edit, Write]
