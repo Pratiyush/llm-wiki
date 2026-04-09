@@ -12,7 +12,6 @@ Subcommands:
     watch             Watch agent session stores and auto-sync on change
     export-obsidian   Export the compiled wiki into an Obsidian vault
     export-qmd        Export the wiki as a self-contained qmd collection
-    export-marp       Generate a Marp slide deck from wiki content
     adapters          List available session-store adapters
     version           Print version and exit
 """
@@ -59,7 +58,7 @@ def cmd_init(args: argparse.Namespace) -> int:
 def cmd_sync(args: argparse.Namespace) -> int:
     """Convert .jsonl sessions to markdown using the enabled adapters."""
     from llmwiki.convert import convert_all
-    return convert_all(
+    rc = convert_all(
         adapters=args.adapter,
         since=args.since,
         project=args.project,
@@ -67,6 +66,26 @@ def cmd_sync(args: argparse.Namespace) -> int:
         force=args.force,
         dry_run=args.dry_run,
     )
+    # v0.7 (#96): optionally download remote images after conversion.
+    if args.download_images:
+        from llmwiki.image_pipeline import process_markdown_images
+        from llmwiki import REPO_ROOT
+        raw_sessions = REPO_ROOT / "raw" / "sessions"
+        assets_dir = REPO_ROOT / "raw" / "assets"
+        total_dl = total_fail = total_skip = 0
+        if raw_sessions.exists():
+            for md_file in sorted(raw_sessions.rglob("*.md")):
+                dl, fail, skip = process_markdown_images(
+                    md_file, assets_dir, dry_run=args.dry_run,
+                )
+                total_dl += dl
+                total_fail += fail
+                total_skip += skip
+        print(
+            f"  images: {total_dl} downloaded, {total_fail} failed, "
+            f"{total_skip} skipped (cached)"
+        )
+    return rc
 
 
 def cmd_build(args: argparse.Namespace) -> int:
@@ -176,22 +195,6 @@ def cmd_export_qmd(args: argparse.Namespace) -> int:
     return 0
 
 
-def cmd_export_marp(args: argparse.Namespace) -> int:
-    """Generate a Marp slide deck from wiki content (v0.7 · #95)."""
-    from llmwiki.export_marp import export_marp
-
-    wiki_dir = args.wiki or (REPO_ROOT / "wiki")
-    out_path = args.out
-    result = export_marp(
-        topic=args.topic,
-        wiki_dir=wiki_dir,
-        out_path=out_path,
-    )
-    print(f"==> marp export complete: {result}")
-    print("    render with: npx @marp-team/marp-cli " + str(result) + " --html")
-    return 0
-
-
 def cmd_export(args: argparse.Namespace) -> int:
     """Export AI-consumable formats from the compiled wiki."""
     import sys as _sys
@@ -286,6 +289,10 @@ def build_parser() -> argparse.ArgumentParser:
     sync.add_argument("--include-current", action="store_true", help="Don't skip live sessions (<60 min)")
     sync.add_argument("--force", action="store_true", help="Ignore state file, reconvert everything")
     sync.add_argument("--dry-run", action="store_true")
+    sync.add_argument(
+        "--download-images", action="store_true",
+        help="Download remote images in converted .md files to raw/assets/",
+    )
     sync.set_defaults(func=cmd_sync)
 
     # build
@@ -348,26 +355,6 @@ def build_parser() -> argparse.ArgumentParser:
         help="Collection name written into qmd.yaml (default: llmwiki)",
     )
     exp_qmd.set_defaults(func=cmd_export_qmd)
-
-    # export-marp (v0.7, #95) — generate a Marp slide deck from wiki
-    # content matching a topic. Stdlib-only, no Marp CLI dep.
-    exp_marp = sub.add_parser(
-        "export-marp",
-        help="Generate a Marp slide deck from wiki content",
-    )
-    exp_marp.add_argument(
-        "--topic", type=str, required=True,
-        help="Topic to search for in the wiki (substring match)",
-    )
-    exp_marp.add_argument(
-        "--out", type=Path, default=None,
-        help="Output .marp.md file path (default: wiki/exports/<slug>.marp.md)",
-    )
-    exp_marp.add_argument(
-        "--wiki", type=Path, default=None,
-        help="Wiki directory (default: ./wiki)",
-    )
-    exp_marp.set_defaults(func=cmd_export_marp)
 
     # eval
     ev = sub.add_parser("eval", help="Run structural eval checks over wiki/")
