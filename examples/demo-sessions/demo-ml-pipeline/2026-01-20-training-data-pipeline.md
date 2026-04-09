@@ -12,7 +12,7 @@ ended: 2026-01-20T12:30:00+00:00
 cwd: /Users/demo/code/demo-ml-pipeline
 gitBranch: main
 permissionMode: default
-model: claude-opus-4-6
+model: gpt-5.4
 user_messages: 7
 tool_calls: 24
 tools_used: [Read, Write, Edit, Bash, Glob, Grep]

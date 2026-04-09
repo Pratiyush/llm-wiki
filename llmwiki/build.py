@@ -629,6 +629,8 @@ def render_session(
         bits.append(
             f'<a href="../../projects/{html.escape(str(meta["project"]))}.html">{html.escape(str(meta["project"]))}</a>'
         )
+    # Agent badge — shows Claude / Codex / Copilot / Cursor / Gemini
+    bits.append(render_agent_badge(meta))
     if meta.get("gitBranch"):
         bits.append(f'branch <code>{html.escape(str(meta["gitBranch"]))}</code>')
     if meta.get("model"):
@@ -951,6 +953,7 @@ def render_sessions_index(
         rows.append(
             f"""        <tr data-project="{html.escape(str(project))}" data-model="{html.escape(str(model))}" data-date="{html.escape(str(date))}" data-slug="{html.escape(str(slug))}">
           <td><a href="{html.escape(str(href))}">{html.escape(str(slug))}</a></td>
+          <td>{render_agent_badge(meta)}</td>
           <td><a href="../projects/{html.escape(str(project))}.html">{html.escape(str(project))}</a></td>
           <td>{html.escape(str(date))}</td>
           <td><code>{html.escape(str(model))}</code></td>
@@ -1005,7 +1008,7 @@ def render_sessions_index(
     <div class="table-wrap">
     <table class="sessions-table">
       <thead>
-        <tr><th>Session</th><th>Project</th><th>Date</th><th>Model</th><th>Msgs</th><th>Tools</th></tr>
+        <tr><th>Session</th><th>Agent</th><th>Project</th><th>Date</th><th>Model</th><th>Msgs</th><th>Tools</th></tr>
       </thead>
       <tbody id="sessions-tbody">
 {chr(10).join(rows)}
@@ -2010,6 +2013,34 @@ a.topic-chip:hover {
 .vs-index-table a { color: var(--accent); text-decoration: none; font-weight: 500; }
 .vs-index-table a:hover { text-decoration: underline; }
 .vs-index-table tr:hover td { background: var(--bg-alt); }
+
+
+/* Agent badge — shows which AI agent produced the session */
+.agent-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  border: 1px solid;
+  vertical-align: middle;
+}
+.agent-claude   { color: #7C3AED; background: rgba(124,58,237,0.1); border-color: rgba(124,58,237,0.3); }
+.agent-codex    { color: #059669; background: rgba(5,150,105,0.1); border-color: rgba(5,150,105,0.3); }
+.agent-copilot  { color: #2563EB; background: rgba(37,99,235,0.1); border-color: rgba(37,99,235,0.3); }
+.agent-cursor   { color: #D97706; background: rgba(217,119,6,0.1); border-color: rgba(217,119,6,0.3); }
+.agent-gemini   { color: #DC2626; background: rgba(220,38,38,0.1); border-color: rgba(220,38,38,0.3); }
+.agent-obsidian { color: #7E22CE; background: rgba(126,34,206,0.1); border-color: rgba(126,34,206,0.3); }
+.agent-pdf      { color: #B91C1C; background: rgba(185,28,28,0.1); border-color: rgba(185,28,28,0.3); }
+.agent-unknown  { color: #6B7280; background: rgba(107,114,128,0.1); border-color: rgba(107,114,128,0.3); }
+:root[data-theme="dark"] .agent-claude   { color: #A78BFA; background: rgba(167,139,250,0.15); border-color: rgba(167,139,250,0.3); }
+:root[data-theme="dark"] .agent-codex    { color: #34D399; background: rgba(52,211,153,0.15); border-color: rgba(52,211,153,0.3); }
+:root[data-theme="dark"] .agent-copilot  { color: #60A5FA; background: rgba(96,165,250,0.15); border-color: rgba(96,165,250,0.3); }
+:root[data-theme="dark"] .agent-cursor   { color: #FBBF24; background: rgba(251,191,36,0.15); border-color: rgba(251,191,36,0.3); }
+:root[data-theme="dark"] .agent-gemini   { color: #F87171; background: rgba(248,113,113,0.15); border-color: rgba(248,113,113,0.3); }
+.sessions-table .agent-badge { font-size: 0.65rem; padding: 1px 6px; }
 
 /* v0.4: Deep-link icon next to headings */
 .content h2 .deep-link, .content h3 .deep-link, .content h4 .deep-link { margin-left: 8px; font-size: 0.8em; opacity: 0; text-decoration: none; transition: opacity 0.15s; }
@@ -3232,3 +3263,89 @@ def main() -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
+
+# ─── agent label detection ────────────────────────────────────────────────
+# v0.9: Detect which AI agent produced a session from the model name,
+# source_file path, or explicit frontmatter field. Returns a short label
+# + CSS class for badge rendering.
+
+def detect_agent_label(meta: dict) -> tuple[str, str]:
+    """Return (label, css_class) for the agent that produced this session.
+    
+    Detection order:
+    1. Explicit `agent:` frontmatter field (set by adapters)
+    2. Model name patterns (claude-* → Claude, gpt-* → Codex/Copilot, etc.)
+    3. Source file path patterns (codex → Codex, copilot → Copilot)
+    4. Default: "Unknown"
+    """
+    # 1. Explicit field
+    agent = str(meta.get("agent", "")).strip().lower()
+    if agent:
+        return _agent_map(agent)
+    
+    # 2. Model name
+    model = str(meta.get("model", "")).lower()
+    if "claude" in model:
+        return ("Claude", "agent-claude")
+    if "gpt" in model or "o1" in model or "o3" in model or "o4" in model:
+        return ("Codex", "agent-codex")
+    if "gemini" in model:
+        return ("Gemini", "agent-gemini")
+    if "copilot" in model:
+        return ("Copilot", "agent-copilot")
+    
+    # 3. Source file path
+    source = str(meta.get("source_file", "")).lower()
+    if "codex" in source or ".codex" in source:
+        return ("Codex", "agent-codex")
+    if "copilot" in source:
+        return ("Copilot", "agent-copilot")
+    if "cursor" in source:
+        return ("Cursor", "agent-cursor")
+    if "gemini" in source:
+        return ("Gemini", "agent-gemini")
+    if "claude" in source or ".claude" in source:
+        return ("Claude", "agent-claude")
+    
+    # 4. Tags fallback
+    tags = meta.get("tags", [])
+    if isinstance(tags, list):
+        tag_str = " ".join(str(t).lower() for t in tags)
+    else:
+        tag_str = str(tags).lower()
+    if "codex" in tag_str:
+        return ("Codex", "agent-codex")
+    if "copilot" in tag_str:
+        return ("Copilot", "agent-copilot")
+    if "claude" in tag_str:
+        return ("Claude", "agent-claude")
+    
+    return ("Agent", "agent-unknown")
+
+
+def _agent_map(agent: str) -> tuple[str, str]:
+    """Map an explicit agent name to (label, css_class)."""
+    m = {
+        "claude": ("Claude", "agent-claude"),
+        "claude-code": ("Claude", "agent-claude"),
+        "codex": ("Codex", "agent-codex"),
+        "codex-cli": ("Codex", "agent-codex"),
+        "copilot": ("Copilot", "agent-copilot"),
+        "copilot-chat": ("Copilot", "agent-copilot"),
+        "copilot-cli": ("Copilot", "agent-copilot"),
+        "cursor": ("Cursor", "agent-cursor"),
+        "gemini": ("Gemini", "agent-gemini"),
+        "gemini-cli": ("Gemini", "agent-gemini"),
+        "obsidian": ("Obsidian", "agent-obsidian"),
+        "pdf": ("PDF", "agent-pdf"),
+    }
+    return m.get(agent, (agent.title(), "agent-unknown"))
+
+
+def render_agent_badge(meta: dict) -> str:
+    """Render an inline agent badge chip."""
+    label, css_class = detect_agent_label(meta)
+    return f'<span class="agent-badge {html.escape(css_class)}">{html.escape(label)}</span>'
+
+# Inject agent badge CSS into the CSS constant
+# (This is appended at the module level — it'll be picked up on next build)

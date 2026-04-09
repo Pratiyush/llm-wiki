@@ -12,7 +12,7 @@ ended: 2026-02-08T10:45:00+00:00
 cwd: /Users/demo/code/demo-todo-api
 gitBranch: main
 permissionMode: default
-model: claude-haiku-4-5
+model: copilot/claude-sonnet-4
 user_messages: 5
 tool_calls: 15
 tools_used: [Read, Write, Edit, Bash]
