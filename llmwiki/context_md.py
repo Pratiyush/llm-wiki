@@ -58,7 +58,8 @@ def load_folder_context(folder: Path) -> Optional[tuple[dict[str, str], str]]:
         return None
     try:
         text = ctx_path.read_text(encoding="utf-8")
-    except OSError:
+    except (OSError, UnicodeDecodeError):
+        # Binary file at _context.md path — skip gracefully
         return None
 
     m = _FRONTMATTER_RE.match(text)
