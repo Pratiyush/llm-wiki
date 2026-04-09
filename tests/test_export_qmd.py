@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import stat
+import sys
 from pathlib import Path
 
 import pytest
@@ -159,6 +160,10 @@ def test_export_qmd_empty_wiki_still_produces_manifest_readme_script(tmp_path):
     assert (out / "wiki").is_dir()
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="Windows does not expose POSIX execute bits via stat()",
+)
 def test_export_qmd_sets_index_script_executable_bit(tmp_path):
     src = tmp_path / "wiki"
     src.mkdir()

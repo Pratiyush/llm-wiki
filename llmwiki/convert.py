@@ -820,6 +820,11 @@ def convert_all(
                 continue
 
             records = parse_jsonl(path)
+            # v0.5 (#109): normalize agent-specific records into the shared
+            # Claude-style format before filtering/rendering. This lets each
+            # adapter translate its native schema without touching the shared
+            # renderer. The default implementation is a no-op for Claude Code.
+            records = adapter.normalize_records(records)
             records = filter_records(records, drop_types)
             if not records:
                 filtered += 1

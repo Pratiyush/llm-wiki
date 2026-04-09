@@ -86,3 +86,22 @@ class BaseAdapter:
     def is_subagent(self, jsonl_path: Path) -> bool:
         """Default: filenames or paths containing 'subagent' are sub-agent runs."""
         return "subagent" in jsonl_path.parts or "subagent" in jsonl_path.name
+
+    def normalize_records(self, records: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """Normalize agent-specific JSONL records into the shared Claude-style
+        format that ``llmwiki.convert`` expects.
+
+        The shared renderer expects records shaped as:
+        - ``{"type": "user", "message": {"role": "user", "content": "..."}}``
+        - ``{"type": "assistant", "message": {"role": "assistant", "content": [...]}}``
+
+        The default implementation is a no-op (pass-through) — Claude Code
+        sessions already use this format. Adapters for agents with a different
+        schema (e.g. Codex CLI, Copilot) override this method to translate
+        their native records into the shared shape.
+
+        Called by ``convert.py`` after ``parse_jsonl()`` and before the
+        renderer, so the normalization is transparent to the rest of the
+        pipeline.
+        """
+        return records

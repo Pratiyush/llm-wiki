@@ -162,6 +162,21 @@ def cmd_eval(args: argparse.Namespace) -> int:
     return eval_main(sub_argv)
 
 
+def cmd_export_marp(args: argparse.Namespace) -> int:
+    """Export a Marp slide deck from wiki content matching a topic (v0.7 · #95)."""
+    from llmwiki.export_marp import export_marp
+    from llmwiki import REPO_ROOT
+
+    wiki_dir = args.wiki or (REPO_ROOT / "wiki")
+    out_path = args.out
+    result = export_marp(topic=args.topic, wiki_dir=wiki_dir, out_path=out_path)
+    if result:
+        print(f"==> Marp deck written to {result}")
+    else:
+        print("  no matching pages found for the topic")
+    return 0
+
+
 def cmd_check_links(args: argparse.Namespace) -> int:
     """Verify every internal link in site/ resolves to an existing file."""
     from llmwiki.link_checker import main as link_main
@@ -334,6 +349,25 @@ def build_parser() -> argparse.ArgumentParser:
     exp.add_argument("--clean", action="store_true", help="Delete the target subfolder before copying")
     exp.add_argument("--dry-run", action="store_true")
     exp.set_defaults(func=cmd_export_obsidian)
+
+    # export-marp (v0.7, #95) — Marp slide deck generation
+    exp_marp = sub.add_parser(
+        "export-marp",
+        help="Generate a Marp slide deck from wiki content matching a topic",
+    )
+    exp_marp.add_argument(
+        "--topic", type=str, required=True,
+        help="Topic to search for in the wiki",
+    )
+    exp_marp.add_argument(
+        "--out", type=Path, default=None,
+        help="Output path (default: wiki/exports/<topic>.marp.md)",
+    )
+    exp_marp.add_argument(
+        "--wiki", type=Path, default=None,
+        help="Wiki directory (default: ./wiki)",
+    )
+    exp_marp.set_defaults(func=cmd_export_marp)
 
     # export-qmd (v0.6, #59) — emit a self-contained qmd collection so
     # the user can run tobi/qmd's hybrid-search stack over their wiki

@@ -1,6 +1,7 @@
-"""Codex CLI adapter.
+"""Codex CLI adapter (production — v0.5 fix #109).
 
-Reads session transcripts from OpenAI's Codex CLI. v0.3 brings this adapter
+Reads session transcripts from OpenAI's Codex CLI and normalizes the
+Codex-native JSONL schema into the shared Claude-style format. v0.3 brings this adapter
 from stub → production: it discovers session files, derives project slugs,
 and declares its schema version. Record parsing goes through the shared
 converter in llmwiki.convert with graceful degradation for unknown record
@@ -69,32 +70,153 @@ class CodexCliAdapter(BaseAdapter):
         return unique
 
     def derive_project_slug(self, path: Path) -> str:
-        """Walk up from the .jsonl to the nearest project directory.
+        """Derive the project slug from the Codex session's recorded cwd.
 
-        Codex CLI layouts vary — some use ~/.codex/sessions/<project>/<file>.jsonl,
-        others use ~/.codex/projects/<hashed-path>/<file>.jsonl. We prefer the
-        directory immediately under sessions/ or projects/, and strip the
-        '-Users-...-draft-' prefix the same way the Claude Code adapter does.
+        Codex CLI 0.118.0 stores sessions under date-bucketed directories
+        (~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl), so the directory
+        path itself is NOT the project identifier. Instead we read the
+        session_meta record's `cwd` field and use its basename.
+
+        Fallback: if the session has no cwd, use the directory name
+        (which will be the DD date bucket — not great, but better than
+        crashing).
         """
-        for root in self.roots:
-            root = Path(root).expanduser()
-            try:
-                rel = path.relative_to(root)
-                if rel.parts:
-                    parent = rel.parts[0]
-                    if parent.startswith("-Users-") or parent.startswith("-home-"):
-                        parts = parent.lstrip("-").split("-")
-                        for marker in ("draft", "production", "Desktop", "workspace"):
-                            if marker in parts:
-                                idx = len(parts) - 1 - parts[::-1].index(marker)
-                                tail = parts[idx + 1 :]
-                                if tail:
-                                    return "-".join(tail)
-                        return "-".join(parts[-2:]) if len(parts) >= 2 else parent
-                    return parent
-            except ValueError:
-                continue
+        import json
+
+        # Try to read cwd from the session_meta record
+        try:
+            with open(path, encoding="utf-8", errors="replace") as f:
+                for line in f:
+                    try:
+                        r = json.loads(line.strip())
+                    except (ValueError, json.JSONDecodeError):
+                        continue
+                    if r.get("type") == "session_meta":
+                        cwd = r.get("payload", {}).get("cwd", "")
+                        if cwd:
+                            # Use the basename of the working directory
+                            return Path(cwd).name.lower().replace(" ", "-")
+                    break  # session_meta is always the first record
+        except OSError:
+            pass
+
+        # Fallback: use the parent directory name
         return path.parent.name
+
+
+    def normalize_records(self, records: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """Normalize Codex CLI records into the shared Claude-style format.
+
+        Maps:
+        - session_meta → sessionId, cwd, model metadata extraction
+        - response_item(role=user, type=message) → user record
+        - response_item(role=assistant, type=message) → assistant record
+        - response_item(type=web_search_call) → tool_use record
+        - event_msg(type=task_started) → turn boundary (triggers slug)
+        - Everything else → skipped gracefully
+        """
+        out: list[dict[str, Any]] = []
+
+        # Extract session metadata first
+        session_id = ""
+        cwd = ""
+        model = ""
+        for r in records:
+            if r.get("type") == "session_meta":
+                p = r.get("payload", {})
+                session_id = p.get("id", "")
+                cwd = p.get("cwd", "")
+
+        for r in records:
+            rtype = r.get("type", "")
+            payload = r.get("payload", {})
+            ts = r.get("timestamp", "")
+
+            if rtype == "session_meta":
+                # Emit a synthetic init record with metadata
+                out.append({
+                    "type": "init",
+                    "sessionId": session_id,
+                    "cwd": cwd,
+                    "timestamp": ts,
+                })
+                continue
+
+            if rtype == "turn_context":
+                model = payload.get("model", model)
+                continue
+
+            if rtype == "response_item":
+                role = payload.get("role", "")
+                item_type = payload.get("type", "")
+                content_blocks = payload.get("content", [])
+
+                if role == "user" and item_type == "message":
+                    # Extract text from content blocks
+                    text_parts = []
+                    for block in (content_blocks if isinstance(content_blocks, list) else []):
+                        if isinstance(block, dict) and block.get("type") == "input_text":
+                            text_parts.append(block.get("text", ""))
+                        elif isinstance(block, str):
+                            text_parts.append(block)
+                    text = "\n".join(text_parts).strip()
+                    if text:
+                        out.append({
+                            "type": "user",
+                            "message": {"role": "user", "content": text},
+                            "timestamp": ts,
+                        })
+                    continue
+
+                if role == "assistant" and item_type == "message":
+                    text_parts = []
+                    for block in (content_blocks if isinstance(content_blocks, list) else []):
+                        if isinstance(block, dict) and block.get("type") == "output_text":
+                            text_parts.append({"type": "text", "text": block.get("text", "")})
+                        elif isinstance(block, str):
+                            text_parts.append({"type": "text", "text": block})
+                    if text_parts:
+                        out.append({
+                            "type": "assistant",
+                            "message": {
+                                "role": "assistant",
+                                "content": text_parts,
+                                "model": model,
+                            },
+                            "timestamp": ts,
+                        })
+                    continue
+
+                if role == "developer":
+                    # System/developer prompt — skip (context, not conversation)
+                    continue
+
+                if item_type == "web_search_call":
+                    out.append({
+                        "type": "assistant",
+                        "message": {
+                            "role": "assistant",
+                            "content": [{
+                                "type": "tool_use",
+                                "name": "WebSearch",
+                                "input": {"query": payload.get("query", "")},
+                            }],
+                        },
+                        "timestamp": ts,
+                    })
+                    continue
+
+                if item_type == "reasoning":
+                    # Thinking block — skip by default (matches Claude config)
+                    continue
+
+            if rtype == "event_msg":
+                # Turn lifecycle events — mostly metadata, not conversation
+                continue
+
+            # Unknown record type — skip gracefully (never crash)
+
+        return out
 
     def is_subagent(self, path: Path) -> bool:
         return "subagent" in path.name or "agent-" in path.name

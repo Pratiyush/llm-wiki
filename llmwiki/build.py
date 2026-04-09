@@ -33,7 +33,7 @@ import shutil
 import subprocess
 import sys
 from collections import defaultdict
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
@@ -325,7 +325,7 @@ def render_freshness(meta: dict[str, Any]) -> str:
     if _FRESHNESS_CONFIG is None:
         _FRESHNESS_CONFIG = load_freshness_config()
     if _BUILD_NOW is None:
-        _BUILD_NOW = datetime.utcnow()
+        _BUILD_NOW = datetime.now(timezone.utc).replace(tzinfo=None)
     green, yellow = _FRESHNESS_CONFIG
     return freshness_badge(meta, now=_BUILD_NOW, green_days=green, yellow_days=yellow)
 
