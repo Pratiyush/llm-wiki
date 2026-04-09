@@ -1379,14 +1379,19 @@ def build_search_index(
     groups: dict[str, list[tuple[Path, dict[str, Any], str]]],
     out_dir: Path,
 ) -> Path:
-    entries: list[dict[str, Any]] = []
+    """Build a chunked search index for lazy loading (#47).
 
-    # Add each session
+    Writes:
+      search-index.json          — meta entries (projects + pages) + _chunks manifest
+      search-chunks/<project>.json — session entries per project
+    """
+    # ── session entries grouped by project ──
+    chunks: dict[str, list[dict[str, Any]]] = {}
     for p, meta, body in sources:
         project = str(meta.get("project") or p.parent.name)
         slug = str(meta.get("slug", p.stem))
         plain = md_to_plain_text(body)[:1200]
-        entries.append(
+        chunks.setdefault(project, []).append(
             {
                 "id": f"session:{project}/{p.stem}",
                 "url": f"sessions/{project}/{p.stem}.html",
@@ -1399,9 +1404,23 @@ def build_search_index(
             }
         )
 
-    # Add each project page
+    # ── write per-project chunks ──
+    chunks_dir = out_dir / "search-chunks"
+    chunks_dir.mkdir(exist_ok=True)
+    chunk_manifest: list[str] = []
+    total_chunk_bytes = 0
+    for project_slug, entries in sorted(chunks.items()):
+        chunk_path = chunks_dir / f"{project_slug}.json"
+        data = json.dumps(entries, ensure_ascii=False)
+        chunk_path.write_text(data, encoding="utf-8")
+        chunk_manifest.append(f"search-chunks/{project_slug}.json")
+        total_chunk_bytes += len(data.encode("utf-8"))
+
+    # ── meta index: projects + static pages + chunk manifest ──
+    meta_entries: list[dict[str, Any]] = []
+
     for project, sessions in groups.items():
-        entries.append(
+        meta_entries.append(
             {
                 "id": f"project:{project}",
                 "url": f"projects/{project}.html",
@@ -1414,46 +1433,27 @@ def build_search_index(
             }
         )
 
-    # Add the top-level pages
-    entries.append(
-        {
-            "id": "home",
-            "url": "index.html",
-            "title": "Home",
-            "type": "page",
-            "project": "",
-            "date": "",
-            "model": "",
-            "body": "overview index",
-        }
+    meta_entries.append(
+        {"id": "home", "url": "index.html", "title": "Home", "type": "page",
+         "project": "", "date": "", "model": "", "body": "overview index"}
     )
-    entries.append(
-        {
-            "id": "projects-index",
-            "url": "projects/index.html",
-            "title": "Projects",
-            "type": "page",
-            "project": "",
-            "date": "",
-            "model": "",
-            "body": "all projects",
-        }
+    meta_entries.append(
+        {"id": "projects-index", "url": "projects/index.html", "title": "Projects",
+         "type": "page", "project": "", "date": "", "model": "", "body": "all projects"}
     )
-    entries.append(
-        {
-            "id": "sessions-index",
-            "url": "sessions/index.html",
-            "title": "All sessions",
-            "type": "page",
-            "project": "",
-            "date": "",
-            "model": "",
-            "body": "sortable sessions table",
-        }
+    meta_entries.append(
+        {"id": "sessions-index", "url": "sessions/index.html", "title": "All sessions",
+         "type": "page", "project": "", "date": "", "model": "", "body": "sortable sessions table"}
     )
 
+    index_obj = {"entries": meta_entries, "_chunks": chunk_manifest}
     out_path = out_dir / "search-index.json"
-    out_path.write_text(json.dumps(entries, ensure_ascii=False), encoding="utf-8")
+    out_path.write_text(json.dumps(index_obj, ensure_ascii=False), encoding="utf-8")
+
+    meta_kb = len(json.dumps(index_obj).encode("utf-8")) // 1024
+    chunks_kb = total_chunk_bytes // 1024
+    print(f"  wrote search-index.json ({meta_kb} KB meta) + {len(chunk_manifest)} chunks ({chunks_kb} KB total)")
+
     return out_path
 
 
@@ -2380,19 +2380,49 @@ document.addEventListener("DOMContentLoaded", function () {
 (function () {
   let idx = null;
   let idxPromise = null;
+  let metaEntries = null;  // project + page entries (loaded first, fast)
   let activeIdx = 0;
   let currentResults = [];
 
+  // Lazy-chunked loader (#47): loads the small meta index first (projects +
+  // static pages), then fetches per-project session chunks in parallel on
+  // first demand. Backwards-compatible with the old flat-array format.
   function loadIndex() {
     if (idx) return Promise.resolve(idx);
     if (idxPromise) return idxPromise;
     const url = window.LLMWIKI_INDEX_URL || "search-index.json";
+    const base = url.substring(0, url.lastIndexOf("/") + 1);
     idxPromise = fetch(url)
       .then(function (r) { return r.ok ? r.json() : []; })
-      .then(function (data) { idx = data || []; return idx; })
+      .then(function (data) {
+        // Old format: flat array → return as-is
+        if (Array.isArray(data)) { idx = data; return idx; }
+        // New format: {entries: [...], _chunks: ["search-chunks/foo.json", ...]}
+        metaEntries = data.entries || [];
+        var chunkUrls = data._chunks || [];
+        if (!chunkUrls.length) { idx = metaEntries; return idx; }
+        return Promise.all(chunkUrls.map(function (cu) {
+          return fetch(base + cu)
+            .then(function (r) { return r.ok ? r.json() : []; })
+            .catch(function () { return []; });
+        })).then(function (chunks) {
+          idx = metaEntries.slice();
+          chunks.forEach(function (c) {
+            if (Array.isArray(c)) { for (var i = 0; i < c.length; i++) idx.push(c[i]); }
+          });
+          return idx;
+        });
+      })
       .catch(function () { idx = []; return idx; });
     return idxPromise;
   }
+  // Expose the shared loader so wikilink-preview + related-pages can reuse it
+  window.__llmwikiLoadIndex = loadIndex;
+
+  // Return the meta entries (projects + pages) synchronously if available,
+  // otherwise trigger a full load. Used for instant palette rendering before
+  // session chunks arrive.
+  function getMetaSync() { return metaEntries || idx || []; }
 
   function score(entry, query) {
     if (!query) return 0;
@@ -2468,7 +2498,10 @@ document.addEventListener("DOMContentLoaded", function () {
     p.setAttribute("aria-hidden", "false");
     const input = document.getElementById("palette-input");
     if (input) { input.value = ""; input.focus(); }
-    loadIndex().then(function () { renderResults(search("")); });
+    // Show meta entries immediately while chunks load
+    var meta = getMetaSync();
+    if (meta.length && !idx) renderResults(meta.slice(0, 10));
+    loadIndex().then(function () { renderResults(search(input ? input.value : "")); });
   }
 
   function closePalette() {
@@ -2659,10 +2692,17 @@ document.addEventListener("DOMContentLoaded", function () {
 
   function loadIndex() {
     if (idx) return Promise.resolve(idx);
-    const url = window.LLMWIKI_INDEX_URL || "search-index.json";
+    // Reuse the shared chunked loader from the palette IIFE (#47)
+    if (window.__llmwikiLoadIndex) {
+      return window.__llmwikiLoadIndex().then(function (data) { idx = data; return idx; });
+    }
+    var url = window.LLMWIKI_INDEX_URL || "search-index.json";
     return fetch(url)
       .then(function (r) { return r.ok ? r.json() : []; })
-      .then(function (data) { idx = data || []; return idx; })
+      .then(function (data) {
+        idx = Array.isArray(data) ? data : (data.entries || []);
+        return idx;
+      })
       .catch(function () { idx = []; return idx; });
   }
 
@@ -2818,9 +2858,13 @@ document.addEventListener("DOMContentLoaded", function () {
     const currentSlug = meta.slug || "";
     if (!currentProject) return;
 
-    const url = window.LLMWIKI_INDEX_URL || "search-index.json";
-    fetch(url)
-      .then(function (r) { return r.ok ? r.json() : []; })
+    // Reuse the shared chunked loader (#47) — includes session entries
+    var loader = window.__llmwikiLoadIndex
+      ? window.__llmwikiLoadIndex()
+      : fetch(window.LLMWIKI_INDEX_URL || "search-index.json")
+          .then(function (r) { return r.ok ? r.json() : []; })
+          .then(function (d) { return Array.isArray(d) ? d : (d.entries || []); });
+    loader
       .then(function (entries) {
         if (!entries || !entries.length) return;
         // Score each other session: same project = 2 pts, shared wikilink targets = +1 per token
@@ -3047,13 +3091,8 @@ def build_site(
         + f", vs/index.html ({pair_count} comparisons)"
     )
 
-    # Search index
+    # Search index (chunked — #47)
     idx_path = build_search_index(sources, groups, out_dir)
-    try:
-        idx_size = idx_path.stat().st_size
-    except OSError:
-        idx_size = 0
-    print(f"  wrote search-index.json ({idx_size // 1024} KB)")
 
     # v0.4: AI-consumable exports (llms.txt, llms-full.txt, graph.jsonld,
     # sitemap.xml, rss.xml, robots.txt, ai-readme.md)
