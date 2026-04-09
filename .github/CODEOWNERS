@@ -1,0 +1,42 @@
+# CODEOWNERS — auto-request review for each layer.
+#
+# Every line: <pattern> <owner> [<owner>...]
+# Patterns are gitignore-style, evaluated in order, LAST match wins.
+#
+# Until additional maintainers join the project, every path is owned
+# by @Pratiyush. When more maintainers exist, update per-layer lines
+# to split the load (e.g. L6 adapters → whoever cares about adapters).
+
+*                               @Pratiyush
+
+# L0 Raw — converters + adapters
+llmwiki/convert.py              @Pratiyush
+llmwiki/adapters/               @Pratiyush
+
+# L2 Site — HTML builder + visualization modules
+llmwiki/build.py                @Pratiyush
+llmwiki/viz_heatmap.py          @Pratiyush
+llmwiki/viz_tools.py             @Pratiyush
+llmwiki/viz_tokens.py           @Pratiyush
+llmwiki/models_page.py          @Pratiyush
+llmwiki/compare.py              @Pratiyush
+llmwiki/project_topics.py       @Pratiyush
+
+# L5 Schema — docs, steering, CLAUDE.md
+CLAUDE.md                       @Pratiyush
+AGENTS.md                       @Pratiyush
+docs/                           @Pratiyush
+docs/maintainers/               @Pratiyush
+
+# L7 CI/Ops — workflows, tests, release
+.github/workflows/              @Pratiyush
+tests/                          @Pratiyush
+
+# Governance — anything here is sensitive and touches how the project
+# is run. All changes need maintainer review.
+CONTRIBUTING.md                 @Pratiyush
+CODE_OF_CONDUCT.md              @Pratiyush
+SECURITY.md                     @Pratiyush
+.github/CODEOWNERS              @Pratiyush
+.github/PULL_REQUEST_TEMPLATE.md @Pratiyush
+.github/ISSUE_TEMPLATE/         @Pratiyush

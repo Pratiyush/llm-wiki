@@ -1,49 +1,52 @@
 <!--
-llmwiki PR template
+Thanks for the PR! Fill in every section below — reviewers use this
+template as a checklist. PRs with empty sections usually bounce.
 
-Rules (from CONTRIBUTING.md):
-- One concern per PR
-- One file per PR preferred
-- No `Co-authored-by: Claude` / AI attribution lines
-- PR title format: add:/fix:/docs:/chore:/test: <short description>
+See CONTRIBUTING.md for the full rules, or
+docs/maintainers/REVIEW_CHECKLIST.md for the full review bar.
 -->
 
-## What this PR does
+## Summary
 
-<!-- 1-2 sentences -->
+<!-- One paragraph: what does this PR do? -->
 
-## Why
+Closes #<issue>
 
-<!-- What problem does this solve? -->
+## What changed
 
-## How
+<!-- Bullet points on the notable changes. One bullet per concern. -->
 
-<!-- Brief summary of the approach. Link to an issue if there is one. -->
+-
+-
+-
 
-Closes #
+## How to test it
 
-## Files changed
+<!-- Shell commands or click-path a reviewer can run -->
 
-<!-- Group by layer if multiple files -->
-
-- `llmwiki/…` —
-- `docs/…` —
-- `tests/…` —
-
-## How I tested this
-
-- [ ] `python3 -m llmwiki --version`
-- [ ] `python3 -m llmwiki adapters`
-- [ ] `python3 -m pytest tests/ -q`
-- [ ] `python3 -m llmwiki build` (smoke)
-- [ ] Privacy grep clean: `grep -r "<my_username>" site/ wiki/` returns zero
-- [ ] Manually verified in the browser at `http://127.0.0.1:8765/` (if UI changes)
+```bash
+python3 -m pytest tests/ -q
+python3 -m llmwiki build
+```
 
 ## Checklist
 
-- [ ] I read `CONTRIBUTING.md`
-- [ ] CHANGELOG updated under `## [Unreleased]`
-- [ ] Docs updated (if this changes behaviour)
-- [ ] No new runtime deps added (or justified in the description)
-- [ ] No AI co-authored-by lines in commits
-- [ ] Branch targets `master`
+- [ ] Linked to an issue (or explained why the change is trivial enough not to need one)
+- [ ] One concern per PR — no mixing a bug fix with a new feature
+- [ ] Conventional-commit title: `feat:` / `fix:` / `docs:` / `chore:` / `test:` (optionally with a version scope like `feat(v0.8):`)
+- [ ] Tests added or updated — happy path + at least one edge case
+- [ ] `python3 -m pytest tests/ -q` passes locally
+- [ ] `python3 -m llmwiki build` completes without new warnings
+- [ ] CHANGELOG.md has a new entry under `## [Unreleased]` (skip for doc-only PRs)
+- [ ] No new runtime dependencies (stdlib + `markdown` only)
+- [ ] No real session data under `raw/sessions/` or in test fixtures
+- [ ] No machine-specific paths in committed files
+- [ ] Docs updated for any user-visible change
+
+## Screenshots / output
+
+<!-- Paste screenshots, preview URLs, or CLI output if the change affects the rendered site or the CLI -->
+
+## Out of scope / follow-ups
+
+<!-- What did you explicitly NOT do in this PR? What issues should be filed next? -->

@@ -1,0 +1,84 @@
+name: Bug report
+description: Something is broken or misbehaving
+title: "bug: <short title>"
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! Please fill in every section — minimal reproductions get fixed fastest.
+
+        **Security bug?** Don't use this template. Email the maintainer directly — see [`SECURITY.md`](../../SECURITY.md).
+
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: One paragraph on the actual behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+      description: One paragraph on the expected behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Minimal reproduction
+      description: Shell commands or minimal file contents that trigger the bug. Redact any real session data before pasting.
+      placeholder: |
+        ```bash
+        python3 -m llmwiki ...
+        ```
+      render: bash
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: llmwiki version
+      description: Output of `python3 -m llmwiki --version`
+      placeholder: "llmwiki 0.9.0"
+    validations:
+      required: true
+
+  - type: input
+    id: python
+    attributes:
+      label: Python version
+      description: Output of `python3 --version`
+      placeholder: "Python 3.12.1"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - macOS
+        - Linux
+        - Windows
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: browser
+    attributes:
+      label: Browser (viewer bugs only)
+      description: Leave blank for CLI/build bugs. For viewer bugs, include browser + version.
+      placeholder: "Chrome 121"
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs or stack traces
+      description: Paste any error output, build warnings, or browser console errors
+      render: shell

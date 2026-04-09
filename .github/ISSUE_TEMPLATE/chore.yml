@@ -1,0 +1,50 @@
+name: Chore
+description: Refactor, dependency bump, CI tweak, or other non-functional change
+title: "chore: <short title>"
+labels: ["chore"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template for work that doesn't change user-visible behavior — refactors, dependency bumps, CI tweaks, dead code removal, etc.
+
+  - type: textarea
+    id: what
+    attributes:
+      label: What needs to happen
+      description: One or two sentences
+    validations:
+      required: true
+
+  - type: textarea
+    id: why
+    attributes:
+      label: Why
+      description: What's the motivation? E.g. "CI failing", "tech debt blocking feature X", "security advisory for dep Y"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: category
+    attributes:
+      label: Category
+      options:
+        - refactor
+        - dependency bump
+        - CI / workflow
+        - dead code removal
+        - tests only
+        - tooling
+        - other
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: confirmations
+    attributes:
+      label: Confirmations
+      options:
+        - label: This change is NOT user-visible (if it is, file a feat: or fix: issue instead)
+          required: true
+        - label: I've searched existing issues for duplicates
+          required: true

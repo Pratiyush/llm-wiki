@@ -178,6 +178,29 @@ Syntax highlighting is now powered by [highlight.js](https://highlightjs.org/), 
 4. Optionally offers to install the `SessionStart` hook into `~/.claude/settings.json` for auto-sync
 5. Runs a first sync so you see output immediately
 
+## For maintainers
+
+Running the project? The governance scaffold lives under [`docs/maintainers/`](docs/maintainers) and is loaded by a dedicated skill:
+
+| File | What it's for |
+|---|---|
+| [`CONTRIBUTING.md`](CONTRIBUTING.md) | Short rules for contributors — read this first |
+| [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md) | Contributor Covenant 2.1 |
+| [`SECURITY.md`](SECURITY.md) | Disclosure process for redaction bugs, XSS, data leaks |
+| [`docs/maintainers/ARCHITECTURE.md`](docs/maintainers/ARCHITECTURE.md) | One-page system diagram + layer boundaries + what NOT to add |
+| [`docs/maintainers/REVIEW_CHECKLIST.md`](docs/maintainers/REVIEW_CHECKLIST.md) | Canonical code-review criteria |
+| [`docs/maintainers/RELEASE_PROCESS.md`](docs/maintainers/RELEASE_PROCESS.md) | Version bump → CHANGELOG → tag → build → publish |
+| [`docs/maintainers/TRIAGE.md`](docs/maintainers/TRIAGE.md) | Label taxonomy + stale-issue policy |
+| [`docs/maintainers/ROADMAP.md`](docs/maintainers/ROADMAP.md) | Near-term plan + release themes |
+| [`docs/maintainers/DECLINED.md`](docs/maintainers/DECLINED.md) | Graveyard of declined ideas with reasons |
+
+Four Claude Code slash commands automate the common ops:
+
+- `/review-pr <N>` — apply the REVIEW_CHECKLIST to a PR and post findings
+- `/triage-issue <N>` — label + milestone + priority a new issue
+- `/release <version>` — walk the release process step by step
+- `/maintainer` — meta-skill that loads every governance doc as context
+
 ## CLI reference
 
 ```bash

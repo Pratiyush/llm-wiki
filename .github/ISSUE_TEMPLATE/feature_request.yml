@@ -1,0 +1,74 @@
+name: Feature request
+description: Suggest a new feature or expansion of an existing one
+title: "feat: <short title>"
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for proposing a feature! Before you file, please check:
+        - [`docs/maintainers/DECLINED.md`](../../docs/maintainers/DECLINED.md) — we may have already considered this
+        - Existing open issues — your idea may already be tracked
+        - [`docs/maintainers/ROADMAP.md`](../../docs/maintainers/ROADMAP.md) — see what's already planned
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What problem does this solve? Concrete user scenario, not an abstract "it would be nice if…"
+      placeholder: |
+        I'm trying to do X, and the current behavior makes it hard because Y.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: What should the feature do? Include the CLI surface, new files, new config if any.
+      placeholder: |
+        Add a new subcommand `llmwiki foo` that does ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: Checkboxes the reviewer can tick off when reviewing the PR
+      value: |
+        - [ ]
+        - [ ]
+        - [ ]
+    validations:
+      required: true
+
+  - type: dropdown
+    id: layer
+    attributes:
+      label: Which layer does this live in?
+      description: See [`docs/maintainers/ARCHITECTURE.md`](../../docs/maintainers/ARCHITECTURE.md)
+      options:
+        - L0 Raw (converters, adapters)
+        - L1 Wiki (slash commands, conventions)
+        - L2 Site (HTML builder, CSS, JS)
+        - L3 Viewer (browser JS)
+        - L4 Distribution (setup, packaging)
+        - L5 Schema (docs, steering)
+        - L6 Adapters (one per agent)
+        - L7 CI/Ops (workflows, tests)
+        - Not sure
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: What other approaches did you think about? Why reject them?
+
+  - type: textarea
+    id: out_of_scope
+    attributes:
+      label: Out of scope
+      description: What is this proposal explicitly NOT asking for? Helps reviewers avoid scope creep.
