@@ -27,13 +27,13 @@ jobs:
         with:
           script: |
             const title = context.payload.pull_request.title || "";
-            // Accept: feat[(...)]:, fix[(...)]:, docs:, chore:, test:, release:
-            const pattern = /^(feat|fix|docs|chore|test|release)(\([^)]+\))?:\s.+/;
+            // Accept: feat, fix, docs, chore, test, release, perf, a11y, refactor
+            const pattern = /^(feat|fix|docs|chore|test|release|perf|a11y|refactor)(\([^)]+\))?:\s.+/;
             if (!pattern.test(title)) {
               core.setFailed(
                 `PR title must start with one of feat: / fix: / docs: / chore: / ` +
-                `test: / release: (optionally with a version scope like ` +
-                `feat(v0.8):). Got: "${title}". See CONTRIBUTING.md.`
+                `test: / release: / perf: / a11y: / refactor: (optionally with a ` +
+                `version scope like feat(v0.8):). Got: "${title}". See CONTRIBUTING.md.`
               );
             } else {
               core.info(`PR title prefix OK: ${title}`);
