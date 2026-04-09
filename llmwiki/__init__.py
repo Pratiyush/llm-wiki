@@ -1,4 +1,5 @@
-"""llmwiki — LLM-powered knowledge base from Claude Code and Codex CLI sessions.
+"""llmwiki — LLM-powered knowledge base from Claude Code, Codex CLI, Cursor,
+Gemini CLI, and Obsidian sessions.
 
 Follows Andrej Karpathy's LLM Wiki pattern:
     https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f
@@ -8,7 +9,10 @@ Public API:
     - llmwiki.convert.convert_all()   — .jsonl → markdown
     - llmwiki.build.build_site()      — markdown → HTML
     - llmwiki.serve.serve_site()      — local HTTP server
+    - llmwiki.graph.build_and_report() — knowledge graph
+    - llmwiki.exporters.export_all()  — AI-consumable exports
     - llmwiki.adapters.REGISTRY       — adapter registry
+    - llmwiki.mcp.server.main()       — MCP server (stdio)
 """
 
 __version__ = "0.9.0"

@@ -61,7 +61,7 @@ llmwiki/              # Python package
 ├── build.py          # markdown → HTML (god-level UI)
 ├── serve.py          # localhost HTTP server
 ├── adapters/         # session-store adapters (one per agent)
-└── mcp/              # MCP server stub
+└── mcp/              # MCP server (7 production tools, stdio transport)
 
 .claude/              # Claude Code plugin surface
 .claude-plugin/       # plugin.json + marketplace.json

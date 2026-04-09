@@ -147,7 +147,7 @@ def freshness_badge(
             '<span class="freshness fresh-unknown" '
             'title="No last-updated timestamp">updated unknown</span>'
         )
-    current = now if now is not None else datetime.utcnow()
+    current = now if now is not None else datetime.now(timezone.utc).replace(tzinfo=None)
     age = (current - dt).days
     cls = freshness_class(age, green_days, yellow_days)
     label = format_relative_time(age)

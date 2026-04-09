@@ -4,19 +4,17 @@ Exposes llmwiki operations as Model Context Protocol (MCP) tools that any
 MCP-capable client (Claude Desktop, Claude Code, Codex, Cline, Cursor, ChatGPT
 desktop, etc.) can call directly.
 
-v0.1 status: **stub**. The server implements the protocol handshake and a
-single `wiki_query` tool that returns the contents of `wiki/index.md` plus a
-message saying full tool surface is coming in v0.2.
+Seven production tools:
 
-In v0.2 this will expose:
+    - wiki_query(question)       — keyword search + page content
+    - wiki_search(term)          — raw grep over wiki/ (+ optional raw/)
+    - wiki_list_sources(project) — list raw source files with metadata
+    - wiki_read_page(path)       — read one page (path-traversal guarded)
+    - wiki_lint()                — orphans + broken-wikilinks report
+    - wiki_sync(dry_run)         — trigger the converter
+    - wiki_export(format)        — return any AI-consumable export
 
-    - wiki_query(question)   — search + synthesise from wiki/
-    - wiki_ingest(path)      — ingest one source
-    - wiki_search(term)      — raw grep over raw/ + wiki/
-    - wiki_lint()            — run the lint workflow
-    - wiki_sync()            — trigger a sync from session stores
-    - wiki_list_sources()    — list all sources with metadata
-
+Protocol: Model Context Protocol, stdio transport, JSON-RPC 2.0.
 See the MCP spec at: https://modelcontextprotocol.io/
 
 Run with:

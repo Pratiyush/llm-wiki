@@ -34,7 +34,7 @@ setup.bat
 
 `setup.sh` / `setup.bat` 会以幂等的方式完成以下步骤：
 
-1. 通过 `pip install --user` 安装 `markdown`（必需）和 `pygments`（可选，用于语法高亮）
+1. 通过 `pip install --user` 安装 `markdown`（必需）。语法高亮使用 highlight.js（通过 CDN 加载）。
 2. 创建 `raw/`、`wiki/`、`site/` 目录结构
 3. 运行 `llmwiki adapters` 显示检测到的 Agent
 4. 首次同步的 dry-run 预览，你可以看到将要转换哪些内容

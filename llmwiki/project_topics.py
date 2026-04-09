@@ -27,6 +27,7 @@ Stdlib-only.
 
 from __future__ import annotations
 
+import html
 import re
 from collections import Counter
 from pathlib import Path
@@ -161,9 +162,6 @@ def get_project_topics(
 
 
 # ─── render ──────────────────────────────────────────────────────────────
-
-
-import html  # noqa: E402 — deliberately after the typed definitions
 
 
 def render_topic_chips(

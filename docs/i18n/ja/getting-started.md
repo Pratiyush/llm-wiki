@@ -34,7 +34,7 @@ setup.bat
 
 `setup.sh` / `setup.bat` は次の手順を冪等に実行します:
 
-1. `pip install --user` で `markdown`（必須）と `pygments`（任意、シンタックスハイライト用）をインストール
+1. `pip install --user` で `markdown`（必須）をインストール。シンタックスハイライトは CDN 経由の highlight.js を使用。
 2. `raw/`、`wiki/`、`site/` ディレクトリを作成
 3. `llmwiki adapters` を実行して検出された Agent を表示
 4. 最初の同期の dry-run を実行し、何が変換されるかをプレビュー

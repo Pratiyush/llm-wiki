@@ -7,7 +7,7 @@ parse them into a stream of records. Adapters register themselves on import.
     discover_adapters()
     adapter_cls = REGISTRY["claude_code"]
     adapter = adapter_cls(config)
-    for path, meta, records in adapter.iter_sessions():
+    for path in adapter.discover_sessions():
         ...
 """
 

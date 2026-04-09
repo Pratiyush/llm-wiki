@@ -134,7 +134,7 @@ This document is the deliverable for **Phase 1.25 Research**, a new phase added 
 | Pure stdlib + `markdown` (no DB, no MCP, no Node) | ~50% | ✅ |
 | Beautiful static HTML viewer | ❌ | ✅ god-level UI |
 | Global search (Cmd+K) | ❌ | ✅ client-side index |
-| Syntax highlighting | Rarely | ✅ Pygments |
+| Syntax highlighting | Rarely | ✅ highlight.js (CDN) |
 | Redaction by default | ❌ | ✅ username + API keys + tokens + emails |
 | Live-session detection | ❌ | ✅ skips `<60min` old |
 | Idempotent incremental sync | Some | ✅ mtime state file |

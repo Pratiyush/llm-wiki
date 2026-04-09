@@ -34,7 +34,7 @@ setup.bat
 
 `setup.sh` / `setup.bat` hace lo siguiente de forma idempotente:
 
-1. Instala `markdown` (obligatorio) y `pygments` (opcional, resaltado de sintaxis) con `pip install --user`
+1. Instala `markdown` (obligatorio) con `pip install --user`. El resaltado de sintaxis usa highlight.js desde un CDN.
 2. Crea los directorios `raw/`, `wiki/` y `site/`
 3. Ejecuta `llmwiki adapters` para mostrar qué Agents detectó
 4. Hace una ejecución en seco del primer sync para que veas qué se convertiría
