@@ -56,6 +56,17 @@ dev = [
     "pytest>=7.0",
     "ruff>=0.1",
 ]
+# E2E test harness — Playwright drives a real browser + pytest-bdd
+# turns Gherkin `.feature` files into pytest scenarios + pytest-html
+# produces a browseable HTML report per run. Opt-in because
+# Playwright installs ~300 MB of browsers per engine.
+# Install with: `pip install -e '.[e2e]'` then `playwright install chromium`
+e2e = [
+    "pytest>=7.0",
+    "pytest-playwright>=0.4",
+    "pytest-bdd>=7.0",
+    "pytest-html>=4.0",
+]
 all = [
     "pypdf>=4.0",
 ]
@@ -99,4 +110,7 @@ testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
-addopts = "-q"
+# --ignore tests/e2e keeps the fast unit + integration suite unaware
+# of the Playwright + pytest-bdd harness. Run E2E explicitly:
+#   pytest tests/e2e/ --no-header -p no:cacheprovider
+addopts = "-q --ignore=tests/e2e"

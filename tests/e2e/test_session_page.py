@@ -1,0 +1,7 @@
+"""Binder for `features/session_page.feature`."""
+
+from pytest_bdd import scenarios
+
+from tests.e2e.steps.ui_steps import *  # noqa: F401,F403
+
+scenarios("features/session_page.feature")

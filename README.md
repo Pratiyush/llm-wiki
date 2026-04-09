@@ -201,6 +201,74 @@ Four Claude Code slash commands automate the common ops:
 - `/release <version>` — walk the release process step by step
 - `/maintainer` — meta-skill that loads every governance doc as context
 
+## Running E2E tests
+
+The unit suite (`pytest tests/` — 439 tests) runs in milliseconds and
+covers every module. The **end-to-end suite** under `tests/e2e/` is
+separate: it builds a minimal demo site, serves it on a random port,
+drives a real browser via [Playwright](https://playwright.dev/python),
+and runs scenarios written in [Gherkin](https://cucumber.io/docs/gherkin/)
+via [pytest-bdd](https://pytest-bdd.readthedocs.io/).
+
+Why both? Unit tests lock the contract at the module boundary;
+E2E locks the contract at the **user's browser**. A diff that passes
+unit tests but breaks the Cmd+K palette will fail E2E.
+
+Install the extras (one-time, ~300 MB for Chromium):
+
+```bash
+pip install -e '.[e2e]'
+python -m playwright install chromium
+```
+
+Run the suite:
+
+```bash
+pytest tests/e2e/ --browser=chromium
+```
+
+Run a single feature:
+
+```bash
+pytest tests/e2e/test_command_palette.py --browser=chromium -v
+```
+
+The E2E suite is **excluded from the default `pytest tests/` run**
+(see the `--ignore=tests/e2e` addopt in `pyproject.toml`) so you
+can iterate on the unit suite without waiting for browser installs.
+CI runs the E2E job as a separate workflow (`.github/workflows/e2e.yml`)
+that only fires on PRs touching `build.py`, the viz modules, or
+`tests/e2e/**`.
+
+Feature files live under `tests/e2e/features/` — one per UI area
+(homepage, session page, command palette, keyboard nav, mobile nav,
+theme toggle, copy-as-markdown, **responsive breakpoints**, **edge
+cases**, **accessibility**, **visual regression**). Step definitions
+are all in `tests/e2e/steps/ui_steps.py`. Adding a new scenario is
+usually a 2-line change to a `.feature` file plus maybe one new step.
+
+Run locally with an HTML report:
+
+```bash
+pytest tests/e2e/ --browser=chromium \
+  --html=e2e-report/index.html --self-contained-html
+open e2e-report/index.html     # macOS — opens the browseable report
+```
+
+**Where to see test reports:**
+
+| What | Where |
+|---|---|
+| Unit test results | GitHub Actions → `ci.yml` → latest run → `lint-and-test` job logs |
+| E2E HTML report | GitHub Actions → `e2e.yml` → latest run → Artifacts → `e2e-html-report` (14-day retention) |
+| Visual regression screenshots | Same run → Artifacts → `e2e-screenshots` |
+| Playwright traces (failed runs only) | Same run → Artifacts → `playwright-traces` (open with `playwright show-trace <zip>`) |
+| Demo site deploy status | GitHub Actions → `pages.yml` → latest run |
+
+Locally, the HTML report is one file (`e2e-report/index.html`) that
+you can open in any browser — pass/fail per scenario, duration,
+stdout/stderr, screenshot on failure.
+
 ## CLI reference
 
 ```bash

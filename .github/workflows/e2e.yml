@@ -1,0 +1,110 @@
+name: E2E
+
+# Playwright + pytest-bdd end-to-end tests. Runs as a separate job
+# so the slow browser install + real-page interactions never block
+# the fast unit suite in `ci.yml`.
+#
+# Triggers:
+# - Every PR that touches build.py, viz_*.py, project_topics.py, or
+#   the tests/e2e/ directory (the surface the E2E tests exercise)
+# - Every push to master (regression gate)
+# - Manual workflow_dispatch for on-demand runs
+
+on:
+  push:
+    branches: ["master", "main"]
+    paths:
+      - "llmwiki/build.py"
+      - "llmwiki/viz_*.py"
+      - "llmwiki/models_page.py"
+      - "llmwiki/project_topics.py"
+      - "llmwiki/compare.py"
+      - "llmwiki/changelog_timeline.py"
+      - "tests/e2e/**"
+      - "pyproject.toml"
+      - ".github/workflows/e2e.yml"
+  pull_request:
+    paths:
+      - "llmwiki/build.py"
+      - "llmwiki/viz_*.py"
+      - "llmwiki/models_page.py"
+      - "llmwiki/project_topics.py"
+      - "llmwiki/compare.py"
+      - "llmwiki/changelog_timeline.py"
+      - "tests/e2e/**"
+      - "pyproject.toml"
+      - ".github/workflows/e2e.yml"
+  workflow_dispatch:
+
+jobs:
+  e2e:
+    name: Playwright + pytest-bdd
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install llmwiki + the [e2e] extras
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e '.[e2e]'
+
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          # Playwright on Linux installs browsers under ~/.cache/ms-playwright
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-chromium-${{ hashFiles('pyproject.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-playwright-chromium-
+
+      - name: Install Chromium + OS deps
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: python -m playwright install --with-deps chromium
+
+      - name: Install Playwright OS deps (cache hit branch)
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: python -m playwright install-deps chromium
+
+      - name: Run E2E suite
+        run: |
+          mkdir -p e2e-report
+          python -m pytest tests/e2e/ \
+            --browser=chromium \
+            --tracing=retain-on-failure \
+            --html=e2e-report/index.html \
+            --self-contained-html \
+            -v
+
+      - name: Upload HTML test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-html-report
+          path: e2e-report/
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Upload visual regression screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-screenshots
+          path: tests/e2e/screenshots/
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Upload Playwright traces on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-traces
+          path: test-results/
+          if-no-files-found: ignore
+          retention-days: 7
