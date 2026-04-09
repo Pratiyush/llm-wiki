@@ -56,7 +56,7 @@ jobs:
 
       - name: Cache Playwright browsers
         id: playwright-cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           # Playwright on Linux installs browsers under ~/.cache/ms-playwright
           path: ~/.cache/ms-playwright
