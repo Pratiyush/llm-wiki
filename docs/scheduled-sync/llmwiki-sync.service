@@ -1,0 +1,15 @@
+[Unit]
+Description=llmwiki nightly sync
+After=network.target
+
+[Service]
+Type=oneshot
+# Adjust paths to match your installation
+ExecStart=/usr/local/bin/llmwiki sync
+WorkingDirectory=/home/YOU/llm-wiki
+User=YOU
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=llmwiki-sync

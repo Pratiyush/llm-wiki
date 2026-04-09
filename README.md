@@ -269,6 +269,18 @@ Locally, the HTML report is one file (`e2e-report/index.html`) that
 you can open in any browser — pass/fail per scenario, duration,
 stdout/stderr, screenshot on failure.
 
+## Scheduled sync
+
+Templates for running `llmwiki sync` automatically on a daily schedule:
+
+| OS | Template | Install guide |
+|---|---|---|
+| macOS | [`launchd.plist`](docs/scheduled-sync/launchd.plist) | [docs/scheduled-sync.md](docs/scheduled-sync.md#macos-launchd) |
+| Linux | [`systemd.timer`](docs/scheduled-sync/llmwiki-sync.timer) + [`.service`](docs/scheduled-sync/llmwiki-sync.service) | [docs/scheduled-sync.md](docs/scheduled-sync.md#linux-systemd) |
+| Windows | [`task.xml`](docs/scheduled-sync/llmwiki-sync-task.xml) | [docs/scheduled-sync.md](docs/scheduled-sync.md#windows-task-scheduler) |
+
+See [`docs/scheduled-sync.md`](docs/scheduled-sync.md) for full instructions.
+
 ## CLI reference
 
 ```bash

@@ -1,0 +1,11 @@
+[Unit]
+Description=Run llmwiki sync daily at 03:00
+
+[Timer]
+OnCalendar=*-*-* 03:00:00
+# If the machine was off at 03:00, run on next boot
+Persistent=true
+RandomizedDelaySec=300
+
+[Install]
+WantedBy=timers.target

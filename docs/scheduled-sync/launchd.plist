@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <!-- ── llmwiki nightly sync ──────────────────────────────────── -->
+  <!-- Runs `llmwiki sync` daily at 03:00. If the Mac is asleep at -->
+  <!-- that time, launchd fires the job as soon as it wakes up.    -->
+
+  <key>Label</key>
+  <string>com.llmwiki.sync</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <!-- Adjust the path if llmwiki is installed elsewhere -->
+    <string>/usr/local/bin/llmwiki</string>
+    <string>sync</string>
+  </array>
+
+  <key>WorkingDirectory</key>
+  <!-- Point this at your llm-wiki repo root -->
+  <string>/Users/YOU/llm-wiki</string>
+
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key>
+    <integer>3</integer>
+    <key>Minute</key>
+    <integer>0</integer>
+  </dict>
+
+  <key>StandardOutPath</key>
+  <string>/tmp/llmwiki-sync.log</string>
+
+  <key>StandardErrorPath</key>
+  <string>/tmp/llmwiki-sync.log</string>
+
+  <!-- Run even if the user is not logged in (optional) -->
+  <key>RunAtLoad</key>
+  <false/>
+</dict>
+</plist>
