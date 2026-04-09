@@ -87,17 +87,23 @@ llmwiki does NOT write to `wiki/` directly. The agent does, via slash commands (
 
 Owner: `llmwiki/build.py`
 
-Converts every file under `raw/sessions/` (and any hand-authored files under `wiki/`) into static HTML. Uses `python-markdown` + `pygments` (optional, for syntax highlighting). Writes to `site/`.
+Converts every file under `raw/sessions/` (and any hand-authored files under `wiki/`) into static HTML. Uses `python-markdown` (the only runtime dep) — syntax highlighting runs in the browser via highlight.js loaded from a pinned jsdelivr CDN (v0.5, #73), so the build pipeline itself stays stdlib-only. Writes to `site/`.
 
-Pages rendered:
+Pages rendered (v0.9 surface):
 
-- `site/index.html` — home with hero + synthesis + project cards
-- `site/projects/index.html` — project grid
-- `site/projects/<project>.html` — per-project session list
+- `site/index.html` — home with hero + 365-day activity heatmap + token-usage stat grid + recently-updated card + project grid with topic chips
+- `site/projects/index.html` — project grid with freshness badges
+- `site/projects/<project>.html` — per-project page with topics strip, 365-day heatmap (scoped), tool-calling bar chart, token timeline, main sessions + sub-agents
 - `site/sessions/index.html` — sortable sessions table with filter bar
-- `site/sessions/<project>/<slug>.html` — per-session transcript page
+- `site/sessions/<project>/<slug>.html` — per-session transcript with tool chart + token card + full conversation
+- `site/models/index.html` — sortable AI-model directory (v0.7, #55)
+- `site/models/<slug>.html` — per-model info card + changelog timeline + pricing sparkline (v0.7, #56)
+- `site/vs/index.html` — auto-generated vs-comparison index (v0.7, #58)
+- `site/vs/<a>-vs-<b>.html` — side-by-side info table + benchmark chart + price delta
+- `site/changelog.html` — `CHANGELOG.md` rendered as a first-class page (v0.4.2, #72)
 - `site/search-index.json` — pre-built client-side search index
 - `site/sources/<project>/<slug>.md` — copies of raw source for download
+- Plus AI-consumable exports: `llms.txt`, `llms-full.txt`, `graph.jsonld`, `sitemap.xml`, `rss.xml`, per-page `.txt` + `.json` siblings
 
 ### L3 — Viewer (browser JS)
 
@@ -174,7 +180,7 @@ See [framework.md §5.25 Adapter Flow](framework.md) for the full contract. TL;D
 
 ## Design principles
 
-1. **Stdlib first.** Runtime deps: `markdown` (required) + `pygments` (optional). Nothing else.
+1. **Stdlib first.** Runtime dep: `markdown` only. Nothing else. Syntax highlighting runs client-side via a CDN-loaded highlight.js (v0.5, #73) so the build stays deterministic and offline-capable.
 2. **Privacy by default.** Redact everything sensitive before it hits disk.
 3. **Idempotent everything.** Re-running any command is safe and cheap.
 4. **Localhost only.** No network, no telemetry, no cloud. The user controls if/when to publish.

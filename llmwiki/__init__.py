@@ -11,7 +11,7 @@ Public API:
     - llmwiki.adapters.REGISTRY       — adapter registry
 """
 
-__version__ = "0.4.0"
+__version__ = "0.9.0"
 __author__ = "Pratiyush"
 __license__ = "MIT"
 

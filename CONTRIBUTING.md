@@ -2,8 +2,11 @@
 
 Thanks for wanting to contribute. This project follows strict rules about commits, PRs, and privacy — please read this before opening a PR.
 
+**Try the live demo first:** [pratiyush.github.io/llm-wiki](https://pratiyush.github.io/llm-wiki/). It's rebuilt on every `master` push from [`examples/demo-sessions/`](examples/demo-sessions) so you can see every feature working before touching code.
+
 ## Table of contents
 
+- [TL;DR rules of contribution](#tldr-rules-of-contribution)
 - [Code of conduct](#code-of-conduct)
 - [Dev setup](#dev-setup)
 - [Project structure](#project-structure)
@@ -12,6 +15,18 @@ Thanks for wanting to contribute. This project follows strict rules about commit
 - [Privacy rules](#privacy-rules)
 - [Testing](#testing)
 - [Releases](#releases)
+
+## TL;DR rules of contribution
+
+1. **One concern per PR.** Don't mix a bug fix with a new feature.
+2. **Commit prefixes:** `feat:` / `fix:` / `docs:` / `chore:` / `test:` — e.g. `feat(v0.7): tool-calling bar chart (#65)`.
+3. **Never commit real session data.** `raw/sessions/` is gitignored. Fixtures must be synthetic or heavily redacted.
+4. **No new runtime deps.** Stdlib + `markdown` only. Viewer loads highlight.js from a CDN — no server-side parser needed.
+5. **Tests must pass.** Run `python3 -m pytest tests/ -q` before pushing. CI runs on Python 3.9 + 3.12.
+6. **Add a CHANGELOG entry** under `## [Unreleased]` for every user-visible change.
+7. **Open an issue first** for anything bigger than a one-file fix. Keeps scope aligned.
+
+That's it. If you follow those seven rules your PR is 90% of the way through review.
 
 ## Code of conduct
 
@@ -22,19 +37,18 @@ Be kind. Respect privacy. Prefer plain English to jargon. No scope creep.
 ```bash
 git clone https://github.com/Pratiyush/llm-wiki.git
 cd llm-wiki
-./setup.sh                # installs markdown + pygments, scaffolds raw/ wiki/ site/
+./setup.sh                # installs markdown, scaffolds raw/ wiki/ site/
 python3 -m pytest tests/ -q
 ```
 
 Requirements:
 
 - Python ≥ 3.9
-- `markdown` (required)
-- `pygments` (optional — syntax highlighting)
+- `markdown` (required — the only runtime dep)
 - `ruff` (dev — lint)
 - `pytest` (dev — tests)
 
-No other runtime deps. That's a hard rule.
+No other runtime deps. That's a hard rule. Syntax highlighting runs in the browser via [highlight.js](https://highlightjs.org/) loaded from a CDN, so the build pipeline stays stdlib-only.
 
 ## Project structure
 
@@ -73,11 +87,17 @@ Adapted from the parent [Open Source Project Framework](docs/framework.md):
 
 ### PR title format
 
-- `add: <feature>` — new functionality
-- `fix: <what>` — bug fix
+Use conventional-commit-style prefixes (matches what's in `git log` on
+this repo):
+
+- `feat: <feature>` or `feat(v0.X): <feature>` — new functionality
+- `fix: <what>` or `fix(v0.X): <what>` — bug fix
 - `docs: <what>` — docs only
-- `chore: <what>` — refactor, dep bump, CI
-- `test: <what>` — tests only
+- `chore: <what>` — refactor, dep bump, CI, version bumps
+- `test: <what>` or `test+docs: <what>` — tests only / tests + docs
+
+Include the issue number in the PR title or body when the PR closes
+one: `feat(v0.8): tool-calling bar chart (#65)`.
 
 ### PR body checklist
 

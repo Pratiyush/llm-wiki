@@ -15,13 +15,29 @@ from tests.conftest import REPO_ROOT
 # ─── version bump ────────────────────────────────────────────────────────
 
 
-def test_version_is_v04():
-    assert __version__.startswith("0.4"), f"expected 0.4.x, got {__version__}"
+def test_version_is_valid_semver_0x():
+    """v0.4 originally locked __version__ to 0.4.x. That was too tight —
+    the project has shipped through v0.5 → v0.9 since then and the
+    hardcoded 0.4 assertion kept catching every release bump. Relaxed
+    to "any 0.x.y pre-1.0 release" so the v0.4 exporters tests below
+    still gate on the actual exporter behaviour, not the version string."""
+    parts = __version__.split(".")
+    assert len(parts) == 3, f"expected x.y.z, got {__version__}"
+    major, minor, patch = parts
+    assert major == "0", f"expected pre-1.0 release, got {__version__}"
+    assert minor.isdigit() and int(minor) >= 4, (
+        f"v0.4 introduced these tests; got {__version__}"
+    )
 
 
-def test_pyproject_version_matches():
+def test_pyproject_version_matches_package():
+    """Whatever version `llmwiki/__init__.py` sets, `pyproject.toml`
+    must match — otherwise `pip install .` ships a different number
+    than `llmwiki --version` reports."""
     content = (REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8")
-    assert 'version = "0.4' in content
+    assert f'version = "{__version__}"' in content, (
+        f"pyproject.toml version does not match __version__ ({__version__})"
+    )
 
 
 # ─── exporters ───────────────────────────────────────────────────────────
