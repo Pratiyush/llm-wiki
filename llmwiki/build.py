@@ -49,6 +49,13 @@ from llmwiki.changelog_timeline import (
     render_price_sparkline,
     render_recently_updated,
 )
+from llmwiki.compare import (
+    discover_user_overrides,
+    generate_pairs,
+    pair_slug,
+    render_comparison_body,
+    render_comparisons_index,
+)
 from llmwiki.context_md import is_context_file
 from llmwiki.freshness import freshness_badge, load_freshness_config
 from llmwiki.models_page import (
@@ -452,6 +459,7 @@ def nav_bar(active: str, link_prefix: str = "") -> str:
       {link("projects/index.html", "Projects", "projects")}
       {link("sessions/index.html", "Sessions", "sessions")}
       {link("models/index.html", "Models", "models")}
+      {link("vs/index.html", "Compare", "vs")}
       {link("changelog.html", "Changelog", "changelog")}
       <button class="nav-search-btn" id="open-palette" aria-label="Open command palette">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -1276,6 +1284,92 @@ def render_models_section(out_dir: Path) -> tuple[Optional[Path], int]:
     return index_path, len(entries)
 
 
+# ─── v0.7 (#58) auto-generated vs-comparison pages ────────────────────────
+
+def render_vs_section(
+    out_dir: Path,
+    max_pairs: int = 500,
+    min_shared_fields: int = 3,
+) -> tuple[Optional[Path], int]:
+    """Generate `/vs/<slug_a>-vs-<slug_b>.html` for every pair of
+    comparable model entities + an index at `/vs/index.html`.
+
+    Honors user overrides under `wiki/vs/<slug>.md` — a hand-written
+    comparison replaces the auto-gen for that URL. Returns
+    `(index_path, pair_count)`. Always writes the index so the nav
+    link resolves even when no entities exist.
+    """
+    entities_dir = REPO_ROOT / "wiki" / "entities"
+    overrides_dir = REPO_ROOT / "wiki" / "vs"
+    entries = discover_model_entities(entities_dir)
+    # Strip down to (path, profile) for compare.generate_pairs
+    pair_entries = [(p, profile) for p, profile, _w, _b in entries]
+    pairs = generate_pairs(
+        pair_entries,
+        min_shared_fields=min_shared_fields,
+        max_pairs=max_pairs,
+    )
+
+    vs_out = out_dir / "vs"
+    vs_out.mkdir(parents=True, exist_ok=True)
+
+    # Index
+    index_body = render_comparisons_index(pairs)
+    index_page = (
+        page_head(
+            "Model comparisons — LLM Wiki",
+            "Auto-generated side-by-side comparisons of AI-model entities.",
+            css_prefix="../",
+        )
+        + nav_bar("vs", link_prefix="../")
+        + hero("Model comparisons", f"{len(pairs)} auto-generated pairs")
+        + index_body
+        + "</main>\n"
+        + page_foot(js_prefix="../")
+    )
+    index_path = vs_out / "index.html"
+    index_path.write_text(index_page, encoding="utf-8")
+
+    # User overrides replace the auto-gen for matching slugs
+    overrides = discover_user_overrides(overrides_dir)
+
+    for pair in pairs:
+        slug = pair_slug(pair)
+        if slug in overrides:
+            # User override — render the raw body through md_to_html
+            body_html = md_to_html(overrides[slug])
+            article_body = (
+                '<section class="section"><div class="container narrow">'
+                f'<article class="article content">{body_html}</article>'
+                '</div></section>'
+            )
+        else:
+            # Auto-gen — three structured sections
+            comparison_body = render_comparison_body(pair)
+            article_body = (
+                '<section class="section"><div class="container narrow">'
+                f'{comparison_body}'
+                '</div></section>'
+            )
+
+        title = f"{pair['title_a']} vs {pair['title_b']}"
+        page = (
+            page_head(
+                f"{title} — LLM Wiki",
+                f"Side-by-side comparison of {title}.",
+                css_prefix="../",
+            )
+            + nav_bar("vs", link_prefix="../")
+            + hero(title, f"{pair['score']} shared structured fields")
+            + article_body
+            + "</main>\n"
+            + page_foot(js_prefix="../")
+        )
+        (vs_out / f"{slug}.html").write_text(page, encoding="utf-8")
+
+    return index_path, len(pairs)
+
+
 # ─── search index ──────────────────────────────────────────────────────────
 
 def build_search_index(
@@ -1858,6 +1952,29 @@ a.topic-chip:hover {
 .project-hero-topics { margin-bottom: 6px; }
 .project-homepage { display: inline-block; margin-top: 6px; font-size: 0.82rem; color: var(--accent); text-decoration: none; }
 .project-homepage:hover { text-decoration: underline; }
+
+/* v0.7 (#58): Auto-generated vs-comparison pages. Side-by-side table
+   with difference highlighting, benchmark bar chart, price delta, and
+   a stub summary section the user fills in. */
+.vs-section { margin: 24px 0; }
+.vs-section h2 { font-size: 1.2rem; font-weight: 600; margin: 0 0 14px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+.vs-table { width: 100%; border-collapse: collapse; margin: 12px 0 24px; font-size: 0.92rem; }
+.vs-table th, .vs-table td { padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--border); }
+.vs-table th:first-child { width: 180px; color: var(--text-secondary); font-weight: 500; font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.03em; }
+.vs-table .vs-colhead { font-size: 1rem; background: var(--bg-alt); }
+.vs-table .vs-colhead a { color: var(--accent); text-decoration: none; }
+.vs-table .vs-colhead a:hover { text-decoration: underline; }
+.vs-table td { font-family: 'JetBrains Mono', monospace; }
+.vs-table .cell-diff { background: rgba(124, 58, 237, 0.08); font-weight: 600; }
+:root[data-theme="dark"] .vs-table .cell-diff { background: rgba(167, 139, 250, 0.12); }
+.vs-bench-chart { display: block; max-width: 100%; margin: 8px 0; }
+.vs-summary-stub p { padding: 14px 18px; background: var(--bg-alt); border-left: 3px solid var(--accent); border-radius: 0 4px 4px 0; font-style: italic; }
+.vs-index-table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 0.92rem; }
+.vs-index-table th, .vs-index-table td { padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--border); }
+.vs-index-table th { font-weight: 600; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary); background: var(--bg-alt); }
+.vs-index-table a { color: var(--accent); text-decoration: none; font-weight: 500; }
+.vs-index-table a:hover { text-decoration: underline; }
+.vs-index-table tr:hover td { background: var(--bg-alt); }
 
 /* v0.4: Deep-link icon next to headings */
 .content h2 .deep-link, .content h3 .deep-link, .content h4 .deep-link { margin-left: 8px; font-size: 0.8em; opacity: 0; text-decoration: none; transition: opacity 0.15s; }
@@ -2895,10 +3012,13 @@ def build_site(
     cl_path = render_changelog(out_dir)
     # v0.7 (#55): models section — sortable index + per-model detail pages.
     models_index_path, model_count = render_models_section(out_dir)
+    # v0.7 (#58): auto-generated vs-comparison pages + index.
+    vs_index_path, pair_count = render_vs_section(out_dir)
     print(
         "  wrote index.html, projects/index.html, sessions/index.html"
         + (", changelog.html" if cl_path else "")
         + f", models/index.html ({model_count} models)"
+        + f", vs/index.html ({pair_count} comparisons)"
     )
 
     # Search index
