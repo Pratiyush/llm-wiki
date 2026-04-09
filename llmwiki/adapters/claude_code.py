@@ -23,6 +23,7 @@ from llmwiki.adapters.base import BaseAdapter
 class ClaudeCodeAdapter(BaseAdapter):
     """Claude Code — reads ~/.claude/projects/*/*.jsonl"""
 
+    # Cross-platform: dot-dir works on macOS, Linux, and Windows
     session_store_path = Path.home() / ".claude" / "projects"
 
     def derive_project_slug(self, jsonl_path: Path) -> str:

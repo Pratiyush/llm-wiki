@@ -36,8 +36,11 @@ class ObsidianAdapter(BaseAdapter):
     SUPPORTED_SCHEMA_VERSIONS = ["1.x"]
 
     DEFAULT_VAULT_PATHS = [
+        # macOS / Linux / Windows — common default vault locations
         Path.home() / "Documents" / "Obsidian Vault",
         Path.home() / "Obsidian",
+        # Windows (%APPDATA%) — some installs create vaults here
+        Path.home() / "AppData" / "Local" / "Obsidian" / "Vault",
     ]
 
     DEFAULT_EXCLUDE_FOLDERS = {
