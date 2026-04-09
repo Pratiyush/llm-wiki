@@ -58,7 +58,7 @@ def cmd_init(args: argparse.Namespace) -> int:
 def cmd_sync(args: argparse.Namespace) -> int:
     """Convert .jsonl sessions to markdown using the enabled adapters."""
     from llmwiki.convert import convert_all
-    return convert_all(
+    rc = convert_all(
         adapters=args.adapter,
         since=args.since,
         project=args.project,
@@ -66,6 +66,66 @@ def cmd_sync(args: argparse.Namespace) -> int:
         force=args.force,
         dry_run=args.dry_run,
     )
+    # v0.5 (#36): optionally auto-synthesize wiki pages for new sessions
+    if args.synthesize and rc == 0 and not args.dry_run:
+        from llmwiki.synth.pipeline import synthesize_new_sessions
+        from llmwiki.synth.base import DummySynthesizer
+        print("\n==> auto-synthesize: generating wiki source pages for new sessions")
+        summary = synthesize_new_sessions(backend=DummySynthesizer())
+        print(
+            f"  scanned {summary['total_scanned']}, "
+            f"new {summary['new_files']}, "
+            f"synthesized {summary['synthesized']}, "
+            f"skipped {summary['skipped']}"
+        )
+        if summary["errors"]:
+            for e in summary["errors"]:
+                print(f"  error: {e}", file=sys.stderr)
+    return rc
+
+
+def cmd_synthesize(args: argparse.Namespace) -> int:
+    """Auto-generate wiki source pages from raw sessions (v0.5, #36)."""
+    from llmwiki.synth.pipeline import synthesize_new_sessions
+    from llmwiki.synth.base import DummySynthesizer
+
+    # For now, only the dummy backend is available. When #35 (Ollama)
+    # lands, this will dispatch based on args.backend.
+    backend_map = {
+        "dummy": DummySynthesizer,
+    }
+    backend_cls = backend_map.get(args.backend)
+    if backend_cls is None:
+        print(
+            f"error: backend '{args.backend}' not yet implemented. "
+            f"Available: {', '.join(backend_map.keys())}",
+            file=sys.stderr,
+        )
+        return 2
+
+    backend = backend_cls()
+    raw_dir = None
+    if args.path:
+        raw_dir = args.path if args.path.is_dir() else args.path.parent
+
+    print(f"==> synthesize: backend={backend.name}, force={args.force}, dry_run={args.dry_run}")
+    summary = synthesize_new_sessions(
+        backend=backend,
+        raw_dir=raw_dir,
+        dry_run=args.dry_run,
+        force=args.force,
+    )
+    print(
+        f"  scanned {summary['total_scanned']}, "
+        f"new {summary['new_files']}, "
+        f"synthesized {summary['synthesized']}, "
+        f"skipped {summary['skipped']}"
+    )
+    if summary["errors"]:
+        for e in summary["errors"]:
+            print(f"  error: {e}", file=sys.stderr)
+        return 1
+    return 0
 
 
 def cmd_build(args: argparse.Namespace) -> int:
@@ -268,8 +328,24 @@ def build_parser() -> argparse.ArgumentParser:
     sync.add_argument("--project", type=str, help="Substring filter on project slug")
     sync.add_argument("--include-current", action="store_true", help="Don't skip live sessions (<60 min)")
     sync.add_argument("--force", action="store_true", help="Ignore state file, reconvert everything")
+    sync.add_argument("--synthesize", action="store_true",
+                       help="After sync, auto-generate wiki source pages for new sessions")
     sync.add_argument("--dry-run", action="store_true")
     sync.set_defaults(func=cmd_sync)
+
+    # synthesize (v0.5, #36) — run synthesis standalone
+    synth = sub.add_parser("synthesize",
+                           help="Auto-generate wiki source pages from raw sessions")
+    synth.add_argument("path", nargs="?", type=Path, default=None,
+                       help="Specific raw session or folder (default: all new)")
+    synth.add_argument("--backend", type=str, default="dummy",
+                       choices=["dummy", "ollama", "claude"],
+                       help="Synthesis backend (default: dummy)")
+    synth.add_argument("--force", action="store_true",
+                       help="Re-synthesize all sessions, ignoring state file")
+    synth.add_argument("--dry-run", action="store_true",
+                       help="Show what would be synthesized without writing")
+    synth.set_defaults(func=cmd_synthesize)
 
     # build
     build = sub.add_parser("build", help="Compile static HTML site from raw/ + wiki/")

@@ -150,3 +150,4 @@ eval-report.json
 tests/e2e/screenshots/
 test-results/
 playwright-report/
+.claude/worktrees/
