@@ -64,13 +64,25 @@ git push origin master vX.Y.Z
 - [ ] Do NOT force-push master
 - [ ] Do NOT amend the release commit after tagging
 
-## GitHub Release
+## GitHub Release + PyPI publish
 
-- [ ] `gh release create vX.Y.Z --title "vX.Y.Z" --notes-from-tag
-      --prerelease`
-      (`--prerelease` stays set for every `0.x.y` until `1.0.0`)
+The tag push triggers `.github/workflows/release.yml` which automatically:
+1. Builds sdist + wheel via `python -m build`
+2. Publishes to PyPI via OIDC trusted publisher (no API tokens needed)
+3. Signs artifacts with Sigstore
+4. Creates a GitHub Release with build artifacts + signature bundles
+
+- [ ] Confirm the release workflow ran: `gh run list --workflow=release.yml --limit=3`
+- [ ] Confirm the package is on PyPI: `pip install llmwiki==X.Y.Z`
 - [ ] Confirm the release shows up at
       `https://github.com/Pratiyush/llm-wiki/releases`
+- [ ] If the workflow failed, check the "release" environment protection rules
+
+**Manual fallback** (if automation is broken):
+
+```bash
+gh release create vX.Y.Z --title "vX.Y.Z" --generate-notes --prerelease
+```
 
 ## Verify Pages deploy
 
