@@ -25,9 +25,13 @@ class GeminiCliAdapter(BaseAdapter):
     SUPPORTED_SCHEMA_VERSIONS = ["v1"]
 
     DEFAULT_ROOTS = [
+        # macOS / Linux / Windows (dot-dir works everywhere)
         Path.home() / ".gemini",
+        # Linux (XDG)
         Path.home() / ".config" / "gemini",
         Path.home() / ".local" / "share" / "gemini",
+        # Windows (%APPDATA%)
+        Path.home() / "AppData" / "Roaming" / "gemini",
     ]
 
     def __init__(self, config: dict[str, Any] | None = None):

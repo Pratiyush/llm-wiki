@@ -29,6 +29,7 @@ class CodexCliAdapter(BaseAdapter):
     SUPPORTED_SCHEMA_VERSIONS = ["v0.x", "v1.0"]
 
     DEFAULT_ROOTS = [
+        # Cross-platform: dot-dir works on macOS, Linux, and Windows
         Path.home() / ".codex" / "sessions",
         Path.home() / ".codex" / "projects",
     ]

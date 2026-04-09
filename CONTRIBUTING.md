@@ -134,9 +134,27 @@ See [docs/framework.md §5.25 Adapter Flow](docs/framework.md) for the full cont
 
 7. **One line** in `README.md` under "Works with".
 
+### Cross-platform path requirement
+
+`DEFAULT_ROOTS` (or `DEFAULT_VAULT_PATHS` / `session_store_path`) must work on
+macOS, Linux, **and** Windows. Two patterns are acceptable:
+
+1. **Dot-directory** (`Path.home() / ".agent" / ...`) -- works on all three
+   platforms by default; a single entry is fine.
+2. **OS-specific directories** (e.g. `~/Library/Application Support/...`,
+   `~/.config/...`, `~/AppData/Roaming/...`) -- you need at least one entry per
+   platform. Use inline comments to label which path is for which OS.
+
+Always use `Path.home()` -- never hardcode `/Users/`, `/home/`, or `C:\Users\`.
+The test in `tests/test_cross_platform_paths.py` enforces these rules.
+
+Adapters with no default paths (like `pdf`, where the user must configure roots)
+are exempt.
+
 ### Review checklist for adapter PRs
 
 - [ ] Adapter declares `SUPPORTED_SCHEMA_VERSIONS`
+- [ ] `DEFAULT_ROOTS` covers macOS + Linux + Windows (see above)
 - [ ] Fixture is under 50 KB and contains **no real PII**
 - [ ] Snapshot test passes locally
 - [ ] `docs/adapters/<agent>.md` exists and is linked from README

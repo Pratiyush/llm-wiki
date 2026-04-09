@@ -8,6 +8,10 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
+### Changed
+
+- **Cross-platform path audit for all adapters** (#94) -- audited every adapter in `llmwiki/adapters/` to ensure `DEFAULT_ROOTS` covers macOS, Linux, and Windows. Added Windows `AppData/Roaming/gemini` path to `gemini_cli.py` and Windows `AppData/Local/Obsidian/Vault` path to `obsidian.py`. Added platform comments to `claude_code.py` and `codex_cli.py` documenting why dot-dirs are inherently cross-platform. New `tests/test_cross_platform_paths.py` (8 tests) verifies every adapter with OS-specific paths has adequate platform coverage, dot-dir adapters are cross-platform, no hardcoded usernames, and all paths resolve under `Path.home()`. New "Cross-platform path requirement" section in `CONTRIBUTING.md` with the rule and review checklist item.
+
 ### Added
 
 - **Auto-ingest hook** (#36) — new `llmwiki/synth/` package with a pluggable `BaseSynthesizer` backend interface, `DummySynthesizer` for testing/preview, a versioned prompt template at `llmwiki/synth/prompts/source_page.md` (user-overridable via `wiki/prompts/source_page.md`), and a `synthesize_new_sessions()` pipeline that scans `raw/sessions/`, diffs against an mtime state file (`.llmwiki-synth-state.json`), calls the backend for each new session, writes `wiki/sources/<project>/<slug>.md` with proper frontmatter, and appends to `wiki/log.md`. Wired into CLI as `llmwiki synthesize` standalone subcommand + `llmwiki sync --synthesize` flag. Idempotent re-runs are a no-op. 15 new tests.
