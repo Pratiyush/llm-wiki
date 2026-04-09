@@ -11,6 +11,7 @@ Subcommands:
     graph             Build the knowledge graph (graph/graph.json + graph.html)
     watch             Watch agent session stores and auto-sync on change
     export-obsidian   Export the compiled wiki into an Obsidian vault
+    export-qmd        Export the wiki as a self-contained qmd collection
     adapters          List available session-store adapters
     version           Print version and exit
 """
@@ -154,6 +155,26 @@ def cmd_check_links(args: argparse.Namespace) -> int:
     return link_main(sub_argv)
 
 
+def cmd_export_qmd(args: argparse.Namespace) -> int:
+    """Export the wiki as a self-contained qmd collection (v0.6 · #59)."""
+    from llmwiki.export_qmd import export_qmd
+
+    out_dir = args.out
+    source_wiki = args.source_wiki or (REPO_ROOT / "wiki")
+    summary = export_qmd(
+        out_dir=out_dir,
+        source_wiki=source_wiki,
+        collection_name=args.collection,
+    )
+    print(
+        f"==> qmd export complete: "
+        f"{summary['files_copied']} files copied into {summary['out_dir']} "
+        f"(collection: {summary['collection']})"
+    )
+    print(f"    next: cd {summary['out_dir']} && ./index.sh")
+    return 0
+
+
 def cmd_export(args: argparse.Namespace) -> int:
     """Export AI-consumable formats from the compiled wiki."""
     import sys as _sys
@@ -289,6 +310,27 @@ def build_parser() -> argparse.ArgumentParser:
     exp.add_argument("--clean", action="store_true", help="Delete the target subfolder before copying")
     exp.add_argument("--dry-run", action="store_true")
     exp.set_defaults(func=cmd_export_obsidian)
+
+    # export-qmd (v0.6, #59) — emit a self-contained qmd collection so
+    # the user can run tobi/qmd's hybrid-search stack over their wiki
+    # without llmwiki shipping a TypeScript dep.
+    exp_qmd = sub.add_parser(
+        "export-qmd",
+        help="Export the wiki as a self-contained qmd collection (tobi/qmd)",
+    )
+    exp_qmd.add_argument(
+        "--out", type=Path, required=True,
+        help="Output directory for the qmd collection",
+    )
+    exp_qmd.add_argument(
+        "--source-wiki", type=Path, default=None,
+        help="Source wiki directory (default: ./wiki)",
+    )
+    exp_qmd.add_argument(
+        "--collection", type=str, default="llmwiki",
+        help="Collection name written into qmd.yaml (default: llmwiki)",
+    )
+    exp_qmd.set_defaults(func=cmd_export_qmd)
 
     # eval
     ev = sub.add_parser("eval", help="Run structural eval checks over wiki/")
