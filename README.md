@@ -3,10 +3,14 @@
 > **LLM-powered knowledge base from your Claude Code, Codex CLI, Cursor, Gemini CLI, and Obsidian sessions.**
 > Built on [Andrej Karpathy's LLM Wiki pattern](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f).
 
+## 👉 Live demo: **[pratiyush.github.io/llm-wiki](https://pratiyush.github.io/llm-wiki/)**
+
+Rebuilt on every `master` push from the synthetic sessions in [`examples/demo-sessions/`](examples/demo-sessions). No personal data. Shows every feature of the real tool (activity heatmap, tool charts, token usage, model info cards, vs-comparisons, project topics) running against safe reference data.
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/)
-[![Version](https://img.shields.io/badge/version-v0.4.0-7C3AED.svg)](CHANGELOG.md)
-[![Tests](https://img.shields.io/badge/tests-95%20passing-10B981.svg)](tests/)
+[![Version](https://img.shields.io/badge/version-v0.9.0-7C3AED.svg)](CHANGELOG.md)
+[![Tests](https://img.shields.io/badge/tests-420%20passing-10B981.svg)](tests/)
 [![Works with Claude Code](https://img.shields.io/badge/Claude%20Code-✓-7C3AED.svg)](https://claude.com/claude-code)
 [![Works with Codex CLI](https://img.shields.io/badge/Codex%20CLI-✓-7C3AED.svg)](https://github.com/openai/codex)
 
@@ -21,7 +25,7 @@ Every Claude Code, Codex CLI, and Cursor session writes a full transcript to dis
 ./build.sh && ./serve.sh           # build + serve at http://127.0.0.1:8765
 ```
 
-> **Live demo:** https://pratiyush.github.io/llm-wiki/ — built from the dummy sessions in [`examples/demo-sessions/`](examples/demo-sessions) by [`.github/workflows/pages.yml`](.github/workflows/pages.yml). No personal data.
+**Contributing in one line:** read [`CONTRIBUTING.md`](CONTRIBUTING.md), keep PRs focused (one concern each), use `feat:` / `fix:` / `docs:` / `chore:` / `test:` commit prefixes, never commit real session data (`raw/` is gitignored), no new runtime deps. CI must be green to merge.
 
 ## Screenshots
 

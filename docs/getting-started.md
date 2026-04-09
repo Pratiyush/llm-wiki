@@ -30,7 +30,7 @@ setup.bat
 
 `setup.sh` / `setup.bat` does the following, idempotently:
 
-1. Installs `markdown` (required) and `pygments` (optional, syntax highlighting) via `pip install --user`
+1. Installs `markdown` (the only runtime dep) via `pip install --user`. Syntax highlighting runs in the browser via highlight.js loaded from a CDN, so the build stays stdlib-only.
 2. Scaffolds `raw/`, `wiki/`, `site/` directories
 3. Runs `llmwiki adapters` to show which agents are detected
 4. Does a dry-run of the first sync so you see what *would* be converted
