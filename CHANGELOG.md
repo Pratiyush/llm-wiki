@@ -59,6 +59,8 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 - **Remove personal data from tracked nav files** — `wiki/MEMORY.md`, `wiki/SOUL.md`, `wiki/CRITICAL_FACTS.md`, `wiki/hints.md`, `wiki/hot.md` untracked from git (contain user-specific data). Added to `.gitignore`. These are created locally by `llmwiki init` but never committed to the public repo.
 
+- **End-to-end setup guide** (#120) — new `docs/tutorials/setup-guide.md` with a 15-minute walkthrough: clone + setup (Part 1), understand the 3-layer output (Part 2), deploy to GitHub Pages (Part 3), customize with project topics and model entities (Part 4), wire up multi-agent skills across Claude Code / Codex / Cursor / Gemini / Copilot (Part 5). Screenshots, structured search query examples, cross-platform path reference, privacy boundary explanation. Linked from README. 12 tests verify structure.
+
 ### Changed
 
 - **README refresh** (#122) — brought README current with v0.9.4 state: test-count badge 472 → 1194, added CI + Obsidian badges, added v0.9.1–v0.9.4 to releases table, added 6 new v1.0 CLI commands (`lint`, `link-obsidian`, `install-skills`, `schedule`, `export-marp`), MCP server expanded from 7 → 12 tools with new rows (`wiki_confidence`, `wiki_lifecycle`, `wiki_dashboard`, `wiki_entity_search`, `wiki_category_browse`), roadmap now shows v1.0.0 + v1.1.0 + v1.2.0 milestones, new "Quality & governance" and "Obsidian-native experience" sections highlight Sprint 3 features, Scheduled sync section mentions `llmwiki schedule` auto-generator, docs list adds `docs/obsidian-integration.md` + `docs/scheduled-sync.md`.

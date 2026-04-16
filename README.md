@@ -463,6 +463,7 @@ See [docs/architecture.md](docs/architecture.md) for the full breakdown and how 
 ## Docs
 
 - [Getting started](docs/getting-started.md) — 5-minute quickstart
+- **[Setup guide](docs/tutorials/setup-guide.md)** — 15-minute end-to-end tutorial: local setup → deploy to GitHub Pages → customization (v1.0)
 - [Obsidian integration](docs/obsidian-integration.md) — 5-minute setup, 6 recommended plugins, config recipes (v1.0)
 - [Architecture](docs/architecture.md) — Karpathy 3-layer + 8-layer build breakdown
 - [Configuration](docs/configuration.md) — every tuning knob
