@@ -59,6 +59,16 @@ def cmd_init(args: argparse.Namespace) -> int:
         "wiki/SOUL.md": '---\ntitle: "Wiki Identity"\ntype: navigation\nlast_updated: ""\n---\n\n# SOUL\n\nThis wiki compiles raw session transcripts into structured, interlinked pages.\nCustomize this file to set your wiki\'s voice and purpose.\n',
         "wiki/CRITICAL_FACTS.md": '---\ntitle: "Critical Facts"\ntype: navigation\nlast_updated: ""\n---\n\n# Critical Facts\n\n- raw/ is immutable — never modify files under raw/\n- Wiki uses [[wikilinks]] for cross-references\n- Confidence: 0.0-1.0, 4-factor formula\n- Lifecycle: draft > reviewed > verified > stale > archived\n',
     }
+
+    # v1.0 (#153): seed dashboard.md from examples/wiki_dashboard.md template
+    dashboard_template = REPO_ROOT / "examples" / "wiki_dashboard.md"
+    dashboard_target = REPO_ROOT / "wiki" / "dashboard.md"
+    if dashboard_template.is_file() and not dashboard_target.is_file():
+        dashboard_target.write_text(
+            dashboard_template.read_text(encoding="utf-8"),
+            encoding="utf-8",
+        )
+        print(f"  seeded wiki/dashboard.md")
     for rel, content in seeds.items():
         p = REPO_ROOT / rel
         if not p.exists():
