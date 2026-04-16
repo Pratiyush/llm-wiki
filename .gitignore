@@ -60,6 +60,7 @@ dist-site/
 .ingestion-state.json
 .llmwiki-state.json
 .llmwiki-synth-state.json
+.llmwiki-queue.json
 
 # Local config (user-specific).
 config.json
