@@ -55,7 +55,7 @@ dependencies = [
 # `pip install -e '.[highlight]'` in docs or CI scripts. v0.5+ uses
 # highlight.js via CDN, so no Python-side highlighter dep is needed.
 highlight = []
-pdf = ["pypdf>=4.0"]
+pdf = ["pypdf>=6.10.2"]
 dev = [
     "pytest>=7.0",
     "ruff>=0.1",
@@ -72,7 +72,7 @@ e2e = [
     "pytest-html>=4.0",
 ]
 all = [
-    "pypdf>=4.0",
+    "pypdf>=6.10.2",
 ]
 
 [project.urls]
