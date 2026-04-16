@@ -64,6 +64,7 @@ dist-site/
 .llmwiki-state.json
 .llmwiki-synth-state.json
 .llmwiki-queue.json
+.llmwiki-dream-state.json
 
 # Local config (user-specific).
 config.json
