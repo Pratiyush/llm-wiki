@@ -10,8 +10,14 @@ raw/           IMMUTABLE. Session transcripts converted from the agent's session
 
 wiki/          LLM-maintained. Pages you write that summarise and cross-reference raw/.
   index.md         Catalog of every page. Update on every ingest.
-  log.md           Append-only chronological record.
+  log.md           Append-only chronological record (auto-archives at 50KB).
   overview.md      Living synthesis.
+  hints.md         Writing conventions and entity naming rules (load on demand).
+  hot.md           Last 10 session summaries — global hot cache.
+  hot/<project>.md Per-project hot caches (default ON, configurable).
+  MEMORY.md        Cross-session facts (200-line cap, auto-consolidated).
+  SOUL.md          Wiki identity and writing voice.
+  CRITICAL_FACTS.md Must-know facts (<120 tokens).
   sources/         One page per raw source.
   entities/        People, companies, projects, products.
   concepts/        Ideas, frameworks, methods.
@@ -177,10 +183,31 @@ Parse recent entries with: `grep "^## \[" wiki/log.md | tail -10`
 - Entity / concept pages: `TitleCase.md`
 - Synthesis pages: `kebab-case.md`
 
+## Cross-project wiki access
+
+Other projects can reference this wiki by adding to their agent config:
+
+```
+wiki_path: ~/Desktop/2026/production-draft/llm-wiki
+```
+
+Then read `wiki/index.md` first, navigate from there.
+
+## Entity types
+
+Every entity page should declare `entity_type` in frontmatter:
+
+`person` | `org` | `tool` | `concept` | `api` | `library` | `project`
+
+## Confidence & lifecycle
+
+- `confidence: 0.85` — 4-factor score (source count, quality, recency, cross-refs)
+- `lifecycle: draft` — one of: draft, reviewed, verified, stale, archived
+
 ## Hard rules
 
 1. `raw/` is immutable. Never edit files there.
 2. No silent overwrites. Record contradictions, don't hide them.
 3. Cross-link everything — every page has a `## Connections` section.
-4. Frontmatter is authoritative. Always populate `title`, `type`, `tags`, `sources`, `last_updated`.
-5. Do not ingest raw `.jsonl` files directly — only ingest the markdown under `raw/sessions/`.
+4. Frontmatter is authoritative. Always populate `title`, `type`, `tags`, `sources`, `last_updated`, `confidence`, `lifecycle`, `entity_type`.
+5. Do not ingest raw `.jsonl` files directly — only ingest the markdown under `raw/`.
