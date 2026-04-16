@@ -47,7 +47,7 @@ classifiers = [
     "Natural Language :: English",
 ]
 dependencies = [
-    "markdown>=3.4",
+    "markdown>=3.9",
 ]
 
 [project.optional-dependencies]
