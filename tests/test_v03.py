@@ -30,7 +30,9 @@ def test_pyproject_exists():
     content = p.read_text(encoding="utf-8")
     # Minimal sanity
     assert 'name = "llmwiki"' in content
-    assert 'version = "0.' in content
+    # Accept any valid semver — bumped to 1.0 in v1.0.0 release
+    import re
+    assert re.search(r'version = "\d+\.\d+\.\d+', content), "missing version string"
     assert "markdown" in content
     assert "[project.scripts]" in content
 

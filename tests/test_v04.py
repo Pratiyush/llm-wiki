@@ -16,17 +16,16 @@ from tests.conftest import REPO_ROOT
 
 
 def test_version_is_valid_semver_0x():
-    """v0.4 originally locked __version__ to 0.4.x. That was too tight —
-    the project has shipped through v0.5 → v0.9 since then and the
-    hardcoded 0.4 assertion kept catching every release bump. Relaxed
-    to "any 0.x.y pre-1.0 release" so the v0.4 exporters tests below
-    still gate on the actual exporter behaviour, not the version string."""
+    """v0.4 introduced these tests. The constraint has been relaxed over
+    time: v0.4→v0.9 was allowed, and with v1.0.0 the pre-1.0 constraint is
+    lifted entirely. We only assert semver shape now so the v0.4 exporter
+    tests below gate on actual exporter behaviour, not the version string."""
     parts = __version__.split(".")
     assert len(parts) == 3, f"expected x.y.z, got {__version__}"
     major, minor, patch = parts
-    assert major == "0", f"expected pre-1.0 release, got {__version__}"
-    assert minor.isdigit() and int(minor) >= 4, (
-        f"v0.4 introduced these tests; got {__version__}"
+    assert major.isdigit() and int(major) >= 0, f"invalid major: {__version__}"
+    assert minor.isdigit(), (
+        f"minor must be an integer; got {__version__}"
     )
 
 

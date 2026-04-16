@@ -9,7 +9,7 @@ Rebuilt on every `master` push from the synthetic sessions in [`examples/demo-se
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/)
-[![Version](https://img.shields.io/badge/version-v0.9.4-7C3AED.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-v1.0.0-10B981.svg)](CHANGELOG.md)
 [![Tests](https://img.shields.io/badge/tests-1194%20passing-10B981.svg)](tests/)
 [![CI](https://github.com/Pratiyush/llm-wiki/actions/workflows/ci.yml/badge.svg)](https://github.com/Pratiyush/llm-wiki/actions/workflows/ci.yml)
 [![Works with Claude Code](https://img.shields.io/badge/Claude%20Code-✓-7C3AED.svg)](https://claude.com/claude-code)

@@ -6,6 +6,76 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 Versions below 1.0 are pre-production — API and file formats may change.
 
+## [1.0.0] — 2026-04-16
+
+**Theme:** v1.0 — Production-ready Obsidian integration. llmwiki graduates from a session-archive tool into a full LLM-maintained knowledge base with quality metrics, lifecycle states, Obsidian-native UX, and a 12-tool MCP server.
+
+### Headline features
+
+- **Obsidian-native experience** — `link-obsidian` CLI symlinks the project into an Obsidian vault; 4 Templater templates for creating pages with one keystroke; Dataview dashboard (10 queries); two-way editing verified by tests; integration guide at `docs/obsidian-integration.md`
+- **Quality & governance** — 4-factor confidence scoring with Ebbinghaus decay per content-type; 5-state lifecycle machine (draft → reviewed → verified → stale → archived) with 90-day auto-stale; 11 lint rules (8 structural + 3 LLM-powered); Auto Dream MEMORY.md consolidation at 24h+5-session thresholds
+- **Multi-agent support** — `llmwiki install-skills` mirrors `.claude/skills/` into `.codex/skills/` and `.agents/skills/`; AGENTS.md with `wiki_path` directive for cross-project reference; 9 navigation files (hints, hot, MEMORY, SOUL, CRITICAL_FACTS + per-project hot caches)
+- **12-tool MCP server** — added `wiki_confidence`, `wiki_lifecycle`, `wiki_dashboard`, `wiki_entity_search`, `wiki_category_browse` to the existing 7
+- **New adapters** — meeting transcripts (VTT/SRT), Jira REST API, configurable Obsidian Web Clipper intake with pending ingest queue
+- **Ops automation** — rich structured log format with 50KB auto-archival; configurable auto-build on sync; configurable scheduled sync (`llmwiki schedule` generates launchd/systemd/Task Scheduler files); CI wiki-checks workflow runs lint + build on every PR; enhanced static search with confidence/entity_type/lifecycle facets
+- **Taxonomy & schema** — 7 entity types (person, org, tool, concept, api, library, project); flat raw/ naming `YYYY-MM-DDTHH-MM-project-slug.md`; category index generator (Dataview + static modes); `_context.md` stubs in every wiki subfolder
+
+### Added
+
+- `link-obsidian` CLI command (#132)
+- 4-factor confidence scoring module (#135)
+- 5-state lifecycle machine with auto-stale (#136)
+- `llmbook-reference` bidirectional Claude Code skill (#138)
+- 9 navigation files (#134)
+- 7 entity types in frontmatter schema (#137)
+- Flat raw/ naming — `YYYY-MM-DDTHH-MM-project-slug.md` (#141)
+- Pending ingest queue for SessionStart hook (#148)
+- `_context.md` stubs for all 6 wiki subfolders (#150)
+- Meeting transcript adapter VTT/SRT (#146)
+- Jira REST API adapter (#147)
+- Configurable Web Clipper intake path (#149)
+- Rich structured log format with auto-archival (#133)
+- All 11 lint rules — 8 basic + 3 LLM-powered (#155)
+- Auto-build on sync + configurable lint schedule (#157)
+- Auto Dream for MEMORY.md consolidation (#156)
+- Full Dataview dashboard template (#153)
+- Category page generator — Dataview + static modes (#154)
+- Obsidian Templater templates for all 4 page types (#152)
+- Obsidian integration guide (#151)
+- 5 new MCP tools: confidence, lifecycle, dashboard, entity search, category browse (#159)
+- Adapter config validation (#177)
+- Multi-agent skill installer (#160)
+- Enhanced static site search with facets (#161)
+- Configurable scheduled sync task generator (#162)
+- CI wiki-checks workflow (#163)
+- End-to-end setup guide tutorial (#120)
+- Two-way Obsidian editing verification tests (#158)
+- 53 edge case tests for Sprint 1 modules
+
+### Changed
+
+- README refresh (#122) — v0.9.4 → v1.0.0 state, new sections for Quality & Obsidian features, updated roadmap for v1.0/v1.1/v1.2
+- Light-mode polish (#119) — darker borders, card shadows, visible heatmap level-0, less saturated tool bars, grounded nav
+- Consistency audit — `_context.md` normalized to `type: context`, label hygiene (conventional-commit canonical set), test file rename
+
+### Fixed
+
+- Synthesis pipeline writes to real `wiki/log.md` during tests (#131)
+- Personal data removed from tracked wiki navigation files (#173)
+- Pipeline robustness — sigstore pinned to @v3.3.0, release-drafter restricted to master pushes, Pages deploy not triggered on tag pushes, PyPI publish gated on `PYPI_PUBLISHING` variable
+
+### Security
+
+- Removed email, paths, and workflow preferences from tracked wiki nav files
+- `raw/` + `wiki/*` content directories remain gitignored; `examples/demo-sessions/` is the only data shipped
+
+### Stats
+
+- 23 PRs merged across Sprints 1–4 (PR #166–#210)
+- 1206 tests passing on Python 3.9 + 3.12
+- 8 signed tags: v0.9.1–v0.9.5 + v1.0.0
+- All commits GPG-signed by the maintainer
+
 ## [Unreleased]
 
 ### Added
