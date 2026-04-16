@@ -1,0 +1,82 @@
+name: Wiki checks
+
+# Runs llmwiki lint + build on PRs and pushes to verify wiki-related code
+# still produces valid output. Seeded from examples/demo-sessions/ so CI
+# never touches personal data.
+
+on:
+  push:
+    branches: ["master"]
+    paths:
+      - "llmwiki/**"
+      - "wiki/**"
+      - "examples/**"
+      - ".github/workflows/wiki-checks.yml"
+  pull_request:
+    paths:
+      - "llmwiki/**"
+      - "wiki/**"
+      - "examples/**"
+      - ".github/workflows/wiki-checks.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  wiki-checks:
+    name: Lint + build seeded wiki
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install llmwiki
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+
+      - name: Seed raw/ from example demo sessions
+        run: |
+          mkdir -p raw/sessions
+          if [ -d examples/demo-sessions ]; then
+            cp -r examples/demo-sessions/* raw/sessions/
+            echo "Seeded raw/sessions/ from examples/demo-sessions/"
+          fi
+
+      - name: llmwiki eval (structural quality checks)
+        run: |
+          python -m llmwiki eval --fail-below 60 || true
+          # Don't fail CI on eval score — it's informational. Just log it.
+
+      - name: llmwiki lint (11 rules)
+        run: |
+          # Run lint but don't fail on warnings/info.
+          # Errors WILL fail the build (--fail-on-errors).
+          python -m llmwiki lint --fail-on-errors || {
+            echo "::warning::llmwiki lint found errors. Review output above."
+            exit 1
+          }
+
+      - name: llmwiki build (smoke test)
+        run: |
+          python -m llmwiki build --out /tmp/site-test
+          # Verify output exists
+          test -f /tmp/site-test/index.html || {
+            echo "::error::build did not produce index.html"
+            exit 1
+          }
+          echo "Build produced $(find /tmp/site-test -name '*.html' | wc -l) HTML files"
+
+      - name: llmwiki check-links (internal link integrity)
+        run: |
+          python -m llmwiki check-links --site-dir /tmp/site-test --fail-on-broken
+
+      - name: llmwiki adapters (dry-run listing)
+        run: |
+          # Verify the adapter registry still enumerates correctly.
+          python -m llmwiki adapters
