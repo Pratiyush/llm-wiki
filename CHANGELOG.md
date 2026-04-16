@@ -49,6 +49,7 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ### Tests
 
+- **Two-way Obsidian editing verification** (#158) — 8 tests covering: user edits visible via `load_pages()`, frontmatter changes preserved, user-added tags affect category generation, user-added `[[wikilinks]]` pass link integrity, `load_pages()` follows symlinks (for `link-obsidian`), edit→reload cycle, `## Custom Section` preservation through lint/category runs.
 - **53 edge case tests** — boundary conditions, empty/None inputs, negative numbers, unicode, extreme values across confidence, lifecycle, schema, and log modules
 
 ### Changed
