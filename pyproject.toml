@@ -69,7 +69,7 @@ e2e = [
     "pytest>=7.0",
     "pytest-playwright>=0.4",
     "pytest-bdd>=7.0",
-    "pytest-html>=4.0",
+    "pytest-html>=4.2.0",
 ]
 all = [
     "pypdf>=4.0",
