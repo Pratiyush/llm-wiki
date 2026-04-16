@@ -97,7 +97,53 @@ def cmd_sync(args: argparse.Namespace) -> int:
             f"  images: {total_dl} downloaded, {total_fail} failed, "
             f"{total_skip} skipped (cached)"
         )
+
+    # v1.0 (#157): auto-build and auto-lint after sync.
+    # --no-build and --no-lint let users opt out.
+    if rc == 0 and not args.dry_run:
+        schedule = _load_schedule_config()
+        if args.auto_build and _should_run_after_sync(schedule.get("build", "on-sync")):
+            print("  auto-build: regenerating site/...")
+            from llmwiki.build import build_site
+            build_site(out_dir=REPO_ROOT / "site")
+        if args.auto_lint and _should_run_after_sync(schedule.get("lint", "manual")):
+            print("  auto-lint: running wiki lint...")
+            from llmwiki.lint import load_pages, run_all, summarize
+            pages = load_pages()
+            issues = run_all(pages)
+            summary = summarize(issues)
+            print(f"  lint: {sum(summary.values())} issues "
+                  f"({summary.get('error', 0)} errors, "
+                  f"{summary.get('warning', 0)} warnings)")
     return rc
+
+
+def _load_schedule_config() -> dict[str, str]:
+    """Load build/lint schedule config from sessions_config.json."""
+    import json as _json
+    from llmwiki import REPO_ROOT
+    config_path = REPO_ROOT / "examples" / "sessions_config.json"
+    if not config_path.is_file():
+        return {"build": "on-sync", "lint": "manual"}
+    try:
+        data = _json.loads(config_path.read_text(encoding="utf-8"))
+    except (ValueError, OSError):
+        return {"build": "on-sync", "lint": "manual"}
+    schedule = data.get("schedule", {})
+    return {
+        "build": schedule.get("build", "on-sync"),
+        "lint": schedule.get("lint", "manual"),
+    }
+
+
+def _should_run_after_sync(schedule: str) -> bool:
+    """Return True if the schedule value indicates running after sync.
+
+    Accepted values: "on-sync", "daily", "weekly", "manual", "never".
+    Only "on-sync" triggers from cmd_sync. "daily"/"weekly" run from a
+    scheduled task; "manual" and "never" never auto-run.
+    """
+    return schedule.lower() == "on-sync"
 
 
 def cmd_build(args: argparse.Namespace) -> int:
@@ -413,6 +459,14 @@ def build_parser() -> argparse.ArgumentParser:
     sync.add_argument(
         "--download-images", action="store_true",
         help="Download remote images in converted .md files to raw/assets/",
+    )
+    sync.add_argument(
+        "--auto-build", action=argparse.BooleanOptionalAction, default=True,
+        help="After sync, auto-rebuild the static site if schedule allows (default: on)",
+    )
+    sync.add_argument(
+        "--auto-lint", action=argparse.BooleanOptionalAction, default=True,
+        help="After sync, auto-run lint if schedule allows (default: on)",
     )
     sync.set_defaults(func=cmd_sync)
 

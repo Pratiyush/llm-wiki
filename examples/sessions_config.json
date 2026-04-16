@@ -31,5 +31,11 @@
     "assistant_text_chars": 8000
   },
 
-  "drop_thinking_blocks": true
+  "drop_thinking_blocks": true,
+
+  "_schedule_comment": "Controls when wiki-build and wiki-lint run. Values: on-sync (after every sync), daily, weekly, manual, never.",
+  "schedule": {
+    "build": "on-sync",
+    "lint": "manual"
+  }
 }
