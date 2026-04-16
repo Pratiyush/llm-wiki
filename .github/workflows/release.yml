@@ -86,7 +86,7 @@ jobs:
           path: dist/
 
       - name: Sign with Sigstore
-        uses: sigstore/gh-action-sigstore-python@v3
+        uses: sigstore/gh-action-sigstore-python@v3.3.0
         with:
           inputs: >-
             dist/*.tar.gz
@@ -102,9 +102,9 @@ jobs:
   github-release:
     name: Create GitHub Release
     needs: [build, sign]
-    # Run even if publish was skipped or failed — GitHub Release shouldn't
-    # depend on PyPI upload succeeding.
-    if: always() && needs.build.result == 'success' && needs.sign.result == 'success'
+    # Run even if publish or sign was skipped/failed — GitHub Release shouldn't
+    # depend on PyPI upload or Sigstore signing succeeding.
+    if: always() && needs.build.result == 'success'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -114,20 +114,39 @@ jobs:
         with:
           path: artifacts/
 
-      - name: Create GitHub Release
+      - name: Create or update GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          set -e
           tag="${GITHUB_REF_NAME}"
           # Pre-release if tag contains rc, alpha, beta, dev
           prerelease=""
           if echo "$tag" | grep -qiE '(rc|alpha|beta|dev)'; then
             prerelease="--prerelease"
           fi
-          gh release create "$tag" \
-            --repo "$GITHUB_REPOSITORY" \
-            --title "$tag" \
-            --generate-notes \
-            $prerelease \
-            artifacts/dist/* \
-            artifacts/sigstore-signatures/*.sigstore.json 2>/dev/null || true
+
+          # Collect artifacts — missing dirs/files are tolerated.
+          assets=()
+          for f in artifacts/dist/* artifacts/sigstore-signatures/*.sigstore.json; do
+            if [ -f "$f" ]; then
+              assets+=("$f")
+            fi
+          done
+
+          # If a release already exists for this tag (e.g. created manually
+          # for v0.9.1-v0.9.3), upload assets to it; otherwise create it.
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release $tag already exists — uploading ${#assets[@]} asset(s)"
+            if [ ${#assets[@]} -gt 0 ]; then
+              gh release upload "$tag" "${assets[@]}" --repo "$GITHUB_REPOSITORY" --clobber
+            fi
+          else
+            echo "Creating release $tag with ${#assets[@]} asset(s)"
+            gh release create "$tag" \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "$tag" \
+              --generate-notes \
+              $prerelease \
+              "${assets[@]}"
+          fi

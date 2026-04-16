@@ -62,6 +62,7 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ### Fixed
 
+- **Release workflow: sigstore action version + release-exists handling** — `sigstore/gh-action-sigstore-python@v3` tag doesn't exist; pinned to `@v3.3.0`. Sign failures no longer block `github-release` job (it only requires `build` success now). Added detection for pre-existing releases (e.g. v0.9.1–v0.9.3 manually created) — uploads assets to existing release instead of failing with "release already exists."
 - **Pages deploy no longer fires on tag pushes** — only on push to master. Tag pushes would try to deploy the same content a second time and fail because the GitHub Pages env only accepts master-branch deploys.
 - **PyPI publish is gated on `PYPI_PUBLISHING` repo variable** — until PyPI Trusted Publisher is configured (#101), tag pushes won't fail. The build + sign + GitHub Release still run; only PyPI upload is deferred. Enable via `gh variable set PYPI_PUBLISHING --body "true"` after setup.
 - **Release-drafter runs only on push to master** — removed `pull_request` trigger that caused `target_commitish: refs/pull/N/merge` validation errors with release-drafter@v7. Draft releases only need to update when commits land on master.
