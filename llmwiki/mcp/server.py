@@ -170,6 +170,102 @@ TOOLS = [
             "required": ["format"],
         },
     },
+    # v1.0 (#159) — 5 new MCP tools for confidence, lifecycle, dashboard,
+    # entity search, and category browse.
+    {
+        "name": "wiki_confidence",
+        "description": (
+            "Return confidence scores for wiki pages. Filters by minimum "
+            "confidence threshold. Pages below threshold may need review."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "min_confidence": {
+                    "type": "number",
+                    "description": "Only return pages with confidence >= this (0.0-1.0). Default 0.",
+                    "default": 0.0,
+                },
+                "max_confidence": {
+                    "type": "number",
+                    "description": "Only return pages with confidence <= this (0.0-1.0). Default 1.0.",
+                    "default": 1.0,
+                },
+            },
+        },
+    },
+    {
+        "name": "wiki_lifecycle",
+        "description": (
+            "List pages by lifecycle state: draft, reviewed, verified, stale, "
+            "or archived. Use to find pages needing review or archival."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "state": {
+                    "type": "string",
+                    "enum": ["draft", "reviewed", "verified", "stale", "archived"],
+                    "description": "Which lifecycle state to filter by.",
+                },
+            },
+            "required": ["state"],
+        },
+    },
+    {
+        "name": "wiki_dashboard",
+        "description": (
+            "Return a summary of wiki health: page counts by type, "
+            "confidence distribution, lifecycle distribution, stale pages, "
+            "and recent updates."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {},
+        },
+    },
+    {
+        "name": "wiki_entity_search",
+        "description": (
+            "Search entities by name or entity_type. Returns matching "
+            "entity pages with their metadata."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "description": "Entity name substring (case-insensitive).",
+                },
+                "entity_type": {
+                    "type": "string",
+                    "enum": ["person", "org", "tool", "concept", "api", "library", "project"],
+                    "description": "Filter by entity type.",
+                },
+            },
+        },
+    },
+    {
+        "name": "wiki_category_browse",
+        "description": (
+            "List tags and the count of pages for each. Optionally return "
+            "all pages for a specific tag."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "tag": {
+                    "type": "string",
+                    "description": "Optional tag to drill into. If omitted, returns counts for all tags.",
+                },
+                "min_count": {
+                    "type": "integer",
+                    "description": "Only include tags with >= this many pages (default 1).",
+                    "default": 1,
+                },
+            },
+        },
+    },
 ]
 
 
@@ -470,6 +566,182 @@ def _err(text: str) -> dict[str, Any]:
     return {"content": [{"type": "text", "text": text}], "isError": True}
 
 
+def tool_wiki_confidence(args: dict[str, Any]) -> dict[str, Any]:
+    """List pages filtered by confidence score range (v1.0 · #159)."""
+    from llmwiki.lint import load_pages
+
+    min_c = float(args.get("min_confidence", 0.0))
+    max_c = float(args.get("max_confidence", 1.0))
+
+    wiki = REPO_ROOT / "wiki"
+    pages = load_pages(wiki)
+
+    results: list[dict[str, Any]] = []
+    for rel, page in pages.items():
+        conf_raw = page["meta"].get("confidence", "")
+        if not conf_raw:
+            continue
+        try:
+            conf = float(conf_raw)
+        except (ValueError, TypeError):
+            continue
+        if min_c <= conf <= max_c:
+            results.append({
+                "path": rel,
+                "title": page["meta"].get("title", ""),
+                "confidence": conf,
+                "lifecycle": page["meta"].get("lifecycle", ""),
+            })
+
+    results.sort(key=lambda r: r["confidence"])
+    text = f"{len(results)} pages with confidence in [{min_c}, {max_c}]:\n\n"
+    for r in results[:50]:
+        text += f"  {r['confidence']:.2f}  {r['path']}  — {r['title']}\n"
+    if len(results) > 50:
+        text += f"\n  ... and {len(results) - 50} more\n"
+    return _ok(text)
+
+
+def tool_wiki_lifecycle(args: dict[str, Any]) -> dict[str, Any]:
+    """List pages filtered by lifecycle state (v1.0 · #159)."""
+    from llmwiki.lint import load_pages
+
+    state = (args.get("state") or "").strip().lower()
+    if not state:
+        return _err("state is required")
+
+    wiki = REPO_ROOT / "wiki"
+    pages = load_pages(wiki)
+
+    matches = [
+        (rel, page["meta"].get("title", ""), page["meta"].get("last_updated", ""))
+        for rel, page in pages.items()
+        if page["meta"].get("lifecycle", "").lower() == state
+    ]
+    matches.sort(key=lambda m: m[2], reverse=True)
+
+    text = f"{len(matches)} pages in lifecycle '{state}':\n\n"
+    for rel, title, updated in matches[:50]:
+        text += f"  {updated}  {rel}  — {title}\n"
+    if len(matches) > 50:
+        text += f"\n  ... and {len(matches) - 50} more\n"
+    return _ok(text)
+
+
+def tool_wiki_dashboard(args: dict[str, Any]) -> dict[str, Any]:
+    """Return wiki health summary (v1.0 · #159)."""
+    from llmwiki.lint import load_pages
+
+    wiki = REPO_ROOT / "wiki"
+    pages = load_pages(wiki)
+
+    by_type: dict[str, int] = {}
+    by_lifecycle: dict[str, int] = {}
+    conf_buckets = {"high (≥0.8)": 0, "medium (0.5-0.8)": 0, "low (<0.5)": 0, "none": 0}
+
+    for page in pages.values():
+        meta = page["meta"]
+        t = meta.get("type", "unknown")
+        by_type[t] = by_type.get(t, 0) + 1
+        lc = meta.get("lifecycle", "none")
+        by_lifecycle[lc] = by_lifecycle.get(lc, 0) + 1
+
+        conf_raw = meta.get("confidence", "")
+        if not conf_raw:
+            conf_buckets["none"] += 1
+        else:
+            try:
+                c = float(conf_raw)
+                if c >= 0.8:
+                    conf_buckets["high (≥0.8)"] += 1
+                elif c >= 0.5:
+                    conf_buckets["medium (0.5-0.8)"] += 1
+                else:
+                    conf_buckets["low (<0.5)"] += 1
+            except (ValueError, TypeError):
+                conf_buckets["none"] += 1
+
+    lines = [f"# Wiki Dashboard — {len(pages)} pages\n"]
+    lines.append("## By type\n")
+    for t in sorted(by_type):
+        lines.append(f"  {by_type[t]:4d}  {t}")
+    lines.append("\n## By lifecycle\n")
+    for lc in sorted(by_lifecycle):
+        lines.append(f"  {by_lifecycle[lc]:4d}  {lc}")
+    lines.append("\n## Confidence distribution\n")
+    for bucket in ["high (≥0.8)", "medium (0.5-0.8)", "low (<0.5)", "none"]:
+        lines.append(f"  {conf_buckets[bucket]:4d}  {bucket}")
+
+    return _ok("\n".join(lines))
+
+
+def tool_wiki_entity_search(args: dict[str, Any]) -> dict[str, Any]:
+    """Search entities by name or entity_type (v1.0 · #159)."""
+    from llmwiki.lint import load_pages
+
+    name_q = (args.get("name") or "").strip().lower()
+    etype_q = (args.get("entity_type") or "").strip().lower()
+
+    wiki = REPO_ROOT / "wiki"
+    pages = load_pages(wiki)
+
+    matches: list[dict[str, Any]] = []
+    for rel, page in pages.items():
+        meta = page["meta"]
+        if meta.get("type") != "entity":
+            continue
+        title = meta.get("title", "")
+        etype = meta.get("entity_type", "").lower()
+        if name_q and name_q not in title.lower() and name_q not in rel.lower():
+            continue
+        if etype_q and etype_q != etype:
+            continue
+        matches.append({
+            "path": rel,
+            "title": title,
+            "entity_type": etype,
+            "confidence": meta.get("confidence", ""),
+        })
+
+    matches.sort(key=lambda m: m["title"])
+    text = f"{len(matches)} matching entities:\n\n"
+    for m in matches[:50]:
+        text += f"  [{m['entity_type']:10}] {m['path']}  — {m['title']}\n"
+    if len(matches) > 50:
+        text += f"\n  ... and {len(matches) - 50} more\n"
+    return _ok(text)
+
+
+def tool_wiki_category_browse(args: dict[str, Any]) -> dict[str, Any]:
+    """Browse tags / categories (v1.0 · #159)."""
+    from llmwiki.categories import scan_tags
+    from llmwiki.lint import load_pages
+
+    tag = (args.get("tag") or "").strip().lower()
+    min_count = int(args.get("min_count", 1))
+
+    wiki = REPO_ROOT / "wiki"
+    pages = load_pages(wiki)
+    tags = scan_tags(pages)
+
+    if tag:
+        page_rels = tags.get(tag, [])
+        text = f"{len(page_rels)} pages tagged '{tag}':\n\n"
+        for rel in page_rels[:50]:
+            title = pages[rel]["meta"].get("title", "")
+            text += f"  {rel}  — {title}\n"
+        return _ok(text)
+
+    # List all tags with counts
+    filtered = [(t, len(pgs)) for t, pgs in tags.items() if len(pgs) >= min_count]
+    filtered.sort(key=lambda x: x[1], reverse=True)
+
+    text = f"{len(filtered)} tags with >= {min_count} pages:\n\n"
+    for t, count in filtered[:100]:
+        text += f"  {count:4d}  {t}\n"
+    return _ok(text)
+
+
 TOOL_IMPLS = {
     "wiki_query": tool_wiki_query,
     "wiki_search": tool_wiki_search,
@@ -478,6 +750,12 @@ TOOL_IMPLS = {
     "wiki_lint": tool_wiki_lint,
     "wiki_sync": tool_wiki_sync,
     "wiki_export": tool_wiki_export,
+    # v1.0 (#159)
+    "wiki_confidence": tool_wiki_confidence,
+    "wiki_lifecycle": tool_wiki_lifecycle,
+    "wiki_dashboard": tool_wiki_dashboard,
+    "wiki_entity_search": tool_wiki_entity_search,
+    "wiki_category_browse": tool_wiki_category_browse,
 }
 
 
