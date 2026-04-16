@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=64", "wheel"]
+requires = ["setuptools>=82.0.1", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -47,7 +47,7 @@ classifiers = [
     "Natural Language :: English",
 ]
 dependencies = [
-    "markdown>=3.4",
+    "markdown>=3.9",
 ]
 
 [project.optional-dependencies]
@@ -55,10 +55,10 @@ dependencies = [
 # `pip install -e '.[highlight]'` in docs or CI scripts. v0.5+ uses
 # highlight.js via CDN, so no Python-side highlighter dep is needed.
 highlight = []
-pdf = ["pypdf>=4.0"]
+pdf = ["pypdf>=6.10.2"]
 dev = [
     "pytest>=7.0",
-    "ruff>=0.1",
+    "ruff>=0.15.10",
 ]
 # E2E test harness — Playwright drives a real browser + pytest-bdd
 # turns Gherkin `.feature` files into pytest scenarios + pytest-html
@@ -69,10 +69,10 @@ e2e = [
     "pytest>=7.0",
     "pytest-playwright>=0.4",
     "pytest-bdd>=7.0",
-    "pytest-html>=4.0",
+    "pytest-html>=4.2.0",
 ]
 all = [
-    "pypdf>=4.0",
+    "pypdf>=6.10.2",
 ]
 
 [project.urls]
