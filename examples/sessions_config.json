@@ -83,5 +83,14 @@
     "weekday": 0,
     "working_dir": "~/llm-wiki",
     "llmwiki_bin": "/usr/local/bin/llmwiki"
+  },
+
+  "_synthesis_comment": "LLM backend for auto-synthesizing wiki source pages (#35). backend=dummy (default, offline) | ollama (local HTTP). Ollama must be running: `ollama serve`. Run `llmwiki synthesize --check` to probe the server.",
+  "synthesis": {
+    "backend": "dummy",
+    "model": "llama3.1:8b",
+    "base_url": "http://127.0.0.1:11434",
+    "timeout": 60,
+    "max_retries": 3
   }
 }

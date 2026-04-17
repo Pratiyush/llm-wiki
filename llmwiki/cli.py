@@ -438,6 +438,57 @@ def cmd_lint(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_synthesize(args: argparse.Namespace) -> int:
+    """Synthesize wiki source pages from raw sessions (v1.1.0 · #35).
+
+    Uses the backend selected via ``synthesis.backend`` in
+    ``sessions_config.json`` (dummy | ollama). ``--check`` prints backend
+    availability without running synthesis — useful for diagnosing Ollama
+    connectivity before a long sync.
+    """
+    import json as _json
+    from llmwiki.synth.pipeline import resolve_backend, synthesize_new_sessions
+
+    config: dict = {}
+    config_path = REPO_ROOT / "examples" / "sessions_config.json"
+    if config_path.is_file():
+        try:
+            config = _json.loads(config_path.read_text(encoding="utf-8"))
+        except (_json.JSONDecodeError, OSError):
+            config = {}
+
+    backend = resolve_backend(config)
+    print(f"Backend: {backend.name}")
+
+    if args.check:
+        available = backend.is_available()
+        print(f"Available: {available}")
+        return 0 if available else 1
+
+    if not backend.is_available():
+        print(
+            f"error: backend {backend.name} is not available. "
+            "Start the server or change synthesis.backend in config.",
+            file=sys.stderr,
+        )
+        return 1
+
+    summary = synthesize_new_sessions(
+        backend=backend,
+        dry_run=args.dry_run,
+        force=args.force,
+    )
+    print(
+        f"Scanned {summary['total_scanned']}, new {summary['new_files']}, "
+        f"synthesized {summary['synthesized']}, skipped {summary['skipped']}"
+    )
+    if summary["errors"]:
+        for err in summary["errors"]:
+            print(f"  ! {err}", file=sys.stderr)
+        return 1
+    return 0
+
+
 def cmd_candidates(args: argparse.Namespace) -> int:
     """List / promote / merge / discard candidate pages (v1.1.0 · #51)."""
     import json as _json
@@ -804,6 +855,25 @@ def build_parser() -> argparse.ArgumentParser:
                       help="Staleness threshold in days (default 30)")
     cand.add_argument("--json", action="store_true", help="JSON output for list")
     cand.set_defaults(func=cmd_candidates)
+
+    # synthesize (v1.1, #35) — LLM-backed wiki page synthesis
+    syn = sub.add_parser(
+        "synthesize",
+        help="Synthesize wiki source pages from raw sessions via LLM backend",
+    )
+    syn.add_argument(
+        "--check", action="store_true",
+        help="Probe backend availability and exit (exit 0 if reachable)",
+    )
+    syn.add_argument(
+        "--dry-run", action="store_true",
+        help="List sessions that would be synthesized without writing",
+    )
+    syn.add_argument(
+        "--force", action="store_true",
+        help="Ignore state file, re-synthesize all sessions",
+    )
+    syn.set_defaults(func=cmd_synthesize)
 
     # completion (v1.1, #216) — emit shell completion script
     comp = sub.add_parser(

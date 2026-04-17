@@ -27,6 +27,36 @@ from llmwiki import REPO_ROOT
 from llmwiki.build import parse_frontmatter
 from llmwiki.synth.base import BaseSynthesizer, DummySynthesizer
 
+
+def resolve_backend(
+    cfg: Optional[dict[str, Any]] = None,
+) -> BaseSynthesizer:
+    """Pick a synthesizer backend from ``cfg["synthesis"]["backend"]``.
+
+    Supported values:
+      - ``"dummy"`` (default) — canned offline backend for previews/tests
+      - ``"ollama"`` — local Ollama HTTP backend (#35)
+
+    Unknown values fall back to the dummy backend with a warning so a
+    typo in config.json doesn't crash sync.
+    """
+    synth_cfg = (cfg or {}).get("synthesis", {}) or {}
+    name = (synth_cfg.get("backend") or "dummy").strip().lower()
+
+    if name == "ollama":
+        # Imported lazily so the `urllib`-based module isn't loaded when
+        # users stick with the default dummy backend.
+        from llmwiki.synth.ollama import OllamaSynthesizer, load_ollama_config
+
+        return OllamaSynthesizer(config=load_ollama_config(cfg))
+
+    if name != "dummy":
+        import logging
+        logging.getLogger(__name__).warning(
+            "Unknown synthesis.backend %r — falling back to dummy", name
+        )
+    return DummySynthesizer()
+
 RAW_SESSIONS = REPO_ROOT / "raw" / "sessions"
 WIKI_SOURCES = REPO_ROOT / "wiki" / "sources"
 WIKI_LOG = REPO_ROOT / "wiki" / "log.md"
