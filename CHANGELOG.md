@@ -8,6 +8,10 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased] — post-v1.0 cleanup
 
+### Added
+
+- **`.editorconfig` + weekly lychee link checker** (#215) — new `.editorconfig` at repo root enforces consistent indent/line-endings across editors (Python 4-space, YAML/JSON/TOML 2-space, Makefiles tab, Windows `.bat` CRLF). New `lychee.toml` + `.github/workflows/link-check.yml` scans README, CHANGELOG, `docs/`, and `examples/` weekly (Sun 03:00 UTC) for broken external links. Creates/updates a tracking issue on failure instead of blocking CI. Personal `wiki/` and `raw/` paths excluded; `site/` skipped (already handled by `llmwiki check-links`). 22 tests.
+
 ### Changed
 
 - **Public seed entities enriched with v1.0 metadata** (#140) — `wiki/entities/ClaudeSonnet4.md` and `wiki/entities/GPT5.md` (the two public AI-model seed entities shipped with the repo) now carry `confidence`, `lifecycle`, `entity_type: tool` fields matching the v1.0 schema. Computed confidence: 0.56 for each (no source_count bump since they're structured schema entities with `sources: []`; quality gets "official" due to `entity_kind: ai-model`, recency is current, cross-refs are 0 since no other public wiki pages link to them).

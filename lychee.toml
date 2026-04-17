@@ -1,0 +1,53 @@
+# lychee link-checker config — https://lychee.cli.rs/
+#
+# Used by .github/workflows/link-check.yml to scan repo markdown
+# weekly for broken external links. Internal links (site/) have a
+# dedicated checker — `llmwiki check-links` — that runs on build.
+
+# ─── network ─────────────────────────────────────────────────────────
+timeout = 20
+max_redirects = 5
+max_retries = 3
+retry_wait_time = 2
+
+# ─── what to accept ─────────────────────────────────────────────────
+# Only error on 4xx/5xx. Ignore transient redirects and auth-gated URLs.
+accept = [200, 201, 202, 203, 204, 206, 301, 302, 303, 307, 308, 401, 403]
+
+# ─── exclude paths ──────────────────────────────────────────────────
+# site/ is the built output (already link-checked by llmwiki check-links).
+# .github/ISSUE_TEMPLATE/ contains tag URLs that resolve post-release.
+# docs/content-drafts/ is unpublished marketing — skip.
+exclude_path = [
+  "site/",
+  "node_modules/",
+  ".git/",
+  ".venv/",
+  "docs/content-drafts/",
+  "wiki/",
+  "raw/",
+]
+
+# ─── URL exclude patterns ───────────────────────────────────────────
+# Known-future URLs (release tags before we cut them) and private
+# endpoints that 403 from GitHub Actions runners.
+exclude = [
+  # Release tags may not exist yet
+  "^https://github\\.com/Pratiyush/llm-wiki/releases/tag/v1\\.1",
+  "^https://github\\.com/Pratiyush/llm-wiki/releases/tag/v1\\.2",
+  # Security advisory template (only resolves when filed)
+  "^https://github\\.com/Pratiyush/llm-wiki/security/advisories/new",
+  # PyPI (pre-first-release)
+  "^https://pypi\\.org/project/llmwiki/",
+  # Homebrew tap (pre-creation)
+  "^https://github\\.com/Pratiyush/homebrew-llmwiki",
+  # Localhost references in docs
+  "^http://127\\.0\\.0\\.1",
+  "^http://localhost",
+  # Placeholder URLs in demo content
+  "^https://example\\.com",
+]
+
+# ─── quiet output ───────────────────────────────────────────────────
+no_progress = true
+verbose = "info"

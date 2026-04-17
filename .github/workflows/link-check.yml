@@ -1,0 +1,63 @@
+name: Link check
+
+# Scans README, CHANGELOG, docs/, and examples/ for broken external links.
+# Runs weekly on Sunday 03:00 UTC, on push to master when link-heavy files
+# change, and on manual dispatch. Internal links in site/ have a separate
+# checker (llmwiki check-links) that runs on build.
+
+on:
+  schedule:
+    - cron: "0 3 * * 0"
+  push:
+    branches: ["master"]
+    paths:
+      - "README.md"
+      - "CHANGELOG.md"
+      - "CONTRIBUTING.md"
+      - "docs/**/*.md"
+      - "examples/**/*.md"
+      - "lychee.toml"
+      - ".github/workflows/link-check.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  link-check:
+    name: Lychee external link scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Restore lychee cache
+        uses: actions/cache@v5
+        with:
+          path: .lycheecache
+          key: cache-lychee-${{ github.sha }}
+          restore-keys: cache-lychee-
+
+      - name: Run lychee
+        id: lychee
+        uses: lycheeverse/lychee-action@v2
+        with:
+          # Scan only the docs/content surface — exclude paths in lychee.toml
+          args: >-
+            --config lychee.toml
+            --cache
+            README.md
+            CHANGELOG.md
+            CONTRIBUTING.md
+            'docs/**/*.md'
+            'examples/**/*.md'
+          fail: false  # Don't fail the workflow; file an issue instead
+          output: lychee-report.md
+
+      - name: Create or update tracking issue on broken links
+        if: steps.lychee.outputs.exit_code != 0
+        uses: peter-evans/create-issue-from-file@v5
+        with:
+          title: "Broken external links detected"
+          content-filepath: lychee-report.md
+          labels: docs, chore

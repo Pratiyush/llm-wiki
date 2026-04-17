@@ -1,0 +1,42 @@
+# EditorConfig — https://editorconfig.org/
+#
+# Consistent indent + line endings + charset across every editor, no
+# matter whether contributors use VS Code, vim, Sublime, or JetBrains.
+# Enforced by the editor (not CI) — this file just tells your editor
+# what to do.
+
+root = true
+
+# ─── defaults for every file ──────────────────────────────────────────
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 2
+
+# ─── Python: 4-space indent ──────────────────────────────────────────
+[*.py]
+indent_size = 4
+max_line_length = 120
+
+# ─── YAML + JSON + TOML: 2-space ────────────────────────────────────
+[*.{yml,yaml,json,toml}]
+indent_size = 2
+
+# ─── Markdown: keep trailing whitespace (hard line breaks) ───────────
+[*.md]
+trim_trailing_whitespace = false
+
+# ─── Makefile: tabs required ────────────────────────────────────────
+[{Makefile,*.mk}]
+indent_style = tab
+
+# ─── Shell scripts: 2-space ─────────────────────────────────────────
+[*.{sh,bash,zsh,fish}]
+indent_size = 2
+
+# ─── Windows batch: CRLF ────────────────────────────────────────────
+[*.{bat,cmd}]
+end_of_line = crlf
