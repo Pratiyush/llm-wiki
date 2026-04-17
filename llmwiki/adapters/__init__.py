@@ -42,6 +42,7 @@ def discover_adapters() -> None:
     from llmwiki.adapters import pdf  # noqa: F401
     from llmwiki.adapters import meeting  # noqa: F401
     from llmwiki.adapters import jira_adapter  # noqa: F401
+    from llmwiki.adapters import chatgpt  # noqa: F401
 
 
 def get_available() -> dict[str, type[BaseAdapter]]:
