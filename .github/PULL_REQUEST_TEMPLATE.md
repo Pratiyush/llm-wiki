@@ -27,25 +27,34 @@ Closes #<issue>
 ```bash
 python3 -m pytest tests/ -q
 python3 -m llmwiki build
+python3 -m llmwiki lint --fail-on-errors
 ```
 
-## Checklist
+## Pre-merge checklist
 
-- [ ] Linked to an issue (or explained why the change is trivial enough not to need one)
-- [ ] One concern per PR — no mixing a bug fix with a new feature
-- [ ] Conventional-commit title: `feat:` / `fix:` / `docs:` / `chore:` / `test:` (optionally with a version scope like `feat(v0.8):`)
-- [ ] Tests added or updated — happy path + at least one edge case
-- [ ] `python3 -m pytest tests/ -q` passes locally
-- [ ] `python3 -m llmwiki build` completes without new warnings
-- [ ] CHANGELOG.md has a new entry under `## [Unreleased]` (skip for doc-only PRs)
-- [ ] No new runtime dependencies (stdlib + `markdown` only)
-- [ ] No real session data under `raw/sessions/` or in test fixtures
-- [ ] No machine-specific paths in committed files
-- [ ] Docs updated for any user-visible change
+Every box below must be checked (or have a one-line waiver explaining why it does not apply to this PR).
+
+- [ ] **One intent** — this PR does one thing (no mixing a fix with a refactor or a new feature)
+- [ ] **All CI checks green** — no `--no-verify`, no skipped required jobs
+- [ ] **Linked issue** — title or body contains `Closes #N` (or one-line waiver explaining why the change is trivial)
+- [ ] **Conventional-commit title** — `<type>(<scope>): <imperative>` where type is `feat` / `fix` / `chore` / `docs` / `test` / `refactor` / `perf` / `security` / `release` (optionally with a version scope like `feat(v0.8):`)
+- [ ] **Tests added or updated** — happy path + at least one edge case; TDD where shape is clear
+- [ ] **CHANGELOG.md updated** — new entry under `## [Unreleased]` (skip for doc-only PRs that don't change behavior)
+- [ ] **Breaking changes flagged** — PR labeled `breaking` and announced in the body under a clear heading
+- [ ] **No new runtime dependencies** — stdlib + `markdown` only; new dev/test deps need justification + license check (no AGPL/GPL into MIT)
+- [ ] **No real session data** — no personal sessions under `raw/sessions/` or in test fixtures; `wiki/` user content stays gitignored
+- [ ] **No machine-specific paths** or secrets in committed files (check `.env`, `*.key`, home paths, usernames)
+- [ ] **Docs updated** — `README.md`, `docs/`, inline `--help` all reflect any user-visible change
+- [ ] **UI verified** (light AND dark mode) — for any change to `llmwiki/build.py` CSS or static site. Paste screenshots below.
+- [ ] **A11y verified** — keyboard nav works, focus rings visible, `axe` clean (for UI changes). WCAG 2.1 AA minimum (contrast ≥ 4.5:1).
+- [ ] **Commits GPG-signed** by the repo author; no AI co-author trailers; atomic commits (one logical change each)
+- [ ] **Reviewer has read every changed line** — no rubber-stamping
 
 ## Screenshots / output
 
-<!-- Paste screenshots, preview URLs, or CLI output if the change affects the rendered site or the CLI -->
+<!-- For UI changes: paste LIGHT + DARK screenshots side-by-side.
+     For CLI changes: paste the new --help output.
+     For build changes: paste the build summary line. -->
 
 ## Out of scope / follow-ups
 

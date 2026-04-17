@@ -81,36 +81,54 @@ Adapted from the parent [Open Source Project Framework](docs/framework.md):
 
 ### PR size
 
-- **One concern per PR.** Don't mix "add a new adapter" with "fix a CSS bug".
-- **One file per PR preferred** unless the change is strictly atomic (e.g. test fixture + snapshot that must move together).
-- **Small commits.** Each commit should tell a clear story.
+- **One intent per PR.** Don't mix "add a new adapter" with "fix a CSS bug". Split before opening.
+- **≤500 lines of diff.** If the PR gets larger than that, the reviewer will ask you to split.
+- **Atomic commits.** Each commit tells a clear story; renames isolated from behavior changes.
 
 ### PR title format
 
-Use conventional-commit-style prefixes (matches what's in `git log` on
-this repo):
+Conventional Commits. Types we accept:
 
-- `feat: <feature>` or `feat(v0.X): <feature>` — new functionality
-- `fix: <what>` or `fix(v0.X): <what>` — bug fix
-- `docs: <what>` — docs only
-- `chore: <what>` — refactor, dep bump, CI, version bumps
-- `test: <what>` or `test+docs: <what>` — tests only / tests + docs
+| Type | When | Version bump |
+|------|------|--------------|
+| `feat` | New user-visible capability | minor |
+| `fix` | Bug fix | patch |
+| `chore` | Maintenance, deps, CI, version bumps | patch |
+| `docs` | Docs only | patch |
+| `test` | Tests only | patch |
+| `refactor` | Internal restructuring, no behavior change | patch |
+| `perf` | Performance improvement | patch |
+| `security` | Security fix or hardening | patch |
+| `release` | Version bump + CHANGELOG promotion | — |
 
-Include the issue number in the PR title or body when the PR closes
-one: `feat(v0.8): tool-calling bar chart (#65)`.
+Optionally scope with a version: `feat(v0.8): tool chart`. Include the issue number: `Closes #65` in the body.
 
-### PR body checklist
+### PR body — 15-box pre-merge checklist
 
-- What problem does this solve?
-- How does this solution work?
-- Which files changed and why?
-- How did you test it?
-- Any follow-up work left for a later PR?
+Every box must be checked (or have a one-line waiver). See [`.github/PULL_REQUEST_TEMPLATE.md`](.github/PULL_REQUEST_TEMPLATE.md) for the current list. Covers at minimum:
+
+1. One intent (no mixing concerns)
+2. CI green
+3. Linked issue via `Closes #N`
+4. Conventional-commit title
+5. Tests added/updated (happy path + edge case)
+6. CHANGELOG under Unreleased
+7. Breaking changes flagged + labeled `breaking`
+8. No new runtime deps (stdlib + `markdown` only)
+9. No real session data in `raw/` or fixtures
+10. No machine-specific paths or secrets
+11. Docs updated for user-visible changes
+12. **UI verified in light AND dark mode** (for CSS/UI changes) — screenshots attached
+13. **A11y verified** — keyboard nav, focus rings, WCAG 2.1 AA (≥ 4.5:1 contrast)
+14. Commits GPG-signed, no AI co-author trailers, atomic
+15. Reviewer has read every changed line (no rubber-stamping)
 
 ### Branch protection
 
-- Default branch is `master`.
+- Default branch is `master`; never push directly — PR required.
 - CI must pass before merge.
+- Signed commits required.
+- Branch must be up-to-date with master before merge.
 
 ## Adding a new adapter
 

@@ -8,6 +8,10 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased] — post-v1.0 cleanup
 
+### Changed
+
+- **PR template upgraded to 15-box pre-merge checklist** — inspired by the Translately platform's contribution rules. New boxes: one intent, breaking-change flagging, UI verified in light AND dark mode (with screenshots), a11y verified (WCAG 2.1 AA minimum), commits GPG-signed with no AI co-author trailers, reviewer reads every changed line. `CONTRIBUTING.md` updated with matching conventional-commit type table (9 types now vs 5 before), 500-line PR size limit, signed-commit branch protection rule. 21 new tests lock the checklist shape.
+
 ### Added
 
 - `llmwiki/tag_utils.py` — shared tag-parsing module. Consolidates the byte-identical `_parse_tags_field()` + `NOISE_TAGS` that were duplicated in `categories.py` and `search_facets.py`. 19 tests covering parsing, noise filtering, deterministic scan order, and backwards-compat re-exports.
