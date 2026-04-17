@@ -438,6 +438,69 @@ def cmd_lint(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_candidates(args: argparse.Namespace) -> int:
+    """List / promote / merge / discard candidate pages (v1.1.0 · #51)."""
+    import json as _json
+    from llmwiki.candidates import (
+        list_candidates,
+        promote,
+        merge as merge_candidate,
+        discard,
+        stale_candidates,
+    )
+
+    wiki_dir = args.wiki_dir or (REPO_ROOT / "wiki")
+    if not wiki_dir.is_dir():
+        print(f"error: wiki directory not found: {wiki_dir}", file=sys.stderr)
+        return 2
+
+    action = args.action
+
+    if action == "list":
+        items = (
+            stale_candidates(wiki_dir, threshold_days=args.stale_days)
+            if args.stale else list_candidates(wiki_dir)
+        )
+        if args.json:
+            # Path isn't JSON-serializable — drop it for the output
+            cleaned = [{k: v for k, v in c.items() if k != "abs_path"} for c in items]
+            print(_json.dumps(cleaned, indent=2))
+        else:
+            label = "stale" if args.stale else "pending"
+            print(f"  {len(items)} {label} candidate(s):")
+            for c in items:
+                age = f"{c['age_days']}d" if c["created"] else "unknown age"
+                print(f"    [{c['kind']:9}] {c['slug']}  ({age})  — {c['title']}")
+        return 0
+
+    if action == "promote":
+        if not args.slug:
+            print("error: --slug is required for promote", file=sys.stderr)
+            return 2
+        path = promote(args.slug, wiki_dir, kind=args.kind)
+        print(f"  promoted → {path.relative_to(wiki_dir)}")
+        return 0
+
+    if action == "merge":
+        if not args.slug or not args.into:
+            print("error: both --slug and --into are required for merge", file=sys.stderr)
+            return 2
+        path = merge_candidate(args.slug, wiki_dir, into_slug=args.into, kind=args.kind)
+        print(f"  merged into → {path.relative_to(wiki_dir)}")
+        return 0
+
+    if action == "discard":
+        if not args.slug:
+            print("error: --slug is required for discard", file=sys.stderr)
+            return 2
+        path = discard(args.slug, wiki_dir, reason=args.reason, kind=args.kind)
+        print(f"  discarded → {path.relative_to(wiki_dir)}")
+        return 0
+
+    print(f"error: unknown action {action!r}", file=sys.stderr)
+    return 2
+
+
 def cmd_completion(args: argparse.Namespace) -> int:
     """Emit shell completion script for the requested shell (v1.1.0 · #216)."""
     from llmwiki.completion import generate
@@ -714,6 +777,33 @@ def build_parser() -> argparse.ArgumentParser:
         help="Install llmwiki skills into .codex/skills/ and .agents/skills/ (multi-agent support)",
     )
     isk.set_defaults(func=cmd_install_skills)
+
+    # candidates (v1.1, #51) — approval workflow
+    cand = sub.add_parser(
+        "candidates",
+        help="List / promote / merge / discard candidate wiki pages (approval workflow)",
+    )
+    cand.add_argument(
+        "action", choices=["list", "promote", "merge", "discard"],
+        help="What to do with candidates",
+    )
+    cand.add_argument("--slug", type=str, default=None,
+                      help="Candidate slug (required for promote/merge/discard)")
+    cand.add_argument("--into", type=str, default=None,
+                      help="For merge: slug of the page to merge into")
+    cand.add_argument("--reason", type=str, default="",
+                      help="For discard: why the candidate is being rejected")
+    cand.add_argument("--kind", type=str, default=None,
+                      choices=["entities", "concepts", "sources", "syntheses"],
+                      help="Subtree (auto-detected if omitted)")
+    cand.add_argument("--wiki-dir", type=Path, default=None,
+                      help="Wiki directory (default: ./wiki)")
+    cand.add_argument("--stale", action="store_true",
+                      help="For list: only show stale candidates")
+    cand.add_argument("--stale-days", type=int, default=30,
+                      help="Staleness threshold in days (default 30)")
+    cand.add_argument("--json", action="store_true", help="JSON output for list")
+    cand.set_defaults(func=cmd_candidates)
 
     # completion (v1.1, #216) — emit shell completion script
     comp = sub.add_parser(

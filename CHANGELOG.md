@@ -8,6 +8,10 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased] — post-v1.0 cleanup
 
+### Added
+
+- **`wiki/candidates/` approval workflow** (#51) — new `llmwiki/candidates.py` module with `list`, `promote`, `merge`, `discard`, and `stale_candidates` primitives. New pages from `/wiki-ingest` that represent brand-new entities/concepts can now land in `wiki/candidates/<kind>/<slug>.md` with `status: candidate` instead of going straight into the trusted wiki. `/wiki-review` slash command (`.claude/commands/wiki-review.md`) + `llmwiki candidates <action>` CLI walk through the queue. Merge folds the candidate's body under a `## Candidate merge — <date>` heading in the target and archives the source. Discard moves to `wiki/archive/candidates/<timestamp>/` with a timestamped `.reason.txt` audit file. New `stale_candidates` lint rule (12th overall) flags candidates sitting idle > 30 days. 34 tests cover: all 4 action paths, frontmatter status rewrite, staleness computation, kind inference, error handling.
+
 ### Refactored
 
 - **Split `llmwiki/build.py` (3,378 → 1,799 lines)** (#217) — new `llmwiki/render/` package with `css.py` (682 lines) and `js.py` (937 lines) housing the previously-inline CSS and JS constants. `build.py` re-exports both for backwards compatibility, so external imports `from llmwiki.build import CSS` still work. Build output verified byte-identical to pre-refactor (same HTML hash). 18 new tests verify byte equivalence, re-export, and content integrity (theme vars, dark mode, command palette, search-index loading). Zero behavior change.
