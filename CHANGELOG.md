@@ -8,6 +8,11 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased] — post-v1.0 cleanup
 
+### Fixed
+
+- **`StaleCandidates` lint rule crashed with `NameError: name 'Path' is not defined`** (#51 follow-up) — the rule used `isinstance(page_path, Path)` without importing `Path`, so the `Lint + build seeded wiki` GH Actions job crashed on every push after #51 landed. Added `from pathlib import Path` inside the method (matching the existing lazy-import pattern). Regression test now exercises the rule against a seeded tmp_path wiki.
+- **`tests/test_candidates.py` rejected by Python 3.9** (#51 follow-up) — line 55 nested an f-string with `\n` inside an outer f-string expression; Python 3.9 rejects backslashes inside f-string parts (only 3.12+ permits it), breaking `lint-and-test (3.9)` CI. Extracted the default body into a local variable before interpolation.
+
 ### Added
 
 - **`wiki/candidates/` approval workflow** (#51) — new `llmwiki/candidates.py` module with `list`, `promote`, `merge`, `discard`, and `stale_candidates` primitives. New pages from `/wiki-ingest` that represent brand-new entities/concepts can now land in `wiki/candidates/<kind>/<slug>.md` with `status: candidate` instead of going straight into the trusted wiki. `/wiki-review` slash command (`.claude/commands/wiki-review.md`) + `llmwiki candidates <action>` CLI walk through the queue. Merge folds the candidate's body under a `## Candidate merge — <date>` heading in the target and archives the source. Discard moves to `wiki/archive/candidates/<timestamp>/` with a timestamped `.reason.txt` audit file. New `stale_candidates` lint rule (12th overall) flags candidates sitting idle > 30 days. 34 tests cover: all 4 action paths, frontmatter status rewrite, staleness computation, kind inference, error handling.

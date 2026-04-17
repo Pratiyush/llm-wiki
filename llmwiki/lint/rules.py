@@ -441,6 +441,7 @@ class StaleCandidates(LintRule):
     STALE_DAYS = 30
 
     def run(self, pages, *, llm_callback=None):
+        from pathlib import Path
         from llmwiki.candidates import stale_candidates, candidates_dir
         # load_pages gives us the real wiki dir from page[path]
         issues = []

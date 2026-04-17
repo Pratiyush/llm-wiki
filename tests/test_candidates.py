@@ -50,9 +50,13 @@ def _write_candidate(
 ) -> Path:
     path = wiki / "candidates" / kind / f"{slug}.md"
     title = title or slug
+    # Python 3.9 disallows backslashes inside f-string expressions, so build
+    # the default body first and interpolate via a plain name.
+    default_body = f"# {title}\n\nCandidate body."
+    body_text = body or default_body
     path.write_text(
         f'---\ntitle: "{title}"\ntype: {kind[:-1]}\nstatus: candidate\n'
-        f'last_updated: {date}\n---\n\n{body or f"# {title}\\n\\nCandidate body."}\n',
+        f'last_updated: {date}\n---\n\n{body_text}\n',
         encoding="utf-8",
     )
     return path

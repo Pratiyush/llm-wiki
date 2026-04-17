@@ -59,6 +59,37 @@ def test_registered_rule_names():
     assert set(REGISTRY.keys()) == expected
 
 
+# ─── 12. StaleCandidates — regression for Path import (#51 follow-up) ─
+
+
+def test_stale_candidates_rule_runs_without_nameerror(tmp_path: Path):
+    """Regression: the rule referenced `Path` without importing it, so
+    running it against any real page raised NameError (discovered when
+    the GH Actions seeded-wiki job failed). Keep this test — if the
+    import is dropped again it reproduces immediately.
+    """
+    from llmwiki.lint.rules import StaleCandidates
+
+    # Build one page that looks like it came from load_pages()
+    wiki = tmp_path / "wiki"
+    (wiki / "entities").mkdir(parents=True)
+    entity = wiki / "entities" / "Sample.md"
+    entity.write_text(
+        "---\ntitle: Sample\ntype: entity\n---\n\nBody.\n", encoding="utf-8"
+    )
+    pages = {
+        "entities/Sample.md": {
+            "path": entity,
+            "rel": "entities/Sample.md",
+            "text": entity.read_text(encoding="utf-8"),
+            "meta": {"title": "Sample", "type": "entity"},
+            "body": "Body.\n",
+        }
+    }
+    # Should return an empty list (no candidates seeded) instead of raising.
+    assert StaleCandidates().run(pages) == []
+
+
 # ─── 1. FrontmatterCompleteness ──────────────────────────────────────
 
 
