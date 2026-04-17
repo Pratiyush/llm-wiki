@@ -10,6 +10,8 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ### Added
 
+- **Shell completion for bash / zsh / fish** (#216) — new `llmwiki/completion.py` + `llmwiki completion <shell>` CLI command. Walks the argparse tree at runtime to enumerate every subcommand + its top-level flags, emits a working completion script. Stdlib-only (no argcomplete dep). Install: `llmwiki completion bash > ~/.bash_completion.d/llmwiki` (or equivalent for zsh / fish). 17 tests.
+
 - **`.editorconfig` + weekly lychee link checker** (#215) — new `.editorconfig` at repo root enforces consistent indent/line-endings across editors (Python 4-space, YAML/JSON/TOML 2-space, Makefiles tab, Windows `.bat` CRLF). New `lychee.toml` + `.github/workflows/link-check.yml` scans README, CHANGELOG, `docs/`, and `examples/` weekly (Sun 03:00 UTC) for broken external links. Creates/updates a tracking issue on failure instead of blocking CI. Personal `wiki/` and `raw/` paths excluded; `site/` skipped (already handled by `llmwiki check-links`). 22 tests.
 
 ### Changed

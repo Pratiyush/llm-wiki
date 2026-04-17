@@ -438,6 +438,18 @@ def cmd_lint(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_completion(args: argparse.Namespace) -> int:
+    """Emit shell completion script for the requested shell (v1.1.0 · #216)."""
+    from llmwiki.completion import generate
+    try:
+        script = generate(args.shell)
+    except ValueError as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 2
+    print(script)
+    return 0
+
+
 def cmd_schedule(args: argparse.Namespace) -> int:
     """Generate scheduled sync task files for the current platform (v1.0 · #162)."""
     import json as _json
@@ -702,6 +714,17 @@ def build_parser() -> argparse.ArgumentParser:
         help="Install llmwiki skills into .codex/skills/ and .agents/skills/ (multi-agent support)",
     )
     isk.set_defaults(func=cmd_install_skills)
+
+    # completion (v1.1, #216) — emit shell completion script
+    comp = sub.add_parser(
+        "completion",
+        help="Emit shell completion script (bash/zsh/fish) — pipe to the shell's completion directory",
+    )
+    comp.add_argument(
+        "shell", choices=["bash", "zsh", "fish"],
+        help="Which shell to generate completion for",
+    )
+    comp.set_defaults(func=cmd_completion)
 
     # schedule (v1.0, #162) — generate scheduled sync task for the current OS
     sched = sub.add_parser(
