@@ -10,6 +10,11 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ### Fixed
 
+- **9 broken external links flagged by lychee CI** (#239) — one weekly link-check scan surfaced a batch of dead/missing references:
+  - `docs/competitor-landscape.md`: `rewind.ai` domain errors; delinked and noted the Limitless.ai rebrand.
+  - `docs/framework.md`: `../.framework/Framework.md` pointed at a gitignored local file; delinked and annotated as a local-only reference.
+  - `README.md`: `docs/adapters/copilot-chat.md` and `docs/adapters/copilot-cli.md` collapsed into the existing `docs/adapters/copilot.md` (the combined adapter doc already covers both modes).
+  - `README.md`: 5× 404 release tag links (`v0.5.0` / `v0.6.0` / `v0.7.0` / `v0.8.0` / `v0.9.0`) — those standalone releases were never published; work shipped consolidated under `v0.9.x`. Collapsed into one row that explains the gap, and extended the table forward with the actually-shipped `v0.9.5` / `v1.0.0` / `v1.1.0-rc1` / `v1.1.0-rc2` rows so the version history is current.
 - **`StaleCandidates` lint rule crashed with `NameError: name 'Path' is not defined`** (#51 follow-up) — the rule used `isinstance(page_path, Path)` without importing `Path`, so the `Lint + build seeded wiki` GH Actions job crashed on every push after #51 landed. Added `from pathlib import Path` inside the method (matching the existing lazy-import pattern). Regression test now exercises the rule against a seeded tmp_path wiki.
 - **`tests/test_candidates.py` rejected by Python 3.9** (#51 follow-up) — line 55 nested an f-string with `\n` inside an outer f-string expression; Python 3.9 rejects backslashes inside f-string parts (only 3.12+ permits it), breaking `lint-and-test (3.9)` CI. Extracted the default body into a local variable before interpolation.
 

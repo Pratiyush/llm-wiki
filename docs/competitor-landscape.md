@@ -59,8 +59,9 @@ is a tool, not a library.
 
 ### llmwiki vs Rewind (now Limitless)
 
-[Rewind](https://www.rewind.ai/) records everything on your screen,
-indexes it with OCR, and lets you search your visual history.
+Rewind (later rebranded to [Limitless](https://www.limitless.ai/))
+records everything on your screen, indexes it with OCR, and lets
+you search your visual history.
 
 **When to use Rewind:** You want to search across all your screen
 activity, not just AI coding sessions. You're on macOS and comfortable

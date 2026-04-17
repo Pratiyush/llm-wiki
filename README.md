@@ -484,8 +484,7 @@ Per-adapter docs:
 - [Gemini CLI adapter](docs/adapters/gemini-cli.md)
 - [Obsidian adapter](docs/adapters/obsidian.md)
 - [PDF adapter](docs/adapters/pdf.md)
-- [Copilot Chat adapter](docs/adapters/copilot-chat.md)
-- [Copilot CLI adapter](docs/adapters/copilot-cli.md)
+- [Copilot adapter (Chat + CLI)](docs/adapters/copilot.md)
 
 ## Releases
 
@@ -495,15 +494,15 @@ Per-adapter docs:
 | [v0.2.0](https://github.com/Pratiyush/llm-wiki/releases/tag/v0.2.0) | Extensions — 3 new slash commands, 3 new adapters, Obsidian bidirectional, full MCP server | `v0.2.0` |
 | [v0.3.0](https://github.com/Pratiyush/llm-wiki/releases/tag/v0.3.0) | PyPI packaging, eval framework, i18n scaffold | `v0.3.0` |
 | [v0.4.0](https://github.com/Pratiyush/llm-wiki/releases/tag/v0.4.0) | AI + human dual format — per-page .txt/.json siblings, llms.txt, JSON-LD graph, sitemap, RSS, schema.org microdata, reading time, related pages, activity heatmap, deep-link anchors, build manifest, link checker, `wiki_export` MCP tool | `v0.4.0` |
-| [v0.5.0](https://github.com/Pratiyush/llm-wiki/releases/tag/v0.5.0) | Folder-level `_context.md`, auto-ingest, 3 adapter graduations (Cursor, Gemini CLI, PDF), lazy search index, scheduled sync templates, WCAG accessibility, Playwright E2E tests | `v0.5.0` |
-| [v0.6.0](https://github.com/Pratiyush/llm-wiki/releases/tag/v0.6.0) | qmd export, GitLab Pages CI, PyPI release automation, maintainer governance scaffold | `v0.6.0` |
-| [v0.7.0](https://github.com/Pratiyush/llm-wiki/releases/tag/v0.7.0) | Structured model-profile schema, auto-generated vs-comparison pages, append-only changelog timeline | `v0.7.0` |
-| [v0.8.0](https://github.com/Pratiyush/llm-wiki/releases/tag/v0.8.0) | 365-day activity heatmap, tool-calling bar chart, token usage card, session metrics frontmatter | `v0.8.0` |
-| [v0.9.0](https://github.com/Pratiyush/llm-wiki/releases/tag/v0.9.0) | Project topics, agent labels (Claude/Codex/Copilot/Cursor/Gemini badges), Copilot adapters, image pipeline, highlight.js, public demo deployment | `v0.9.0` |
+| v0.5.0 – v0.9.0 | Internal sprint milestones — features (`_context.md`, auto-ingest, qmd export, model-profile schema, activity heatmap, Copilot adapters, etc.) shipped consolidated under the v0.9.x line. No standalone tags were published. | — |
 | [v0.9.1](https://github.com/Pratiyush/llm-wiki/releases/tag/v0.9.1) | Sprint 1 & 2 foundation — link-obsidian CLI, 4-factor confidence scoring, 5-state lifecycle machine, llmbook-reference skill, 7 entity types, flat raw/ naming, pending ingest queue, `_context.md` stubs, meeting + Jira adapters, configurable Web Clipper intake, rich log format | `v0.9.1` |
 | [v0.9.2](https://github.com/Pratiyush/llm-wiki/releases/tag/v0.9.2) | Sprint 3 quality — 11 lint rules (8 basic + 3 LLM-powered), Auto Dream MEMORY.md consolidation, Dataview dashboard template, category pages (Dataview + static), auto-build on sync + configurable lint schedule | `v0.9.2` |
 | [v0.9.3](https://github.com/Pratiyush/llm-wiki/releases/tag/v0.9.3) | Sprint 3 polish — Obsidian Templater templates, integration guide, two-way editing tests, MCP server 7→12 tools, adapter config validation, pipeline fix (sigstore, PyPI gate) | `v0.9.3` |
 | [v0.9.4](https://github.com/Pratiyush/llm-wiki/releases/tag/v0.9.4) | Session C1 (Sprint 4) — multi-agent skill installer, enhanced search with facets, configurable scheduled sync (launchd/systemd/Task Scheduler), CI wiki-checks workflow | `v0.9.4` |
+| [v0.9.5](https://github.com/Pratiyush/llm-wiki/releases/tag/v0.9.5) | Docs polish + consistency audit before v1.0.0 | `v0.9.5` |
+| [v1.0.0](https://github.com/Pratiyush/llm-wiki/releases/tag/v1.0.0) | Production-ready Obsidian integration — full v1.0 scope | `v1.0.0` |
+| [v1.1.0-rc1](https://github.com/Pratiyush/llm-wiki/releases/tag/v1.1.0-rc1) | Solo quick-win sprint — candidates workflow, Ollama scaffold, prompt-cache scaffold | `v1.1.0-rc1` |
+| [v1.1.0-rc2](https://github.com/Pratiyush/llm-wiki/releases/tag/v1.1.0-rc2) | Session E — interactive graph viewer + remaining code-only v1.1 work | `v1.1.0-rc2` |
 
 ## Roadmap
 

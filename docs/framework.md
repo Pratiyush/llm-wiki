@@ -1,6 +1,6 @@
 # llmwiki Framework — Building an Agent-Native Dev Tool
 
-> **Adapted from** the [Open Source Project Framework v4.0](../.framework/Framework.md) *(local reference — not in the public repo)*.
+> **Adapted from** the maintainer's "Open Source Project Framework v4.0" (local reference — kept outside the public repo).
 >
 > **Extensions** specific to llmwiki and any tool in this class (dev tools that ingest from AI coding agents):
 >
