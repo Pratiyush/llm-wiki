@@ -526,8 +526,10 @@ Active milestones:
 
 ### Deployment targets
 
-- **GitHub Pages** — shipped in v0.1 via `.github/workflows/pages.yml` (triggers on push to master).
-- **GitLab Pages** — copy [`.gitlab-ci.yml.example`](.gitlab-ci.yml.example) → `.gitlab-ci.yml`. See [`docs/deploy/gitlab-pages.md`](docs/deploy/gitlab-pages.md) for full setup.
+- **GitHub Pages** — shipped in v0.1 via `.github/workflows/pages.yml` (triggers on push to master). See [`docs/deploy/github-pages.md`](docs/deploy/github-pages.md).
+- **Docker / GHCR** — pull and run: `docker compose pull && docker compose up -d`. Image published to `ghcr.io/pratiyush/llm-wiki` on every tag push. See [`docs/deploy/docker.md`](docs/deploy/docker.md).
+- **GitLab Pages** — copy [`.gitlab-ci.yml.example`](.gitlab-ci.yml.example) → `.gitlab-ci.yml`. See [`docs/deploy/gitlab-pages.md`](docs/deploy/gitlab-pages.md).
+- **Vercel / Netlify** — static deploy after `llmwiki build`. See [`docs/deploy/vercel-netlify.md`](docs/deploy/vercel-netlify.md).
 - **Any static host** — `llmwiki build` writes to `site/`, which you can `rsync`/`scp` anywhere.
 
 ## Acknowledgements
