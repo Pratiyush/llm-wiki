@@ -68,6 +68,7 @@ dist-site/
 .llmwiki-synth-state.json
 .llmwiki-queue.json
 .llmwiki-dream-state.json
+.llmwiki-batch-state.json
 
 # v1.0 (#160): multi-agent skill mirrors are derived from .claude/skills/
 # by `llmwiki install-skills`. The canonical source ships with the repo;

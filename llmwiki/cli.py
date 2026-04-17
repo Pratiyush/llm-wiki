@@ -444,7 +444,8 @@ def cmd_synthesize(args: argparse.Namespace) -> int:
     Uses the backend selected via ``synthesis.backend`` in
     ``sessions_config.json`` (dummy | ollama). ``--check`` prints backend
     availability without running synthesis — useful for diagnosing Ollama
-    connectivity before a long sync.
+    connectivity before a long sync. ``--estimate`` prints a cached-vs-fresh
+    token + dollar breakdown before spending money (#50).
     """
     import json as _json
     from llmwiki.synth.pipeline import resolve_backend, synthesize_new_sessions
@@ -456,6 +457,9 @@ def cmd_synthesize(args: argparse.Namespace) -> int:
             config = _json.loads(config_path.read_text(encoding="utf-8"))
         except (_json.JSONDecodeError, OSError):
             config = {}
+
+    if args.estimate:
+        return _synthesize_estimate()
 
     backend = resolve_backend(config)
     print(f"Backend: {backend.name}")
@@ -486,6 +490,75 @@ def cmd_synthesize(args: argparse.Namespace) -> int:
         for err in summary["errors"]:
             print(f"  ! {err}", file=sys.stderr)
         return 1
+    return 0
+
+
+def _synthesize_estimate() -> int:
+    """Print a cached-vs-fresh token + dollar estimate (v1.1.0 · #50).
+
+    Reads the stable prefix (CLAUDE.md, wiki/index.md, wiki/overview.md)
+    and every new raw session discovered by the sync pipeline, then
+    prices the whole batch under the default model assuming a 90% cache
+    hit rate. No API calls; stdlib only.
+    """
+    from llmwiki.cache import (
+        DEFAULT_MODEL,
+        estimate_cost,
+        estimate_tokens,
+        format_estimate,
+        warn_prefix_too_small,
+    )
+    from llmwiki.synth.pipeline import _discover_raw_sessions, _load_state
+
+    prefix_parts: list[str] = []
+    for rel in ("CLAUDE.md", "wiki/index.md", "wiki/overview.md"):
+        p = REPO_ROOT / rel
+        if p.is_file():
+            prefix_parts.append(p.read_text(encoding="utf-8"))
+    prefix_tokens = estimate_tokens("\n".join(prefix_parts))
+
+    warning = warn_prefix_too_small(prefix_tokens)
+    if warning:
+        print(f"warning: {warning}")
+
+    state = _load_state()
+    sessions = _discover_raw_sessions()
+    new_bodies = [
+        body for p, _, body in sessions
+        if str(p.name) not in state
+    ]
+    if not new_bodies:
+        print("No new raw sessions to synthesize.")
+        return 0
+
+    # Assume the very first call is a cache write, the rest are hits.
+    first = estimate_cost(
+        cached_tokens=prefix_tokens,
+        fresh_tokens=estimate_tokens(new_bodies[0]),
+        output_tokens=1000,
+        model=DEFAULT_MODEL,
+        cache_hit=False,
+    )
+    rest_usd = 0.0
+    for body in new_bodies[1:]:
+        est = estimate_cost(
+            cached_tokens=prefix_tokens,
+            fresh_tokens=estimate_tokens(body),
+            output_tokens=1000,
+            model=DEFAULT_MODEL,
+            cache_hit=True,
+        )
+        rest_usd += est.usd
+
+    total = first.usd + rest_usd
+    print(f"{len(new_bodies)} new sessions, prefix {prefix_tokens:,} tok")
+    print(format_estimate(first))
+    if len(new_bodies) > 1:
+        print(
+            f"  + {len(new_bodies) - 1} subsequent sessions (cache hit):  "
+            f"${rest_usd:.4f}"
+        )
+    print(f"\nBatch total: ${total:.4f} (model {DEFAULT_MODEL})")
     return 0
 
 
@@ -872,6 +945,10 @@ def build_parser() -> argparse.ArgumentParser:
     syn.add_argument(
         "--force", action="store_true",
         help="Ignore state file, re-synthesize all sessions",
+    )
+    syn.add_argument(
+        "--estimate", action="store_true",
+        help="Print cached-vs-fresh token + dollar estimate without calling a backend (#50)",
     )
     syn.set_defaults(func=cmd_synthesize)
 
