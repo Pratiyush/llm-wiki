@@ -65,7 +65,17 @@ type_cmd "ls raw/sessions/ | head -10"
 ls raw/sessions/ | head -10
 pause
 
-# 7. Start server
+# 7. v1.1 — Preview API cost before synthesis (#50)
+type_cmd "llmwiki synthesize --estimate"
+python3 -m llmwiki synthesize --estimate 2>&1 | head -12
+pause 2
+
+# 8. v1.1 — List candidate pages awaiting human review (#51)
+type_cmd "llmwiki candidates list"
+python3 -m llmwiki candidates list 2>&1 || echo "  (no candidates pending)"
+pause 2
+
+# 9. Start server
 type_cmd "llmwiki serve --port 8765 &"
 python3 -m llmwiki serve --port 8765 &
 SERVER_PID=$!
@@ -73,10 +83,12 @@ sleep 1
 echo "→ Server running at http://localhost:8765"
 pause 2
 
-# 8. Wrap up
+# 10. Wrap up
 type_cmd "# Browse to localhost:8765 to explore your wiki!"
 echo "Features: heatmap, token stats, tool charts, model directory,"
-echo "          search (Cmd+K), dark mode, AI exports (llms.txt, JSON-LD)"
+echo "          search (Cmd+K), dark mode, AI exports (llms.txt, JSON-LD),"
+echo "          interactive graph (Graph tab), candidates workflow,"
+echo "          Ollama-ready synthesis pipeline."
 pause 2
 
 echo ""

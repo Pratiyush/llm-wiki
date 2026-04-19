@@ -8,6 +8,12 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased] — post-v1.0 cleanup
 
+### Added
+
+- **CI badges + demo refresh** (#129) — README badge block now surfaces the four key workflows (`ci.yml`, `link-check.yml`, `wiki-checks.yml`, `docker-publish.yml`) in addition to the existing License / Python / Version / Tests / agent-compatibility shields. Version badge bumped to `v1.1.0-rc2` and test-count badge refreshed to `1549 passing`. Demo recording script (`scripts/demo-record.sh`) extended to showcase v1.1 additions: `synthesize --estimate` (#50) cost preview and `candidates list` (#51) review queue. New `tests/test_readme_badges.py` (10 tests) guards against future rot: every workflow-badge URL must resolve to a real `.github/workflows/*.yml` file; the version badge must match `llmwiki.__version__` (with shields-format vs PEP 440 normalization); the test-count badge must stay above 1,000; the demo GIF must exist and be embedded in the README; the demo script must still cover the v1.1 features.
+
+- **`__version__` bumped to `1.1.0rc2`** — both `llmwiki/__init__.py` and `pyproject.toml` now track the latest shipped tag. Previously stuck at `1.0.0` even after the v1.1.0-rc1 / v1.1.0-rc2 tags shipped.
+
 ### Fixed
 
 - **9 broken external links flagged by lychee CI** (#239) — one weekly link-check scan surfaced a batch of dead/missing references:
