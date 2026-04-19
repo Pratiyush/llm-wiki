@@ -176,6 +176,25 @@ Every page also includes an `<!-- llmwiki:metadata -->` HTML comment that AI age
 
 See [docs/architecture.md](docs/architecture.md) for the full 3-layer Karpathy + 8-layer build breakdown.
 
+## Documentation
+
+Full production documentation lives under [`docs/`](docs/). The editorial
+hub is **[`docs/index.md`](docs/index.md)** — tutorials, per-agent guides,
+reference, and deployment, all in one place.
+
+**Start here:**
+
+| Goal | Read |
+|---|---|
+| Install and build your first site in 10 minutes | [Tutorial 01 → 02](docs/tutorials/01-installation.md) |
+| Use llmwiki with Claude Code | [Tutorial 03](docs/tutorials/03-use-with-claude-code.md) |
+| Use llmwiki with Codex CLI | [Tutorial 04](docs/tutorials/04-use-with-codex-cli.md) |
+| Query / lint / review your wiki daily | [Tutorial 05](docs/tutorials/05-querying-your-wiki.md) |
+| Point llmwiki at an existing Obsidian / Logseq vault | [Tutorial 06](docs/tutorials/06-bring-your-obsidian-vault.md) |
+| See four real end-to-end workflows | [Tutorial 07](docs/tutorials/07-example-workflows.md) |
+
+Contributing to docs? See the **[style guide](docs/style-guide.md)**.
+
 ## Install
 
 ### macOS / Linux

@@ -463,6 +463,7 @@ def nav_bar(active: str, link_prefix: str = "") -> str:
       {link("models/index.html", "Models", "models")}
       {link("vs/index.html", "Compare", "vs")}
       {link("graph.html", "Graph", "graph")}
+      {link("docs/index.html", "Docs", "docs")}
       {link("prototypes/index.html", "Prototypes", "prototypes")}
       {link("changelog.html", "Changelog", "changelog")}
       <button class="nav-search-btn" id="open-palette" aria-label="Open command palette">
@@ -1698,6 +1699,34 @@ def build_site(
         print(f"  wrote {proto_index.relative_to(out_dir.parent)} (6 prototype states)")
     except Exception as e:
         print(f"  warning: prototype hub build failed: {e}", file=sys.stderr)
+
+    # v1.2 (#265): compile the editorial docs (tutorials + hub) under
+    # site/docs/. Only pages with `docs_shell: true` in frontmatter
+    # are included — reference docs that stay GitHub-rendered aren't
+    # touched.
+    try:
+        from llmwiki.docs_pages import compile_docs_site
+        docs_dir = REPO_ROOT / "docs"
+
+        # nav_builder gets called per-page with the right link_prefix so
+        # the nav bar's hrefs resolve from whatever depth the page sits at.
+        def _docs_nav(link_prefix: str) -> str:
+            return nav_bar(active="docs", link_prefix=link_prefix)
+
+        docs_written = compile_docs_site(
+            docs_dir,
+            out_dir,
+            md_to_html=md_to_html,
+            page_head=page_head,
+            nav_builder=_docs_nav,
+        )
+        if docs_written:
+            print(
+                f"  wrote site/docs/ ({len(docs_written)} editorial pages: "
+                "hub + tutorials + style guide)"
+            )
+    except Exception as e:
+        print(f"  warning: docs compile failed: {e}", file=sys.stderr)
 
     # v0.4: Per-page sibling .txt and .json
     try:

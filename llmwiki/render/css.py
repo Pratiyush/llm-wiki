@@ -686,3 +686,10 @@ mark { background: var(--accent-bg); color: var(--accent); padding: 0 2px; borde
 # exactly as before — no existing selectors are redefined.
 from llmwiki.reader_shell import READER_SHELL_CSS as _READER_SHELL_CSS  # noqa: E402
 CSS = CSS + "\n" + _READER_SHELL_CSS
+
+# v1.2 (#265): docs-shell CSS for the production documentation pages.
+# Only pages with ``docs_shell: true`` frontmatter (the tutorials + the
+# hub index) pick up these styles — selectors are all namespaced under
+# ``.docs-shell`` so no existing page changes render.
+from llmwiki.render.docs_css import DOCS_SHELL_CSS as _DOCS_SHELL_CSS  # noqa: E402
+CSS = CSS + "\n" + _DOCS_SHELL_CSS
