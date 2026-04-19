@@ -1395,13 +1395,25 @@ def build_search_index(
     sources: list[tuple[Path, dict[str, Any], str]],
     groups: dict[str, list[tuple[Path, dict[str, Any], str]]],
     out_dir: Path,
+    *,
+    search_mode: str = "auto",
 ) -> Path:
     """Build a chunked search index for lazy loading (#47).
 
     Writes:
       search-index.json          — meta entries (projects + pages) + _chunks manifest
-      search-chunks/<project>.json — session entries per project
+                                  + _mode + _tree_eligible_ratio (#53)
+      search-chunks/<project>.json — session entries per project, each
+                                    carrying heading_max_depth + count_by_depth
+
+    `search_mode` accepts ``auto`` (default, heuristic), ``tree``, or
+    ``flat`` — matches the `llmwiki build --search-mode` flag.
     """
+    from llmwiki.search_tree import (
+        annotate_entry_headings,
+        decide_search_mode,
+        search_index_footer_badge,
+    )
     # ── session entries grouped by project ──
     from llmwiki.search_facets import enrich_entry
     chunks: dict[str, list[dict[str, Any]]] = {}
@@ -1419,9 +1431,10 @@ def build_search_index(
             "model": str(meta.get("model", "")),
             "body": plain,
         }
-        # v1.0 (#161): enrich with facet fields (confidence, lifecycle,
-        # entity_type, tags) so the client can rank + filter.
+        # v1.0 (#161): enrich with facet fields.
         enrich_entry(entry, meta)
+        # v1.2 (#53): inject heading depth so the client can tree-walk.
+        annotate_entry_headings(entry, body)
         chunks.setdefault(project, []).append(entry)
 
     # ── write per-project chunks ──
@@ -1474,17 +1487,28 @@ def build_search_index(
         all_entries.extend(chunk_entries)
     facets = aggregate_facets(all_entries)
 
+    # v1.2 (#53): decide tree vs flat across *all* entries, surface
+    # the ratio so the client can show it in the palette footer.
+    mode, tree_ratio = decide_search_mode(all_entries, override=search_mode)
+    mode_badge = search_index_footer_badge(mode, tree_ratio)
+
     index_obj = {
         "entries": meta_entries,
         "_chunks": chunk_manifest,
         "_facets": facets,
+        "_mode": mode,
+        "_tree_eligible_ratio": round(tree_ratio, 4),
+        "_mode_badge": mode_badge,
     }
     out_path = out_dir / "search-index.json"
     out_path.write_text(json.dumps(index_obj, ensure_ascii=False), encoding="utf-8")
 
     meta_kb = len(json.dumps(index_obj).encode("utf-8")) // 1024
     chunks_kb = total_chunk_bytes // 1024
-    print(f"  wrote search-index.json ({meta_kb} KB meta) + {len(chunk_manifest)} chunks ({chunks_kb} KB total)")
+    print(
+        f"  wrote search-index.json ({meta_kb} KB meta) + "
+        f"{len(chunk_manifest)} chunks ({chunks_kb} KB total) · {mode_badge}"
+    )
 
     return out_path
 
@@ -1557,6 +1581,7 @@ def build_site(
     out_dir: Path = DEFAULT_OUT_DIR,
     synthesize: bool = False,
     claude_path: str = "/usr/local/bin/claude",
+    search_mode: str = "auto",
 ) -> int:
     if not RAW_SESSIONS.exists():
         print(
@@ -1643,8 +1668,8 @@ def build_site(
         + f", vs/index.html ({pair_count} comparisons)"
     )
 
-    # Search index (chunked — #47)
-    idx_path = build_search_index(sources, groups, out_dir)
+    # Search index (chunked — #47) + tree/flat auto-routing (#53)
+    idx_path = build_search_index(sources, groups, out_dir, search_mode=search_mode)
 
     # v0.4: AI-consumable exports (llms.txt, llms-full.txt, graph.jsonld,
     # sitemap.xml, rss.xml, robots.txt, ai-readme.md)

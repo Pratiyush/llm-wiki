@@ -163,6 +163,7 @@ def cmd_build(args: argparse.Namespace) -> int:
         out_dir=args.out,
         synthesize=args.synthesize,
         claude_path=args.claude,
+        search_mode=args.search_mode,
     )
 
 
@@ -773,6 +774,10 @@ def build_parser() -> argparse.ArgumentParser:
     build.add_argument("--out", type=Path, default=REPO_ROOT / "site", help="Output dir (default: site/)")
     build.add_argument("--synthesize", action="store_true", help="Call claude CLI for overview synthesis")
     build.add_argument("--claude", type=str, default="/usr/local/bin/claude", help="Path to claude CLI")
+    build.add_argument(
+        "--search-mode", choices=["auto", "tree", "flat"], default="auto",
+        help="Search index mode (#53): auto picks tree vs flat from heading depth",
+    )
     build.set_defaults(func=cmd_build)
 
     # serve
