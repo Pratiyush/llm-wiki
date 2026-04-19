@@ -262,34 +262,79 @@ class EntityConsistency(LintRule):
 
 @register
 class DuplicateDetection(LintRule):
-    """Pages with >80% title similarity may be duplicates."""
+    """Pages with near-identical titles **and** bodies may be duplicates.
+
+    G-11 (#297): on a 714-page corpus the old rule emitted 76,963 pair
+    warnings — roughly a third of all pairs — because two pages named
+    ``CHANGELOG.md`` in different projects always scored title
+    similarity 1.0.  The rule is now scoped by ``project`` and demands
+    **both** a high title match (≥0.95) **and** a body overlap
+    (SequenceMatcher on the first 4 KB ≥0.80) before flagging.  Non-
+    source pages (entities, concepts, syntheses) still cross-compare as
+    before, since sharing the same project doesn't apply there.
+    """
 
     name = "duplicate_detection"
     severity = "warning"
 
-    THRESHOLD = 0.8
+    # Titles must be near-identical (not just >80% — "CLAUDE.md" vs
+    # "CHANGELOG.md" was tripping the old 0.8 threshold).
+    TITLE_THRESHOLD = 0.95
+    # Bodies must also overlap — cheap hedge against same-titled
+    # boilerplate files that are otherwise unrelated.
+    BODY_THRESHOLD = 0.80
+    BODY_SAMPLE_BYTES = 4096
+
+    def _same_bucket(self, page_a: dict, page_b: dict) -> bool:
+        """Return True iff the two pages can be compared.
+
+        Source pages only compare against other source pages **in the
+        same project**; everything else compares globally.
+        """
+        type_a = page_a["meta"].get("type")
+        type_b = page_b["meta"].get("type")
+        if type_a != type_b:
+            return False
+        if type_a == "source":
+            return page_a["meta"].get("project") == page_b["meta"].get("project")
+        return True
 
     def run(self, pages, *, llm_callback=None):
         issues = []
         items = list(pages.items())
         for i in range(len(items)):
             rel_a, page_a = items[i]
-            title_a = page_a["meta"].get("title", "").lower()
+            title_a = (page_a["meta"].get("title") or "").lower()
             if not title_a:
                 continue
+            body_a = (page_a.get("body") or "")[: self.BODY_SAMPLE_BYTES]
             for j in range(i + 1, len(items)):
                 rel_b, page_b = items[j]
-                title_b = page_b["meta"].get("title", "").lower()
+                if not self._same_bucket(page_a, page_b):
+                    continue
+                title_b = (page_b["meta"].get("title") or "").lower()
                 if not title_b:
                     continue
-                ratio = SequenceMatcher(None, title_a, title_b).ratio()
-                if ratio >= self.THRESHOLD:
-                    issues.append({
-                        "rule": self.name,
-                        "severity": "warning",
-                        "page": rel_a,
-                        "message": f"possible duplicate of {rel_b!r} (title similarity {ratio:.2f})",
-                    })
+                title_ratio = SequenceMatcher(None, title_a, title_b).ratio()
+                if title_ratio < self.TITLE_THRESHOLD:
+                    continue
+                body_b = (page_b.get("body") or "")[: self.BODY_SAMPLE_BYTES]
+                if not body_a or not body_b:
+                    # Can't verify without bodies — skip the pair rather
+                    # than flood the report with same-title false positives.
+                    continue
+                body_ratio = SequenceMatcher(None, body_a, body_b).ratio()
+                if body_ratio < self.BODY_THRESHOLD:
+                    continue
+                issues.append({
+                    "rule": self.name,
+                    "severity": "warning",
+                    "page": rel_a,
+                    "message": (
+                        f"possible duplicate of {rel_b!r} "
+                        f"(title {title_ratio:.2f}, body {body_ratio:.2f})"
+                    ),
+                })
         return issues
 
 

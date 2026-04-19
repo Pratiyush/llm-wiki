@@ -326,18 +326,36 @@ def test_no_duplicates():
 
 
 def test_exact_duplicates():
+    # G-11 (#297): rule now requires BOTH title AND body overlap AND same
+    # project before flagging. Empty bodies are intentionally skipped to
+    # avoid flooding reports on templated boilerplate files.
+    shared_body = "Real duplicate content shared by both pages. " * 20
     pages = {
-        "a.md": _mk_page({"title": "Claude Code"}, ""),
-        "b.md": _mk_page({"title": "Claude Code"}, ""),
+        "a.md": _mk_page(
+            {"title": "Claude Code", "type": "source", "project": "proj"},
+            shared_body,
+        ),
+        "b.md": _mk_page(
+            {"title": "Claude Code", "type": "source", "project": "proj"},
+            shared_body,
+        ),
     }
     issues = DuplicateDetection().run(pages)
     assert len(issues) == 1
 
 
 def test_similar_titles():
+    # Same project + near-identical titles + highly-overlapping bodies.
+    shared_body = "Claude Code CLI is a tool for building agents. " * 30
     pages = {
-        "a.md": _mk_page({"title": "Claude Code CLI"}, ""),
-        "b.md": _mk_page({"title": "Claude Code CLI!"}, ""),  # 95%+ similar
+        "a.md": _mk_page(
+            {"title": "Claude Code CLI", "type": "source", "project": "proj"},
+            shared_body,
+        ),
+        "b.md": _mk_page(
+            {"title": "Claude Code CLI!", "type": "source", "project": "proj"},
+            shared_body + "!",
+        ),
     }
     issues = DuplicateDetection().run(pages)
     assert len(issues) >= 1

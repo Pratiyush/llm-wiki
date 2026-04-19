@@ -383,3 +383,34 @@ def render_recently_updated(
         '<ul class="recently-updated-list">' + "".join(rows) + '</ul>'
         '</div>'
     )
+
+
+def render_recent_activity(log_events: list[Any]) -> str:
+    """Render a "Recent activity" card driven from ``wiki/log.md`` (G-18 · #304).
+
+    ``log_events`` is a list of :class:`llmwiki.log_reader.LogEvent`
+    records — passed as ``Any`` here to avoid an import cycle.  The home
+    page uses this as a fallback when no model-changelog updates are
+    available, so the "Recently updated" surface shows real activity
+    instead of sitting empty on corpora without model pages.
+    """
+    if not log_events:
+        return ""
+    rows: list[str] = []
+    for ev in log_events:
+        # Prefer a processed-count detail when present; otherwise show title.
+        processed = ev.details.get("Processed") if hasattr(ev, "details") else None
+        right_label = f"{processed} processed" if processed else ev.title
+        rows.append(
+            f'<li class="recently-updated-item">'
+            f'<span class="recently-updated-slug">{html.escape(ev.operation)}</span>'
+            f'<span class="recently-updated-date muted">{html.escape(ev.date.isoformat())}</span>'
+            f'<span class="recently-updated-event">{html.escape(right_label)}</span>'
+            f'</li>'
+        )
+    return (
+        '<div class="recently-updated-card">'
+        f'<div class="recently-updated-title muted">Recent activity · last {len(log_events)} operations</div>'
+        '<ul class="recently-updated-list">' + "".join(rows) + '</ul>'
+        '</div>'
+    )

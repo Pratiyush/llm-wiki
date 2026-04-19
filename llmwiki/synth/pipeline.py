@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
@@ -26,6 +27,30 @@ from typing import Any, Optional
 from llmwiki import REPO_ROOT
 from llmwiki.build import parse_frontmatter
 from llmwiki.synth.base import BaseSynthesizer, DummySynthesizer
+
+
+# G-21 (#307): shell- and URL-unsafe chars we scrub from slugs at
+# synthesize-time. Spaces → hyphens; filesystem-reserved + Windows-
+# unsafe chars → hyphens; collapse repeats.
+_SLUG_UNSAFE = re.compile(r'[\s/\\:*?"<>|]+')
+_SLUG_DASH_RUN = re.compile(r"-{2,}")
+
+
+def _normalise_slug(raw: str) -> str:
+    """Return a URL-safe + shell-safe slug. Preserves case + unicode.
+
+    Examples:
+      ``"00 - Master Framework Index"`` → ``"00-Master-Framework-Index"``
+      ``"path/with/slashes"``            → ``"path-with-slashes"``
+      ``"weird:chars<here>"``            → ``"weird-chars-here"``
+    """
+    if not raw:
+        return "unknown"
+    cleaned = _SLUG_UNSAFE.sub("-", raw)
+    # Collapse runs of consecutive dashes so "00 - X" doesn't become
+    # "00---X" — consecutive hyphens are ugly in URLs and filesystems.
+    cleaned = _SLUG_DASH_RUN.sub("-", cleaned).strip("-")
+    return cleaned or "unknown"
 
 
 def resolve_backend(
@@ -157,6 +182,18 @@ def _auto_archive_log(log_path: Path) -> Optional[Path]:
     header = "\n".join(lines[:5])
     body = "\n".join(lines[5:])
 
+    # G-10 (#296): seed frontmatter on first write so lint's
+    # frontmatter_completeness rule doesn't fail on the archive file.
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    first_write = not archive.is_file()
+    if first_write:
+        archive.write_text(
+            f'---\ntitle: "Wiki log archive — {year}"\n'
+            f'type: navigation\nauto_generated: true\n'
+            f'last_updated: "{today}"\n---\n',
+            encoding="utf-8",
+        )
+
     # Append to archive
     with open(archive, "a", encoding="utf-8") as f:
         f.write(f"\n# Archived from log.md — {year}\n\n")
@@ -165,6 +202,81 @@ def _auto_archive_log(log_path: Path) -> Optional[Path]:
     # Reset log to header only
     log_path.write_text(header + "\n\n---\n", encoding="utf-8")
     return archive
+
+
+_SOURCES_HEADING = re.compile(r"^##\s+Sources\s*$", re.MULTILINE)
+_NEXT_H2 = re.compile(r"^##\s+", re.MULTILINE)
+
+
+def _rebuild_index(wiki_dir: Path) -> Optional[Path]:
+    """Rewrite the ``## Sources`` section of ``wiki/index.md`` (G-09 · #295).
+
+    Walks ``wiki_dir/sources/**/*.md`` and emits one bullet per source
+    page, preserving every other section (Overview, Entities, Concepts,
+    hand-curated text) untouched.  If ``wiki/index.md`` is missing the
+    caller gets a freshly seeded index with just Sources in it.
+    """
+    index = wiki_dir / "index.md"
+    sources_dir = wiki_dir / "sources"
+    if not sources_dir.is_dir():
+        return None
+
+    # Collect (relpath, title, one-line-summary) for every source page.
+    bullets: list[str] = []
+    for p in sorted(sources_dir.rglob("*.md")):
+        if p.name.startswith("_"):
+            continue
+        try:
+            text = p.read_text(encoding="utf-8")
+        except OSError:
+            continue
+        meta, _ = parse_frontmatter(text)
+        rel = p.relative_to(wiki_dir).as_posix()
+        title = meta.get("title") or p.stem
+        date = str(meta.get("date", "")).strip()
+        project = meta.get("project", "")
+        suffix_parts: list[str] = []
+        if project:
+            suffix_parts.append(str(project))
+        if date:
+            suffix_parts.append(date)
+        suffix = f" — {' · '.join(suffix_parts)}" if suffix_parts else ""
+        bullets.append(f"- [{title}]({rel}){suffix}")
+
+    sources_block = "## Sources\n" + (
+        "\n".join(bullets) if bullets else "*(none yet)*"
+    ) + "\n"
+
+    if index.is_file():
+        original = index.read_text(encoding="utf-8")
+    else:
+        original = (
+            "# Wiki Index\n\n"
+            "This file is auto-maintained by synthesize. "
+            "Update-in-place only inside this file — sections outside "
+            "`## Sources` are preserved.\n\n"
+            "## Sources\n*(placeholder)*\n"
+        )
+
+    match = _SOURCES_HEADING.search(original)
+    if not match:
+        # No Sources section yet — append one at the end.
+        new_text = original.rstrip() + "\n\n" + sources_block
+    else:
+        start = match.start()
+        # Find the next `## ` heading *after* the Sources heading.
+        tail = original[match.end():]
+        next_match = _NEXT_H2.search(tail)
+        if next_match:
+            end = match.end() + next_match.start()
+        else:
+            end = len(original)
+        new_text = original[:start] + sources_block + "\n" + original[end:]
+
+    # Only write when content changes — avoids bumping mtime needlessly.
+    if not index.is_file() or index.read_text(encoding="utf-8") != new_text:
+        index.write_text(new_text, encoding="utf-8")
+    return index
 
 
 def _discover_raw_sessions(
@@ -283,9 +395,21 @@ def synthesize_new_sessions(
         return summary
 
     for p, meta, body in new_files:
-        slug = meta.get("slug", p.stem)
+        raw_slug = meta.get("slug", p.stem)
         project = meta.get("project", p.parent.name)
         rel = str(p.relative_to(raw_dir or RAW_SESSIONS))
+
+        # G-21 (#307): normalise slug — spaces → hyphens, strip filesystem-
+        # unsafe chars so the output filename is URL-safe + shell-safe.
+        slug = _normalise_slug(raw_slug)
+
+        # G-06 (#292): prepend the session date to prevent silent slug
+        # collisions. Claude Code's 3-word auto-slugs collide often (12×
+        # `flickering-orbiting-fern` in one corpus). Output path now
+        # `wiki/sources/<project>/<YYYY-MM-DD>-<slug>.md`. Falls back to
+        # just the slug when no date is present (preserves old tests).
+        date = str(meta.get("date", "")).strip()
+        filename = f"{date}-{slug}" if date else slug
 
         try:
             # Call the synthesizer backend
@@ -299,25 +423,53 @@ def synthesize_new_sessions(
             # Build the full wiki source page
             page_content = _build_source_page(meta, synthesized)
 
-            # Write to wiki/sources/<project>/<slug>.md
+            # Write to wiki/sources/<project>/<date>-<slug>.md  (G-06)
             out_dir = sources_out / project
             out_dir.mkdir(parents=True, exist_ok=True)
-            out_path = out_dir / f"{slug}.md"
+            out_path = out_dir / f"{filename}.md"
             out_path.write_text(page_content, encoding="utf-8")
 
             # Update state
             state[rel] = p.stat().st_mtime
             summary["synthesized"] += 1
 
-            # Append to log
-            _append_log(f"{project}/{slug}", log_path=log_path)
-
-            print(f"  synthesized: {project}/{slug}")
+            # G-08 (#294): log uses a clean separator so slugs with
+            # spaces don't break awk/sed parsing. See also G-20/#306
+            # for the batched summary emitted after the loop.
+            print(f"  synthesized: {project} → {filename}")
 
         except Exception as e:
             summary["errors"].append(f"{slug}: {e}")
             summary["skipped"] += 1
             print(f"  error: {slug}: {e}")
 
+    # G-20 (#306): emit ONE summary log entry per invocation, not one
+    # per page. Includes project counts + error count. The old per-page
+    # entries flooded wiki/log.md (60+ lines per run).
+    if summary["synthesized"] > 0 or summary["errors"]:
+        projects_touched: dict[str, int] = {}
+        for p, meta, _ in new_files:
+            project = meta.get("project", p.parent.name)
+            projects_touched[project] = projects_touched.get(project, 0) + 1
+        _append_log(
+            f"{summary['synthesized']} sessions across {len(projects_touched)} projects",
+            log_path=log_path,
+            operation="synthesize",
+            details={
+                "processed": summary["synthesized"],
+                "created": sorted(projects_touched.keys()),
+                "errors": summary["errors"],
+            },
+        )
+
     _save_state(state)
+
+    # G-09 (#295): rebuild wiki/index.md so lint's index_sync rule
+    # passes on fresh synthesized corpora. Synthesize is authoritative
+    # for `## Sources` — the index reflects whatever's on disk now.
+    try:
+        _rebuild_index(sources_out.parent)
+    except Exception as e:
+        summary["errors"].append(f"index rebuild: {e}")
+
     return summary

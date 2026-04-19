@@ -21,6 +21,7 @@ from __future__ import annotations
 import argparse
 import sys
 from pathlib import Path
+from typing import Optional
 
 from llmwiki import __version__, REPO_ROOT
 from llmwiki.adapters import REGISTRY, discover_adapters
@@ -200,8 +201,13 @@ def cmd_serve(args: argparse.Namespace) -> int:
 
 
 def cmd_adapters(args: argparse.Namespace) -> int:
-    """List available adapters and their config state."""
+    """List available adapters and their config state.
+
+    G-02 (#288): ``--wide`` disables the 40-col description cap so the
+    full line prints, useful when piping into ``less`` or documenting.
+    """
     import json as _json
+    import shutil as _shutil
 
     discover_adapters()
     if not REGISTRY:
@@ -217,9 +223,24 @@ def cmd_adapters(args: argparse.Namespace) -> int:
         except (ValueError, OSError):
             pass
 
+    # Description column width: 40 by default, full line with --wide,
+    # or auto-fit to terminal (minus the three fixed columns + gutters).
+    wide = bool(getattr(args, "wide", False))
+    if wide:
+        desc_width: Optional[int] = None  # no cap
+    else:
+        term_cols = _shutil.get_terminal_size(fallback=(80, 24)).columns
+        # Layout: "  name(16)  default(8)  configured(12)  desc" — fixed overhead 44.
+        desc_width = max(40, term_cols - 46)
+
     print("Registered adapters:")
-    print(f"  {'name':<16}  {'default':<8}  {'configured':<12}  description")
-    print(f"  {'-' * 16}  {'-' * 8}  {'-' * 12}  {'-' * 40}")
+    header_desc = "description" if wide else "description"
+    if wide:
+        print(f"  {'name':<16}  {'default':<8}  {'configured':<12}  {header_desc}")
+        print(f"  {'-' * 16}  {'-' * 8}  {'-' * 12}  {'-' * len(header_desc)}")
+    else:
+        print(f"  {'name':<16}  {'default':<8}  {'configured':<12}  {header_desc}")
+        print(f"  {'-' * 16}  {'-' * 8}  {'-' * 12}  {'-' * desc_width}")
     for name, adapter_cls in sorted(REGISTRY.items()):
         default_avail = "yes" if adapter_cls.is_available() else "no"
         # Check if user has enabled this adapter in config
@@ -235,13 +256,15 @@ def cmd_adapters(args: argparse.Namespace) -> int:
         else:
             configured = "-"
         desc = adapter_cls.description()
-        if len(desc) > 40:
-            desc = desc[:37] + "..."
+        if desc_width is not None and len(desc) > desc_width:
+            desc = desc[: max(desc_width - 3, 1)] + "..."
         print(f"  {name:<16}  {default_avail:<8}  {configured:<12}  {desc}")
 
     print()
     print("Adapters marked 'disabled' or '-' under configured require explicit")
     print("opt-in via sessions_config.json. See examples/sessions_config.json.")
+    if not wide:
+        print("Pass --wide to see untruncated descriptions.")
     return 0
 
 
@@ -831,6 +854,11 @@ def build_parser() -> argparse.ArgumentParser:
 
     # adapters
     ads = sub.add_parser("adapters", help="List available adapters")
+    ads.add_argument(
+        "--wide",
+        action="store_true",
+        help="Show untruncated adapter descriptions (G-02 · #288).",
+    )
     ads.set_defaults(func=cmd_adapters)
 
     # graph

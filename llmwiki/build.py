@@ -47,8 +47,10 @@ from llmwiki.changelog_timeline import (
     parse_changelog,
     render_changelog_timeline,
     render_price_sparkline,
+    render_recent_activity,
     render_recently_updated,
 )
+from llmwiki.log_reader import recent_events as _recent_log_events
 from llmwiki.compare import (
     discover_user_overrides,
     generate_pairs,
@@ -1093,6 +1095,14 @@ def render_index(
     recent_block_inner = render_recently_updated(
         recent_updates, link_prefix="models/"
     )
+    # G-18 (#304): when no model-changelog activity exists, fall back
+    # to the last 10 entries from wiki/log.md so the card isn't empty
+    # on corpora without model pages (the overwhelmingly common case).
+    if not recent_block_inner:
+        log_events = _recent_log_events(
+            REPO_ROOT / "wiki" / "log.md", limit=10
+        )
+        recent_block_inner = render_recent_activity(log_events)
     recent_block = (
         f'<section class="section recently-updated-section">\n'
         f'  <div class="container">\n'
