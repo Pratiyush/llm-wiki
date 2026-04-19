@@ -80,6 +80,20 @@ def cmd_init(args: argparse.Namespace) -> int:
 def cmd_sync(args: argparse.Namespace) -> int:
     """Convert .jsonl sessions to markdown using the enabled adapters."""
     from llmwiki.convert import convert_all
+
+    # v1.2 (#54): vault-overlay mode — resolve the vault early so bad
+    # paths fail before we spend time converting sessions.
+    if getattr(args, "vault", None):
+        from llmwiki.vault import describe_vault, resolve_vault
+        try:
+            vault = resolve_vault(args.vault)
+        except (FileNotFoundError, NotADirectoryError) as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 2
+        print(f"==> {describe_vault(vault)}")
+        if args.allow_overwrite:
+            print("  --allow-overwrite: existing vault pages may be clobbered")
+
     rc = convert_all(
         adapters=args.adapter,
         since=args.since,
@@ -159,6 +173,18 @@ def _should_run_after_sync(schedule: str) -> bool:
 def cmd_build(args: argparse.Namespace) -> int:
     """Build the static HTML site."""
     from llmwiki.build import build_site
+
+    # v1.2 (#54): vault-overlay mode. Validate the path up front so a
+    # typo fails fast before the build walks raw/.
+    if getattr(args, "vault", None):
+        from llmwiki.vault import describe_vault, resolve_vault
+        try:
+            vault = resolve_vault(args.vault)
+        except (FileNotFoundError, NotADirectoryError) as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 2
+        print(f"==> {describe_vault(vault)}")
+
     return build_site(
         out_dir=args.out,
         synthesize=args.synthesize,
@@ -767,6 +793,16 @@ def build_parser() -> argparse.ArgumentParser:
         "--auto-lint", action=argparse.BooleanOptionalAction, default=True,
         help="After sync, auto-run lint if schedule allows (default: on)",
     )
+    sync.add_argument(
+        "--vault", type=Path, default=None,
+        help="Vault-overlay mode (#54): write new pages inside an existing "
+             "Obsidian / Logseq vault instead of the repo's wiki/ directory",
+    )
+    sync.add_argument(
+        "--allow-overwrite", action="store_true",
+        help="With --vault: allow clobbering existing vault pages "
+             "(default: refuse, append under ## Connections instead)",
+    )
     sync.set_defaults(func=cmd_sync)
 
     # build
@@ -777,6 +813,11 @@ def build_parser() -> argparse.ArgumentParser:
     build.add_argument(
         "--search-mode", choices=["auto", "tree", "flat"], default="auto",
         help="Search index mode (#53): auto picks tree vs flat from heading depth",
+    )
+    build.add_argument(
+        "--vault", type=Path, default=None,
+        help="Vault-overlay mode (#54): build from an existing Obsidian / "
+             "Logseq vault. Still writes site output to --out.",
     )
     build.set_defaults(func=cmd_build)
 
