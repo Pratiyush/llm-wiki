@@ -4,16 +4,13 @@ name: Release to PyPI
 # Builds sdist + wheel, signs with Sigstore, publishes to PyPI via
 # OIDC trusted publisher, and attaches artifacts to the GitHub Release.
 #
-# Prerequisites (one-time manual setup):
-#   1. Register the project on PyPI as a trusted publisher:
+# Prerequisites (one-time manual setup): see docs/deploy/pypi-publishing.md
+# for the full walkthrough. TL;DR:
+#   1. Register `llmwiki` on PyPI as a trusted publisher:
 #      https://docs.pypi.org/trusted-publishers/creating-a-project-through-oidc/
-#      - PyPI project name: llmwiki
-#      - Owner: Pratiyush
-#      - Repository: llm-wiki
-#      - Workflow: release.yml
-#      - Environment: release
-#   2. Create a GitHub environment called "release" (Settings > Environments)
-#      with optional protection rules (reviewers, wait timer, etc.)
+#      Owner: Pratiyush · Repo: llm-wiki · Workflow: release.yml · Env: release
+#   2. Create a GitHub environment called "release" (Settings > Environments).
+#   3. Enable PyPI uploads: gh variable set PYPI_PUBLISHING --body "true"
 
 on:
   push:
