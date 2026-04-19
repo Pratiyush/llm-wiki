@@ -276,6 +276,53 @@ def cmd_graph(args: argparse.Namespace) -> int:
     return build_and_report(write_json_flag=write_json, write_html_flag=write_html)
 
 
+def cmd_quarantine(args: argparse.Namespace) -> int:
+    """Inspect / clear the convert-error quarantine (G-14 · #300)."""
+    from llmwiki import quarantine as q
+
+    action = getattr(args, "action", None) or "list"
+
+    if action == "list":
+        entries = q.list_entries(adapter=args.adapter)
+        print(q.format_table(entries))
+        if entries and not args.adapter:
+            counts = q.count_by_adapter()
+            print()
+            print(f"Total quarantined: {sum(counts.values())} across {len(counts)} adapter(s)")
+        return 0
+
+    if action == "clear":
+        if args.all:
+            removed = q.clear_all()
+            print(f"Cleared {removed} quarantine entr{'y' if removed == 1 else 'ies'}.")
+            return 0
+        if not args.source:
+            print("error: pass --all or a source path to clear", file=sys.stderr)
+            return 2
+        removed = q.clear_entry(args.source, adapter=args.adapter)
+        print(f"Cleared {removed} quarantine entr{'y' if removed == 1 else 'ies'} for {args.source}")
+        return 0
+
+    if action == "retry":
+        entries = q.list_entries(adapter=args.adapter)
+        if not entries:
+            print("No quarantined sources to retry.")
+            return 0
+        print(
+            f"Retry plan — {len(entries)} source(s).  Clear the quarantine and re-run sync to retry:"
+        )
+        print()
+        print(q.format_table(entries))
+        print()
+        print("Once your converter fix is in place:")
+        print("  llmwiki quarantine clear --all")
+        print("  llmwiki sync")
+        return 0
+
+    print(f"error: unknown quarantine action {action!r}", file=sys.stderr)
+    return 2
+
+
 def cmd_watch(args: argparse.Namespace) -> int:
     """Watch agent session stores and auto-sync on change."""
     from llmwiki.watch import watch as run_watch
@@ -865,6 +912,22 @@ def build_parser() -> argparse.ArgumentParser:
     graph = sub.add_parser("graph", help="Build the knowledge graph (graph/graph.json + graph.html)")
     graph.add_argument("--format", choices=["json", "html", "both"], default="both")
     graph.set_defaults(func=cmd_graph)
+
+    # quarantine (G-14 · #300)
+    quar = sub.add_parser(
+        "quarantine",
+        help="Inspect / clear the convert-error quarantine",
+    )
+    quar_sub = quar.add_subparsers(dest="action")
+    quar_list = quar_sub.add_parser("list", help="List quarantined sources")
+    quar_list.add_argument("--adapter", help="Filter by adapter name")
+    quar_clear = quar_sub.add_parser("clear", help="Clear quarantine entries")
+    quar_clear.add_argument("source", nargs="?", help="Source path to clear")
+    quar_clear.add_argument("--adapter", help="Restrict to one adapter")
+    quar_clear.add_argument("--all", action="store_true", help="Clear every entry")
+    quar_retry = quar_sub.add_parser("retry", help="Print retry plan")
+    quar_retry.add_argument("--adapter", help="Filter by adapter name")
+    quar.set_defaults(func=cmd_quarantine, action=None)
 
     # watch
     watch = sub.add_parser("watch", help="Watch agent session stores and auto-sync on change")

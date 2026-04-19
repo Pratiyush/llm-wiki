@@ -14,10 +14,11 @@ import re
 import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Iterable, Optional
 
 from llmwiki import REPO_ROOT
 from llmwiki.adapters import REGISTRY, discover_adapters
+from llmwiki.quarantine import add_entry as _quarantine_add
 
 DEFAULT_STATE_FILE = REPO_ROOT / ".llmwiki-state.json"
 DEFAULT_CONFIG_FILE = REPO_ROOT / "examples" / "sessions_config.json"
@@ -76,13 +77,116 @@ def load_config(path: Path) -> dict[str, Any]:
     return cfg
 
 
-def load_state(path: Path) -> dict[str, float]:
-    if path.exists():
+def _portable_state_key(adapter_name: str, path: Path) -> str:
+    """Return a portable state-file key for ``path`` (G-04 · #290).
+
+    Keys used to be absolute filesystem paths, which broke when the
+    repo moved between machines and also leaked the operator's home
+    directory if the state file was ever accidentally committed.  The
+    new format is ``<adapter>::<relative-path-under-home-or-repo>``.
+
+    Examples:
+      - ``claude_code::.claude/projects/-Users-…/session.jsonl``
+      - ``obsidian::Documents/Obsidian Vault/Daily/2026-04-19.md``
+      - ``codex_cli::.codex/sessions/abc.jsonl``
+
+    When ``path`` is outside the user's home, the absolute path is
+    preserved so we don't silently lose a key.  The prefix still names
+    the adapter so two adapters can't collide on the same file.
+    """
+    try:
+        relative = Path(path).resolve().relative_to(Path.home())
+        rel = relative.as_posix()
+    except (ValueError, OSError):
+        rel = str(path)
+    return f"{adapter_name}::{rel}"
+
+
+def _migrate_legacy_state(
+    raw: dict[str, Any], adapter_names: Iterable[str]
+) -> tuple[dict[str, float], int]:
+    """One-shot migration from the old absolute-path schema.
+
+    Returns ``(migrated_state, migrated_count)`` so the caller can log
+    how many keys changed.  Entries already in the new
+    ``<adapter>::<relpath>`` shape pass through untouched.  Entries
+    whose key looks like an absolute filesystem path get mapped to the
+    new shape by matching adapter sub-strings (``"/.claude/projects/"``
+    → ``claude_code``, ``"/.codex/sessions/"`` → ``codex_cli``, etc.).
+    """
+    out: dict[str, float] = {}
+    migrated = 0
+    # Rough per-adapter path signature — good enough for a one-off fix-up.
+    hints: list[tuple[str, str]] = [
+        ("claude_code", ".claude/projects/"),
+        ("codex_cli",   ".codex/sessions/"),
+        ("copilot-chat", "workspaceStorage"),
+        ("copilot-cli",  ".copilot/"),
+        ("cursor",       "Cursor/"),
+        ("gemini_cli",   ".gemini/"),
+        ("obsidian",     "Obsidian"),
+        ("opencode",     "opencode/"),
+        ("chatgpt",      "conversations.json"),
+        ("jira",         "/jira/"),
+        ("meeting",      "transcripts"),
+        ("pdf",          ".pdf"),
+    ]
+    known_names = set(adapter_names)
+    for k, v in raw.items():
+        if not isinstance(k, str) or not isinstance(v, (int, float)):
+            continue
+        if "::" in k:
+            # Already portable — keep.
+            out[k] = float(v)
+            continue
+        # Legacy absolute-path key. Try to infer the adapter from the path.
+        inferred: Optional[str] = None
+        for name, token in hints:
+            if name in known_names and token in k:
+                inferred = name
+                break
+        if inferred is None:
+            # Preserve the raw key rather than dropping the entry — the
+            # next sync will either pass-through or re-migrate it.
+            out[k] = float(v)
+            continue
         try:
-            return json.loads(path.read_text(encoding="utf-8"))
-        except json.JSONDecodeError:
-            return {}
-    return {}
+            rel = Path(k).relative_to(Path.home()).as_posix()
+        except (ValueError, OSError):
+            rel = k
+        out[f"{inferred}::{rel}"] = float(v)
+        migrated += 1
+    return out, migrated
+
+
+def load_state(
+    path: Path, adapter_names: Optional[Iterable[str]] = None
+) -> dict[str, float]:
+    """Load ``.llmwiki-state.json`` and migrate legacy absolute-path keys.
+
+    Older state files used absolute paths as keys (``/Users/…/foo.jsonl``).
+    On first load under the new schema we rewrite those keys in place to
+    ``<adapter>::<relpath>`` so subsequent runs are portable across
+    machines.  Keys we can't confidently re-map are kept verbatim so no
+    session is accidentally re-processed.
+    """
+    if not path.exists():
+        return {}
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return {}
+    if not isinstance(raw, dict):
+        return {}
+    names = list(adapter_names or REGISTRY.keys())
+    migrated, count = _migrate_legacy_state(raw, names)
+    if count:
+        # Persist the migration so the next load is a pure pass-through.
+        try:
+            save_state(path, migrated)
+        except OSError:
+            pass
+    return migrated
 
 
 def save_state(path: Path, state: dict[str, float]) -> None:
@@ -441,6 +545,43 @@ def compute_duration_seconds(records: list[dict[str, Any]]) -> int:
 
 # ─── tool-use rendering ────────────────────────────────────────────────────
 
+
+def _coerce_int(value: Any) -> Optional[int]:
+    """Return ``value`` as an ``int`` or ``None`` for unparseable input.
+
+    G-05 (#291): sub-agent transcripts occasionally ship tool arguments
+    as strings (``{"offset": "123"}``) or floats.  The old code assumed
+    ints and crashed on concat.  This helper accepts:
+
+    - ``int`` → returned as-is (``bool`` rejected — ``True + 0`` is a
+      footgun we intentionally don't tolerate)
+    - ``float`` → cast to ``int`` (drops the fractional part)
+    - ``str`` → parsed if it's an integer literal; otherwise ``None``
+    - anything else → ``None``
+    """
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int):
+        return value
+    if isinstance(value, float):
+        try:
+            return int(value)
+        except (OverflowError, ValueError):
+            return None
+    if isinstance(value, str):
+        s = value.strip()
+        if not s:
+            return None
+        try:
+            return int(s, 10)
+        except ValueError:
+            try:
+                return int(float(s))
+            except (OverflowError, ValueError):
+                return None
+    return None
+
+
 def summarize_tool_use(block: dict[str, Any], redact: Redactor, config: dict[str, Any]) -> str:
     name = block.get("name", "Tool")
     inp = block.get("input", {}) or {}
@@ -455,12 +596,22 @@ def summarize_tool_use(block: dict[str, Any], redact: Redactor, config: dict[str
 
     if name == "Read":
         fp = inp.get("file_path", "")
-        offset = inp.get("offset")
-        limit = inp.get("limit")
+        # G-05 (#291): coerce to int at the boundary. Sub-agent records sometimes
+        # serialise numeric tool args as strings ("123"), and the old
+        # ``(offset or 0) + (limit or 0)`` blew up with `TypeError: can only
+        # concatenate str (not "int") to str` — silently dropping the whole
+        # session (see agent-ace0e851c84aaba7c.jsonl). ``_coerce_int`` also
+        # accepts None/bool/float and returns a default on anything else.
+        offset = _coerce_int(inp.get("offset"))
+        limit = _coerce_int(inp.get("limit"))
         rng = ""
         if offset is not None or limit is not None:
-            start = offset or 1
-            end = (offset or 0) + (limit or 0) if limit else "?"
+            start = offset if offset is not None else 1
+            end: int | str
+            if limit is not None:
+                end = (offset or 0) + limit
+            else:
+                end = "?"
             rng = f" ({start}–{end})"
         return f"`Read`: `{redact(fp)}`{rng}"
 
@@ -732,7 +883,7 @@ def convert_all(
 ) -> int:
     """Main entry: convert new sessions across all enabled adapters."""
     config = load_config(config_file)
-    state = {} if force else load_state(state_file)
+    state = {} if force else load_state(state_file, adapter_names=list(REGISTRY.keys()))
     redact = Redactor(config)
     ignore = IgnoreMatcher.from_file(ignore_file)
     if ignore:
@@ -782,10 +933,11 @@ def convert_all(
                 continue
             try:
                 mtime = path.stat().st_mtime
-            except OSError:
+            except OSError as e:
                 errors += 1
+                _quarantine_add(cls.name, str(path), f"stat failed: {e}")
                 continue
-            key = str(path)
+            key = _portable_state_key(cls.name, path)
             if state.get(key) == mtime:
                 unchanged += 1
                 continue
@@ -795,8 +947,9 @@ def convert_all(
             if path.suffix == ".md":
                 try:
                     text = path.read_text(encoding="utf-8")
-                except OSError:
+                except OSError as e:
                     errors += 1
+                    _quarantine_add(cls.name, str(path), f"read failed: {e}")
                     continue
                 if len(text) < 50:
                     filtered += 1
@@ -819,6 +972,7 @@ def convert_all(
                 except Exception as e:
                     print(f"  skip: {path.name}: {e}", file=sys.stderr)
                     errors += 1
+                    _quarantine_add(cls.name, str(path), f"pdf convert failed: {e}")
                     continue
                 if not md:
                     filtered += 1
@@ -857,6 +1011,7 @@ def convert_all(
             except Exception as e:
                 print(f"  error: {path.name}: {e}", file=sys.stderr)
                 errors += 1
+                _quarantine_add(cls.name, str(path), f"render failed: {e}")
                 continue
             date_str = started.strftime("%Y-%m-%d")
             out_name = flat_output_name(started, project_slug, slug)

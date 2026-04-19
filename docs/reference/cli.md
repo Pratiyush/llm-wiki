@@ -222,6 +222,32 @@ auto-copied into `site/graph.html` on every `build`.
 
 ---
 
+## `quarantine` — inspect failed syncs
+
+```bash
+python3 -m llmwiki quarantine list
+python3 -m llmwiki quarantine list --adapter claude_code
+python3 -m llmwiki quarantine clear --all
+python3 -m llmwiki quarantine clear /Users/you/.claude/projects/foo.jsonl
+python3 -m llmwiki quarantine retry
+```
+
+### Flags (per-subcommand)
+
+| Subcommand | Flag | What |
+|---|---|---|
+| `list` | `--adapter NAME` | Filter to one adapter |
+| `clear` | `--all` | Wipe every entry |
+| `clear` | `--adapter NAME` | Restrict the clear to one adapter |
+| `retry` | `--adapter NAME` | Filter the retry plan |
+
+`sync` automatically records every convert exception in
+`.llmwiki-quarantine.json` so you can see *what didn't sync and why*
+without re-tailing stderr. Clear a source after you've fixed the
+underlying bug and the next `sync` retries it. G-14 · #300.
+
+---
+
 ## `watch` — long-running session-store watcher
 
 ```bash
