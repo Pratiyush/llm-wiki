@@ -680,3 +680,9 @@ mark { background: var(--accent-bg); color: var(--accent); padding: 0 2px; borde
   .section { padding: 0 !important; }
 }
 """
+
+# v1.2 (#112): reader-first article shell CSS. Appended so pages that
+# don't opt in (via `reader_shell: true` frontmatter) keep rendering
+# exactly as before — no existing selectors are redefined.
+from llmwiki.reader_shell import READER_SHELL_CSS as _READER_SHELL_CSS  # noqa: E402
+CSS = CSS + "\n" + _READER_SHELL_CSS
