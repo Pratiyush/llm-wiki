@@ -34,10 +34,10 @@ def _mk_page(meta: dict, body: str) -> dict:
 # ─── Registry ──────────────────────────────────────────────────────────
 
 
-def test_all_12_rules_registered():
-    # 11 original rules from v1.0 + stale_candidates (v1.1, #51)
+def test_all_13_rules_registered():
+    # 11 v1.0 + stale_candidates (v1.1 #51) + cache_tier_consistency (v1.2 #52)
     from llmwiki.lint import rules  # noqa: F401
-    assert len(REGISTRY) == 12
+    assert len(REGISTRY) == 13
 
 
 def test_registered_rule_names():
@@ -54,7 +54,8 @@ def test_registered_rule_names():
         "contradiction_detection",
         "claim_verification",
         "summary_accuracy",
-        "stale_candidates",  # v1.1 (#51)
+        "stale_candidates",         # v1.1 (#51)
+        "cache_tier_consistency",   # v1.2 (#52)
     }
     assert set(REGISTRY.keys()) == expected
 

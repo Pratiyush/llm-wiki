@@ -476,6 +476,95 @@ class StaleCandidates(LintRule):
 
 
 @register
+class CacheTierConsistency(LintRule):
+    """Flag pages whose ``cache_tier`` choice conflicts with reality (#52).
+
+    Runs pure-structural checks — no LLM call. Uses the inbound-link
+    counts the ``OrphanDetection`` rule already computes, plus the
+    ``status:`` field (if any), to catch:
+
+      - L1 pages with 0 inbound links (wasted preload)
+      - L4 (archive) pages with many inbound links (should be promoted
+        or their callers should be fixed)
+      - ``status: archived`` pages with cache_tier != L4
+      - Invalid ``cache_tier`` values (typos, wrong casing)
+    """
+
+    name = "cache_tier_consistency"
+    severity = "info"
+
+    def run(self, pages, *, llm_callback=None):
+        from llmwiki.cache_tiers import (
+            CACHE_TIERS,
+            conflicting_tier_reason,
+            parse_cache_tier,
+            tier_budget_tokens,
+            estimate_tier_tokens,
+        )
+
+        issues: list[dict] = []
+        if not pages:
+            return issues
+
+        # Inbound map is keyed by *slug* (not full path) because
+        # [[wikilinks]] target bare slugs (e.g. [[Foo]] → "Foo").
+        # Matches the pattern used by OrphanDetection.
+        inbound: dict[str, int] = {}
+        for rel, page in pages.items():
+            body = page.get("body") or ""
+            for target in WIKILINK_RE.findall(body):
+                t = target.split("#")[0].strip()
+                inbound[t] = inbound.get(t, 0) + 1
+
+        # Per-page checks
+        for rel, page in pages.items():
+            meta = page.get("meta") or {}
+            raw = meta.get("cache_tier")
+            tier, warning = parse_cache_tier(raw)
+
+            if warning is not None and raw not in (None, ""):
+                issues.append({
+                    "rule": self.name,
+                    "severity": "warning",
+                    "page": page.get("rel", rel),
+                    "message": warning,
+                })
+
+            status = str(meta.get("status") or "").strip().lower()
+            slug = _page_slug(rel)
+            reason = conflicting_tier_reason(
+                tier,
+                inbound.get(slug, 0),
+                has_archived_status=(status == "archived"),
+            )
+            if reason:
+                issues.append({
+                    "rule": self.name,
+                    "severity": "info",
+                    "page": page.get("rel", rel),
+                    "message": reason,
+                })
+
+        # Aggregate check: L1 pool must fit in its token budget. Expensive
+        # mis-tagging shows up here instead of page-by-page.
+        page_list = list(pages.values())
+        l1_tokens = estimate_tier_tokens(page_list, "L1")
+        l1_budget = tier_budget_tokens("L1")
+        if l1_budget and l1_tokens > l1_budget:
+            issues.append({
+                "rule": self.name,
+                "severity": "warning",
+                "page": "",  # aggregate, not tied to one page
+                "message": (
+                    f"L1 tier pool is ~{l1_tokens} tokens, over the "
+                    f"{l1_budget}-token budget — demote some pages to L2 "
+                    "or trim their content"
+                ),
+            })
+        return issues
+
+
+@register
 class SummaryAccuracy(LintRule):
     """Check that summary: field matches content (LLM-powered)."""
 
