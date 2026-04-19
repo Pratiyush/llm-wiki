@@ -463,6 +463,7 @@ def nav_bar(active: str, link_prefix: str = "") -> str:
       {link("models/index.html", "Models", "models")}
       {link("vs/index.html", "Compare", "vs")}
       {link("graph.html", "Graph", "graph")}
+      {link("prototypes/index.html", "Prototypes", "prototypes")}
       {link("changelog.html", "Changelog", "changelog")}
       <button class="nav-search-btn" id="open-palette" aria-label="Open command palette">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -1663,6 +1664,15 @@ def build_site(
             print(f"  wrote {graph_path.relative_to(out_dir.parent)} (interactive graph viewer)")
     except Exception as e:
         print(f"  warning: graph viewer copy failed: {e}", file=sys.stderr)
+
+    # v1.2 (#114): publish the prototype hub (review-ready UI states)
+    # under site/prototypes/ for UX iteration.
+    try:
+        from llmwiki.prototypes import build_prototype_hub
+        proto_index = build_prototype_hub(out_dir)
+        print(f"  wrote {proto_index.relative_to(out_dir.parent)} (6 prototype states)")
+    except Exception as e:
+        print(f"  warning: prototype hub build failed: {e}", file=sys.stderr)
 
     # v0.4: Per-page sibling .txt and .json
     try:
