@@ -626,6 +626,12 @@ def render_session(
 
     body = strip_leading_h1(body)
     body_html = md_to_html(body)
+    # #270: session transcripts often reference files the user had open
+    # during the session (tasks.md, CLAUDE.md, convert.py, etc). Route
+    # the ones that look like repo source code or root files to GitHub
+    # so the links don't dead-end after ingest.
+    from llmwiki.docs_pages import rewrite_source_code_links_to_github
+    body_html = rewrite_source_code_links_to_github(body_html)
     raw_md_for_copy = html.escape(body)
     reading_min = calc_reading_time(body)
 

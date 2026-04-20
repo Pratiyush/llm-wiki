@@ -267,6 +267,10 @@ def compile_docs_site(
         if meta_strip:
             body_html = body_html.replace("</h1>", "</h1>\n" + meta_strip, 1)
 
+        # #270: route source-code + repo-root-only links to GitHub
+        # before the generic .md→.html pass, so e.g. `../../llmwiki/convert.py`
+        # becomes an absolute GitHub URL instead of a dangling relative path.
+        body_html = rewrite_source_code_links_to_github(body_html)
         # P0 fix: rewrite every internal .md link to .html so the
         # compiled pages actually link to each other.
         body_html = rewrite_md_links_to_html(body_html)
@@ -310,6 +314,78 @@ _MD_HREF_RE = re.compile(
     r'href="(?!https?:|mailto:|#)([^"]+?)\.md(\#[^"]*)?"'
 )
 
+# #270: docs pages frequently reference source code or root files that
+# don't compile to HTML — link rewriter used to leave them dangling.
+# Match anything under ../.. that points at source code or repo-root
+# files we intentionally don't render.
+_SOURCE_CODE_EXTS = (
+    ".py", ".js", ".ts", ".tsx", ".jsx",
+    ".go", ".rs", ".rb", ".java", ".kt", ".swift",
+    ".sh", ".toml", ".yaml", ".yml", ".json", ".cfg", ".ini",
+    ".Dockerfile", ".env",
+)
+_ROOT_ONLY_MD_BASENAMES = {
+    "README.md", "CONTRIBUTING.md", "CODE_OF_CONDUCT.md",
+    "CLAUDE.md", "AGENTS.md", "SECURITY.md", "RELEASE-NOTES.md",
+    "LICENSE", ".gitignore", ".env", ".editorconfig",
+}
+_GITHUB_BLOB_URL = "https://github.com/Pratiyush/llm-wiki/blob/master"
+
+_CODE_OR_ROOT_HREF_RE = re.compile(
+    r'href="(?!https?:|mailto:|#)([^"]+?)"'
+)
+
+
+_ROOT_ONLY_HTML_BASENAMES = {
+    b.replace(".md", ".html")
+    for b in _ROOT_ONLY_MD_BASENAMES if b.endswith(".md")
+}
+
+
+def _rewrite_one_to_github(href: str) -> str | None:
+    """Return a GitHub blob URL for ``href`` if it points at source
+    code or a root file; else ``None`` (caller leaves the href alone).
+    """
+    # Strip any leading ../ chunks to get the path relative to repo root.
+    path = re.sub(r"^(?:\.\./)+", "", href)
+    path = path.lstrip("/")
+    if not path:
+        return None
+    # Pull off any #anchor / ?query.
+    path_no_fragment = path.split("#", 1)[0].split("?", 1)[0]
+    base = path_no_fragment.rsplit("/", 1)[-1]
+    # Source-code files — always route to GitHub.
+    if path_no_fragment.endswith(_SOURCE_CODE_EXTS):
+        return f"{_GITHUB_BLOB_URL}/{path_no_fragment}"
+    # Repo-root files (README, CONTRIBUTING, LICENSE, CODE_OF_CONDUCT,
+    # .gitignore) that aren't compiled to HTML.
+    if base in _ROOT_ONLY_MD_BASENAMES:
+        return f"{_GITHUB_BLOB_URL}/{path_no_fragment}"
+    # Previously-rewritten .html versions of root-only files
+    # (e.g. ``../CLAUDE.html`` from an earlier md→html pass that ran
+    # before we knew the file is repo-root-only).  Flip back to the
+    # canonical .md source on GitHub.
+    if base in _ROOT_ONLY_HTML_BASENAMES:
+        md_name = base.replace(".html", ".md")
+        md_path = path_no_fragment.rsplit("/", 1)[0] + "/" + md_name if "/" in path_no_fragment else md_name
+        return f"{_GITHUB_BLOB_URL}/{md_path}"
+    return None
+
+
+def rewrite_source_code_links_to_github(html_body: str) -> str:
+    """Rewrite ``href`` values pointing at source code or repo-root
+    files to absolute GitHub URLs (#270).
+
+    Runs BEFORE ``rewrite_md_links_to_html`` because we want
+    ``README.md`` to become a GitHub link, not ``README.html``.
+    """
+    def _sub(m: re.Match) -> str:
+        href = m.group(1)
+        new = _rewrite_one_to_github(href)
+        return m.group(0) if new is None else f'href="{new}"'
+
+    return _CODE_OR_ROOT_HREF_RE.sub(_sub, html_body)
+
 
 def rewrite_md_links_to_html(html_body: str) -> str:
     """Rewrite every internal ``href="foo.md"`` (and ``foo.md#anchor``)
@@ -318,6 +394,11 @@ def rewrite_md_links_to_html(html_body: str) -> str:
     The docs compiler writes ``.html`` files, but Markdown source
     authors use ``.md`` so the links work on GitHub too. This one
     pass reconciles the two.
+
+    #270: callers should now run
+    :func:`rewrite_source_code_links_to_github` BEFORE this function
+    so repo-root ``.md`` files (README, CONTRIBUTING, etc.) get routed
+    to GitHub instead of becoming dangling ``.html`` links.
     """
     return _MD_HREF_RE.sub(
         lambda m: f'href="{m.group(1)}.html{m.group(2) or ""}"',
