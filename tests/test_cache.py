@@ -479,8 +479,12 @@ def test_estimate_command_emits_total(tmp_path, monkeypatch, capsys):
     rc = cli_mod._synthesize_estimate()
     out = capsys.readouterr().out
     assert rc == 0
-    assert "Batch total" in out
+    # G-07 (#293): output now has three-bucket breakdown.  Model name
+    # still appears; total collapses into the incremental + full-force
+    # rows.
     assert "claude-sonnet-4-6" in out
+    assert "Incremental sync:" in out
+    assert "Full re-synth:" in out
 
 
 def test_estimate_command_no_new_sessions(tmp_path, monkeypatch, capsys):
@@ -494,4 +498,6 @@ def test_estimate_command_no_new_sessions(tmp_path, monkeypatch, capsys):
     rc = cli_mod._synthesize_estimate()
     out = capsys.readouterr().out
     assert rc == 0
-    assert "No new raw sessions" in out
+    # G-07: empty corpus now prints "$0.0000 (nothing new — this is a no-op)".
+    assert "nothing new" in out
+    assert "0.0000" in out

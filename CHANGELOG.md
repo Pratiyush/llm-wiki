@@ -10,6 +10,21 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ### Added
 
+- **`llmwiki synthesize --estimate` now prints an incremental-vs-full-force breakdown** (#293 · G-07) — old output was a single dollar number that left users unsure whether it covered the whole corpus or just the delta since last run. New output reads state from `.llmwiki-synth-state.json` and shows four clear lines:
+
+  ```
+  Corpus:                785 sessions in raw/sessions/
+  Synthesized (history): 314 already in wiki/sources/
+  New since last run:    471
+
+  Prefix: 3,944 tok  Model: claude-sonnet-4-6
+
+  Incremental sync:  $15.96  (synthesize the 471 new session(s))
+  Full re-synth:     $26.92  (--force — 785 session(s), 1 cache write + 784 hits)
+  ```
+
+  New `synthesize_estimate_report()` helper returns a plain dict so tests + downstream tooling can consume the numbers without parsing stdout. State-key matching tries bare-name, rel-path, full-str, and endswith-fallback so it survives the multiple keying conventions in the repo (the synth state uses `<project>/<file>.md` while some tests inject simpler keys). Invariant: `full_force_usd ≥ incremental_usd ≥ 0` — the CLI regression test parses both numbers out of stdout and asserts this. Custom model + output-tokens-per-call are pluggable via kwargs. Empty corpus prints `nothing new — this is a no-op` instead of silently returning. 18 new tests in `tests/test_synthesize_estimate.py` cover every bucket + CLI smoke + invariants. The two pre-existing cache tests updated to match the new output shape.
+
 - **`llmwiki log` — structured query over `wiki/log.md`** (#299 · G-13) — new top-level CLI subcommand that parses the append-only operation log into structured events so you can ask "show me every sync from last week" without eyeballing the file. Flags: `--since YYYY-MM-DD`, `--operation sync,synthesize,lint,ingest,query,build` (comma-separated), `--limit N` (0 = unlimited), `--format {text,json}`. Builds on the existing `llmwiki/log_reader.py` module shipped in #308 for G-18, so no new parser plumbing. Output is newest-first by date (stable sort preserves same-day append order). Missing log returns rc=1 with a helpful message; invalid `--since` returns rc=2; empty filter result prints "No log entries match the filters." 9 new tests in `tests/test_cli_observability.py` cover missing file, text output ordering, operation filter, date filter, invalid-date error, JSON structure, limit clamp, empty-match message, end-to-end CLI.
 
 - **`llmwiki sync --status` — observability reporter** (#289 · G-03) — non-destructive status flag on the existing `sync` subcommand. Prints last-sync timestamp (with "Nh ago" human delta), per-adapter counters table (`discovered / converted / unchanged / live / filtered / errored`), orphan state entries, and quarantine counts. `--recent N` adds the last N sync/synthesize log entries as a bonus view. Counters are now persisted into `.llmwiki-state.json` under `_meta` (with `last_sync` + schema version) and `_counters` (per-adapter dict) — written by every non-dry-run `convert_all` call. The `_`-prefix namespace guarantees these metadata keys never collide with portable adapter state keys (which are lowercase identifiers). State migration now preserves underscore-prefixed keys through legacy-to-portable rewrites so an existing `_meta` survives a version upgrade. 7 new tests: empty state, counter table rendering, quarantine integration, --recent surfaces log events, corrupt-state-file tolerated, short-circuit doesn't run a real sync, `_meta` preservation during migration.

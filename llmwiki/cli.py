@@ -21,7 +21,7 @@ from __future__ import annotations
 import argparse
 import sys
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 from llmwiki import __version__, REPO_ROOT
 from llmwiki.adapters import REGISTRY, discover_adapters
@@ -792,72 +792,158 @@ def cmd_synthesize(args: argparse.Namespace) -> int:
     return 0
 
 
-def _synthesize_estimate() -> int:
-    """Print a cached-vs-fresh token + dollar estimate (v1.1.0 · #50).
+def synthesize_estimate_report(
+    *,
+    raw_sessions: Optional[list[tuple[Any, dict, str]]] = None,
+    state_keys: Optional[set[str]] = None,
+    prefix_tokens: Optional[int] = None,
+    output_tokens_per_call: int = 1000,
+    model: Optional[str] = None,
+) -> dict:
+    """Compute the incremental vs full-force cost report (G-07 · #293).
 
-    Reads the stable prefix (CLAUDE.md, wiki/index.md, wiki/overview.md)
-    and every new raw session discovered by the sync pipeline, then
-    prices the whole batch under the default model assuming a 90% cache
-    hit rate. No API calls; stdlib only.
+    Returns a plain dict so the CLI can render it AND tests can inspect
+    the numbers without parsing stdout.  Keys:
+
+    * ``corpus`` — total raw sessions discovered under ``raw/sessions/``
+    * ``synthesized`` — count already synthesized (from state file)
+    * ``new`` — ``corpus - synthesized``
+    * ``incremental_usd`` — dollars to synthesize the ``new`` bucket
+    * ``full_force_usd`` — dollars to re-synthesize the **whole** corpus
+      with ``--force`` (one cache write + N-1 cache hits)
+    * ``prefix_tokens`` — tokens in the stable CLAUDE.md + index.md +
+      overview.md prefix
+    * ``model`` — model id used for pricing
+    * ``warnings`` — list of human-readable warnings (e.g. prefix too
+      small to be cached)
+
+    Any of the args can be injected for tests; the default reads from
+    disk and is what the CLI invokes.
     """
     from llmwiki.cache import (
         DEFAULT_MODEL,
         estimate_cost,
         estimate_tokens,
-        format_estimate,
         warn_prefix_too_small,
     )
     from llmwiki.synth.pipeline import _discover_raw_sessions, _load_state
 
-    prefix_parts: list[str] = []
-    for rel in ("CLAUDE.md", "wiki/index.md", "wiki/overview.md"):
-        p = REPO_ROOT / rel
-        if p.is_file():
-            prefix_parts.append(p.read_text(encoding="utf-8"))
-    prefix_tokens = estimate_tokens("\n".join(prefix_parts))
+    chosen_model = model or DEFAULT_MODEL
+    warnings: list[str] = []
 
-    warning = warn_prefix_too_small(prefix_tokens)
-    if warning:
-        print(f"warning: {warning}")
+    if prefix_tokens is None:
+        prefix_parts: list[str] = []
+        for rel in ("CLAUDE.md", "wiki/index.md", "wiki/overview.md"):
+            p = REPO_ROOT / rel
+            if p.is_file():
+                prefix_parts.append(p.read_text(encoding="utf-8"))
+        prefix_tokens = estimate_tokens("\n".join(prefix_parts))
+    prefix_warning = warn_prefix_too_small(prefix_tokens)
+    if prefix_warning:
+        warnings.append(prefix_warning)
 
-    state = _load_state()
-    sessions = _discover_raw_sessions()
-    new_bodies = [
-        body for p, _, body in sessions
-        if str(p.name) not in state
-    ]
-    if not new_bodies:
-        print("No new raw sessions to synthesize.")
-        return 0
+    if raw_sessions is None:
+        raw_sessions = _discover_raw_sessions()
+    if state_keys is None:
+        state_keys = set(_load_state().keys())
 
-    # Assume the very first call is a cache write, the rest are hits.
-    first = estimate_cost(
-        cached_tokens=prefix_tokens,
-        fresh_tokens=estimate_tokens(new_bodies[0]),
-        output_tokens=1000,
-        model=DEFAULT_MODEL,
-        cache_hit=False,
-    )
-    rest_usd = 0.0
-    for body in new_bodies[1:]:
-        est = estimate_cost(
+    corpus = len(raw_sessions)
+
+    # The real synth state stores rel-paths under ``raw/sessions/``
+    # (e.g. ``proj/2026-04-09-slug.md``).  Match against those first;
+    # fall back to bare filename + suffix-endswith for tests that
+    # inject simpler keys.  A session counts as "synthesized" if any
+    # of those three keys already appears in state_keys.
+    from llmwiki.synth.pipeline import RAW_SESSIONS as _RAW
+    synthed = 0
+    new_bodies: list[str] = []
+    for p, _meta, body in raw_sessions:
+        keys_to_try: set[str] = set()
+        name = getattr(p, "name", str(p))
+        keys_to_try.add(name)
+        if hasattr(p, "relative_to"):
+            try:
+                keys_to_try.add(str(p.relative_to(_RAW)))
+            except (ValueError, AttributeError):
+                pass
+        keys_to_try.add(str(p))
+        matched = bool(keys_to_try & state_keys) or any(
+            isinstance(k, str) and k.endswith(name) for k in state_keys
+        )
+        if matched:
+            synthed += 1
+        else:
+            new_bodies.append(body)
+    new = corpus - synthed
+
+    def _bucket_usd(bodies: list[str]) -> float:
+        if not bodies:
+            return 0.0
+        first = estimate_cost(
             cached_tokens=prefix_tokens,
-            fresh_tokens=estimate_tokens(body),
-            output_tokens=1000,
-            model=DEFAULT_MODEL,
-            cache_hit=True,
+            fresh_tokens=estimate_tokens(bodies[0]),
+            output_tokens=output_tokens_per_call,
+            model=chosen_model,
+            cache_hit=False,
         )
-        rest_usd += est.usd
+        total = first.usd
+        for body in bodies[1:]:
+            est = estimate_cost(
+                cached_tokens=prefix_tokens,
+                fresh_tokens=estimate_tokens(body),
+                output_tokens=output_tokens_per_call,
+                model=chosen_model,
+                cache_hit=True,
+            )
+            total += est.usd
+        return total
 
-    total = first.usd + rest_usd
-    print(f"{len(new_bodies)} new sessions, prefix {prefix_tokens:,} tok")
-    print(format_estimate(first))
-    if len(new_bodies) > 1:
+    incremental_usd = _bucket_usd(new_bodies)
+    full_force_bodies = [body for _p, _m, body in raw_sessions]
+    full_force_usd = _bucket_usd(full_force_bodies)
+
+    return {
+        "corpus": corpus,
+        "synthesized": synthed,
+        "new": new,
+        "incremental_usd": incremental_usd,
+        "full_force_usd": full_force_usd,
+        "prefix_tokens": prefix_tokens,
+        "model": chosen_model,
+        "warnings": warnings,
+    }
+
+
+def _synthesize_estimate() -> int:
+    """Print the G-07 incremental-vs-full-force cost report (v1.1.0 · #50 · #293).
+
+    Transparency over one-liner: reads the state file so the user sees
+    exactly which bucket gets billed next. The old ``--estimate`` printed
+    a single number without saying whether it covered the whole corpus
+    or just the delta.
+    """
+    report = synthesize_estimate_report()
+
+    for w in report["warnings"]:
+        print(f"warning: {w}")
+
+    print(f"Corpus:                {report['corpus']:>6} sessions in raw/sessions/")
+    print(f"Synthesized (history): {report['synthesized']:>6} already in wiki/sources/")
+    print(f"New since last run:    {report['new']:>6}")
+    print()
+    print(f"Prefix: {report['prefix_tokens']:,} tok  Model: {report['model']}")
+    print()
+    if report["new"] == 0:
+        print(f"Incremental sync:  $0.0000  (nothing new — this is a no-op)")
+    else:
         print(
-            f"  + {len(new_bodies) - 1} subsequent sessions (cache hit):  "
-            f"${rest_usd:.4f}"
+            f"Incremental sync:  ${report['incremental_usd']:.4f}  "
+            f"(synthesize the {report['new']} new session(s))"
         )
-    print(f"\nBatch total: ${total:.4f} (model {DEFAULT_MODEL})")
+    print(
+        f"Full re-synth:     ${report['full_force_usd']:.4f}  "
+        f"(--force — {report['corpus']} session(s), 1 cache write + {max(report['corpus'] - 1, 0)} hits)"
+    )
     return 0
 
 
