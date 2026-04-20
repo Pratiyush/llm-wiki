@@ -233,6 +233,46 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
   }
   #offline-notice.show { display: flex; }
 
+  /* G-19 (#305): node context menu — shown on right-click or long-tap.
+     Keyboard-accessible; closes on Escape / outside click. */
+  #ctx-menu {
+    position: absolute; display: none; z-index: 30;
+    min-width: 220px;
+    background: var(--g-panel); border: 1px solid var(--g-border);
+    border-radius: 8px; padding: 4px; font-size: 0.82rem;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
+  }
+  #ctx-menu.show { display: block; }
+  #ctx-menu .ctx-header {
+    padding: 6px 10px; font-family: ui-monospace, monospace;
+    font-size: 0.75rem; color: var(--g-muted);
+    border-bottom: 1px solid var(--g-border); margin-bottom: 4px;
+  }
+  #ctx-menu button {
+    display: block; width: 100%; text-align: left;
+    padding: 7px 10px; border: 0; border-radius: 5px;
+    background: transparent; color: var(--g-text);
+    font-size: 0.82rem; cursor: pointer;
+    font-family: inherit;
+  }
+  #ctx-menu button:hover:not([disabled]),
+  #ctx-menu button:focus:not([disabled]) {
+    background: rgba(124, 58, 237, 0.18);
+    outline: none;
+  }
+  #ctx-menu button[disabled] {
+    color: var(--g-muted); cursor: not-allowed; opacity: 0.55;
+  }
+  #ctx-menu .ctx-kbd {
+    float: right; font-family: ui-monospace, monospace;
+    font-size: 0.7rem; color: var(--g-muted);
+    margin-left: 12px;
+  }
+  #ctx-menu .ctx-separator {
+    height: 1px; background: var(--g-border);
+    margin: 4px -4px;
+  }
+
   a { color: var(--g-accent); }
 
   @media (max-width: 640px) {
@@ -275,6 +315,24 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
     <div class="stat"><span>Avg connections</span><b id="s-avg">0</b></div>
     <h3 style="margin-top: 10px;">Top hubs</h3>
     <div id="s-hubs"></div>
+  </div>
+  <!-- G-19 (#305) node context menu — right-click / long-tap target -->
+  <div id="ctx-menu" role="menu" aria-label="Node actions">
+    <div class="ctx-header" id="ctx-target">—</div>
+    <button type="button" role="menuitem" data-action="open">Open page <span class="ctx-kbd">Enter</span></button>
+    <button type="button" role="menuitem" data-action="neighbours">Find neighbours (1-hop) <span class="ctx-kbd">N</span></button>
+    <button type="button" role="menuitem" data-action="copy-slug">Copy slug <span class="ctx-kbd">C</span></button>
+    <button type="button" role="menuitem" data-action="copy-path">Copy wiki path</button>
+    <button type="button" role="menuitem" data-action="view-references">View references (CLI hint)</button>
+    <div class="ctx-separator" role="separator"></div>
+    <button type="button" role="menuitem" data-action="mark-stale" disabled
+            title="Requires `llmwiki serve --edit` (not yet shipped)">
+      Mark stale
+    </button>
+    <button type="button" role="menuitem" data-action="archive" disabled
+            title="Requires `llmwiki serve --edit` (not yet shipped)">
+      Archive
+    </button>
   </div>
 </div>
 
@@ -392,6 +450,138 @@ function main() {
           .replace(/\.md$/, '.html');
         window.open(sitePath, '_blank', 'noopener');
       }
+    }
+  });
+
+  // ─── G-19 (#305): node context menu ──────────────────────────────────
+  const ctxMenu = document.getElementById('ctx-menu');
+  const ctxTarget = document.getElementById('ctx-target');
+  let ctxNode = null;
+
+  function showContextMenu(nodeId, clientX, clientY) {
+    const node = nodes.get(nodeId);
+    if (!node) return;
+    ctxNode = node;
+    ctxTarget.textContent = node.label || node.id;
+    // Position the menu, clamped inside the viewport.
+    ctxMenu.style.left = '0px';
+    ctxMenu.style.top = '0px';
+    ctxMenu.classList.add('show');
+    const rect = ctxMenu.getBoundingClientRect();
+    const maxX = window.innerWidth - rect.width - 8;
+    const maxY = window.innerHeight - rect.height - 8;
+    ctxMenu.style.left = Math.min(clientX, maxX) + 'px';
+    ctxMenu.style.top = Math.min(clientY, maxY) + 'px';
+    const first = ctxMenu.querySelector('button:not([disabled])');
+    if (first) first.focus();
+  }
+
+  function hideContextMenu() {
+    ctxMenu.classList.remove('show');
+    ctxNode = null;
+  }
+
+  network.on('oncontext', params => {
+    params.event.preventDefault();
+    const nodeId = network.getNodeAt(params.pointer.DOM);
+    if (nodeId) {
+      showContextMenu(nodeId, params.event.clientX, params.event.clientY);
+    } else {
+      hideContextMenu();
+    }
+  });
+
+  document.addEventListener('click', e => {
+    if (!ctxMenu.contains(e.target)) hideContextMenu();
+  });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && ctxMenu.classList.contains('show')) {
+      e.preventDefault();
+      hideContextMenu();
+    }
+  });
+
+  // Highlight the 1-hop neighbourhood of `nodeId`; dim everything else.
+  function highlightNeighbours(nodeId) {
+    const neighbourIds = new Set([nodeId]);
+    GRAPH.edges.forEach(e => {
+      if (e.source === nodeId) neighbourIds.add(e.target);
+      if (e.target === nodeId) neighbourIds.add(e.source);
+    });
+    const update = [];
+    nodes.forEach(n => {
+      const inSet = neighbourIds.has(n.id);
+      update.push({
+        id: n.id,
+        color: inSet
+          ? baseColors[n.id]
+          : { background: 'rgba(100,100,100,0.12)', border: 'rgba(100,100,100,0.25)' },
+      });
+    });
+    nodes.update(update);
+  }
+
+  async function copyToClipboard(text) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch (_) {
+      // Fallback: textarea trick for older browsers / privacy mode.
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.focus(); ta.select();
+      let ok = false;
+      try { ok = document.execCommand('copy'); } catch (_) {}
+      document.body.removeChild(ta);
+      return ok;
+    }
+  }
+
+  ctxMenu.addEventListener('click', async e => {
+    const btn = e.target.closest('button[data-action]');
+    if (!btn || btn.disabled || !ctxNode) return;
+    const action = btn.dataset.action;
+    const node = ctxNode;
+    hideContextMenu();
+    switch (action) {
+      case 'open': {
+        if (node.path) {
+          const sitePath = node.path.replace(/^wiki\//, '').replace(/\.md$/, '.html');
+          window.open(sitePath, '_blank', 'noopener');
+        }
+        break;
+      }
+      case 'neighbours':
+        highlightNeighbours(node.id);
+        break;
+      case 'copy-slug':
+        await copyToClipboard(String(node.id));
+        break;
+      case 'copy-path':
+        await copyToClipboard(String(node.path || node.id));
+        break;
+      case 'view-references': {
+        const slug = String(node.id).replace(/"/g, '\\"');
+        await copyToClipboard('llmwiki references "' + slug + '"');
+        alert('Copied CLI command to clipboard:\n\n  llmwiki references "' + slug + '"');
+        break;
+      }
+      default:
+        /* mark-stale / archive: disabled placeholder — requires edit mode */
+        break;
+    }
+  });
+
+  // Keyboard shortcuts while menu is visible.
+  ctxMenu.addEventListener('keydown', e => {
+    if (!ctxNode) return;
+    const map = { 'n': 'neighbours', 'c': 'copy-slug', 'Enter': 'open' };
+    const action = map[e.key];
+    if (action) {
+      const btn = ctxMenu.querySelector('button[data-action="' + action + '"]');
+      if (btn && !btn.disabled) { e.preventDefault(); btn.click(); }
     }
   });
 
