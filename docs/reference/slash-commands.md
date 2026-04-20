@@ -15,7 +15,7 @@ Summary of **16 commands in 4 groups**:
 
 | Group | Commands |
 |---|---|
-| **Wiki pipeline** (10) | `/wiki-init` `/wiki-sync` `/wiki-ingest` `/wiki-query` `/wiki-update` `/wiki-lint` `/wiki-review` `/wiki-graph` `/wiki-reflect` `/wiki-build` `/wiki-serve` `/wiki-export-marp` |
+| **Wiki pipeline** (10) | `/wiki-init` `/wiki-sync` `/wiki-ingest` `/wiki-query` `/wiki-update` `/wiki-lint` `/wiki-candidates` `/wiki-graph` `/wiki-reflect` `/wiki-build` `/wiki-serve` `/wiki-export-marp` |
 | **Governance / maintainer** (4) | `/maintainer` `/release` `/review-pr` `/triage-issue` |
 
 ---
@@ -147,8 +147,11 @@ want to re-run sync.
 
 ### `/wiki-lint`
 
-**What:** run all 13 lint rules (8 structural + 3 LLM-powered + 2 from
-v1.1+).
+**What:** run every registered lint rule (15 at last count: 8
+structural + 3 LLM-powered + `stale_candidates` (#51) +
+`cache_tier_consistency` (#52) + `tags_topics_convention` (#302) +
+`stale_reference_detection` (#303)). The live number is printed by
+`llmwiki lint --help`.
 
 **Wraps:** `python3 -m llmwiki lint`.
 
@@ -167,6 +170,8 @@ v1.1+).
 11. `summary_accuracy` *(LLM)*
 12. `stale_candidates`
 13. `cache_tier_consistency`
+14. `tags_topics_convention` *(G-16 · #302)*
+15. `stale_reference_detection` *(G-17 · #303)*
 
 **Example:**
 
@@ -178,7 +183,7 @@ v1.1+).
 
 ---
 
-### `/wiki-review`
+### `/wiki-candidates`
 
 **What:** triage pending candidates — `promote`, `merge`, or `discard`.
 
@@ -190,7 +195,7 @@ or `/wiki-sync` produced new `wiki/candidates/*.md` files.
 **Example:**
 
 ```
-/wiki-review
+/wiki-candidates
 ```
 
 Claude will walk the queue one at a time and offer actions per

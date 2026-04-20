@@ -295,3 +295,15 @@ def test_html_template_size_budget():
         f"HTML template is {len(HTML_TEMPLATE)} bytes — "
         "keep it under 25 kB or split into an external .html asset"
     )
+
+
+def test_graph_html_has_back_to_site_link():
+    """#268: graph.html used to be a dead end — no way to navigate back
+    to the live site without the browser back button."""
+    from llmwiki.graph import HTML_TEMPLATE
+    assert 'id="back-to-site"' in HTML_TEMPLATE, (
+        "graph.html should have a back-to-site link (see #268)"
+    )
+    assert 'href="index.html"' in HTML_TEMPLATE, (
+        "back-to-site link should point at index.html"
+    )

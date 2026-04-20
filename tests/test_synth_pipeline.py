@@ -414,3 +414,67 @@ def test_synthesize_logs_one_summary_entry_per_run(tmp_path: Path):
     )
     # Separator check: G-08 (#294) uses "→" arrow, not raw slash
     assert "sessions across" in synth_headings[0]
+
+
+# ─── Baseline tags guarantee (#271 follow-up) ───────────────────────────
+
+
+def test_derive_baseline_tags_preserves_existing():
+    from llmwiki.synth.pipeline import _derive_baseline_tags
+    tags = _derive_baseline_tags({
+        "tags": ["claude-code", "session-transcript"],
+        "project": "demo", "model": "claude-sonnet-4-6",
+    })
+    assert "claude-code" in tags
+    assert "session-transcript" in tags
+
+
+def test_derive_baseline_tags_adds_project_slug():
+    from llmwiki.synth.pipeline import _derive_baseline_tags
+    tags = _derive_baseline_tags({
+        "tags": [], "project": "my-project", "model": "",
+    })
+    assert "my-project" in tags
+
+
+def test_derive_baseline_tags_adds_session_transcript_marker():
+    from llmwiki.synth.pipeline import _derive_baseline_tags
+    tags = _derive_baseline_tags({"tags": [], "project": "", "model": ""})
+    assert "session-transcript" in tags
+    assert len(tags) >= 1  # never empty
+
+
+def test_derive_baseline_tags_collapses_model_to_family():
+    from llmwiki.synth.pipeline import _derive_baseline_tags
+    tags = _derive_baseline_tags({
+        "tags": [], "project": "", "model": "claude-sonnet-4-6",
+    })
+    assert "claude" in tags
+
+
+def test_derive_baseline_tags_deduplicates():
+    from llmwiki.synth.pipeline import _derive_baseline_tags
+    tags = _derive_baseline_tags({
+        "tags": ["claude-code", "demo"],
+        "project": "demo", "model": "claude-sonnet-4-6",
+    })
+    # `demo` already present as a raw tag — project shouldn't duplicate it.
+    assert tags.count("demo") == 1
+
+
+def test_derive_baseline_tags_skips_unknown_project():
+    from llmwiki.synth.pipeline import _derive_baseline_tags
+    tags = _derive_baseline_tags({"tags": [], "project": "unknown", "model": ""})
+    assert "unknown" not in tags
+
+
+def test_build_source_page_always_has_non_empty_tags():
+    """#271 follow-up: the synthesize pipeline must never emit a page
+    with empty `tags: []` — that was tripping the new
+    tags_topics_convention lint rule."""
+    from llmwiki.synth.pipeline import _build_source_page
+    # Completely bare metadata — worst case.
+    page = _build_source_page({}, "body")
+    # Frontmatter should have a tag list with at least one entry.
+    fm_line = [ln for ln in page.splitlines() if ln.startswith("tags:")][0]
+    assert "tags: []" not in fm_line, "synth pages must never have empty tags"

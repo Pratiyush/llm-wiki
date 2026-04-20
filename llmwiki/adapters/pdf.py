@@ -45,6 +45,9 @@ except ImportError:
 class PdfAdapter(BaseAdapter):
     """PDF files — reads user-configured directories (optional pypdf dep)"""
 
+    #: #326: PDFs are user-provided documents, not AI sessions.
+    is_ai_session = False
+
     SUPPORTED_SCHEMA_VERSIONS = ["v1"]
 
     DEFAULT_ROOTS: list[Path] = []  # no defaults — user must configure

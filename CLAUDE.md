@@ -191,7 +191,7 @@ Operations: `sync`, `ingest`, `query`, `lint`, `build`.
 
 ## Hard rules
 
-1. **`raw/` is immutable.** Never modify files under `raw/`. If source data is wrong, fix the converter, not the output.
+1. **`raw/` is immutable.** Never modify files under `raw/`. If source data is wrong, fix the converter, not the output. **Enforced at runtime as of #326**: `llmwiki sync` refuses to overwrite an existing `raw/` file unless you pass `--force`; failures go into `.llmwiki-quarantine.json` so you can see what didn't sync and why. Non-AI adapters (Obsidian, Jira, Meeting, PDF) are opt-in only — they never fire on a default `sync` without explicit `enabled: true` in `sessions_config.json`.
 2. **No silent overwrites.** When ingest conflicts with existing wiki content, record both claims under `## Contradictions`.
 3. **Cross-link everything.** Every page should have a `## Connections` section with at least one `[[wikilink]]`.
 4. **Frontmatter is authoritative.** Always fill `title`, `type`, `tags`, `sources` (where applicable), and `last_updated`.

@@ -1,6 +1,7 @@
 ---
 title: "Claude Sonnet 4"
 type: entity
+tags: [ai-model, anthropic, claude, llm, frontier-model]
 entity_kind: ai-model
 provider: Anthropic
 model: {"context_window": 200000, "max_output": 8192, "license": "proprietary", "released": "2026-03-18"}

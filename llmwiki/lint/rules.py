@@ -1,4 +1,4 @@
-"""All 11 lint rules (v1.0 · #155).
+"""All registered lint rules (v1.0 · #155).
 
 Basic rules (8, no LLM):
   1. frontmatter_completeness  — required fields present
@@ -7,13 +7,22 @@ Basic rules (8, no LLM):
   4. orphan_detection           — pages with zero inbound links
   5. content_freshness          — last_updated > 90 days → warning
   6. entity_consistency         — entities in body match frontmatter
-  7. duplicate_detection        — >80% title similarity
+  7. duplicate_detection        — same-project + title + body similarity
   8. index_sync                 — pages in index.md ↔ pages on disk
 
 LLM-powered rules (3):
   9. contradiction_detection
   10. claim_verification
   11. summary_accuracy
+
+Post-v1.0 rules:
+  12. stale_candidates            (v1.1 · #51)
+  13. cache_tier_consistency      (v1.2 · #52)
+  14. tags_topics_convention      (G-16 · #302)
+  15. stale_reference_detection   (G-17 · #303)
+
+The live rule count lives in ``llmwiki.lint.REGISTRY`` — prefer
+``len(REGISTRY)`` over hard-coded numbers in docs + help strings.
 """
 
 from __future__ import annotations
@@ -514,7 +523,7 @@ class StaleCandidates(LintRule):
                 "page": cand["rel_path"],
                 "message": (
                     f"candidate '{cand['slug']}' is {cand['age_days']} days old "
-                    f"(threshold {self.STALE_DAYS}) — review with `/wiki-review`"
+                    f"(threshold {self.STALE_DAYS}) — review with `/wiki-candidates`"
                 ),
             })
         return issues

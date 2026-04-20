@@ -77,6 +77,32 @@ def load_config(path: Path) -> dict[str, Any]:
     return cfg
 
 
+def _raw_write_guard(
+    out_path: Path,
+    *,
+    force: bool,
+    source: str,
+    adapter_name: str,
+) -> None:
+    """Hard-guard raw/ immutability (#326).
+
+    CLAUDE.md says "raw/ is immutable" but today the invariant is
+    enforced only by the mtime state file.  This helper turns it into
+    a runtime check: if ``out_path`` already exists and ``force`` is
+    False, raise ``FileExistsError`` so the caller can quarantine +
+    skip instead of silently overwriting.
+
+    Bypass only via the existing ``llmwiki sync --force`` flag.
+    """
+    if not out_path.exists() or force:
+        return
+    raise FileExistsError(
+        f"refusing to overwrite existing raw file {out_path} "
+        f"(source: {source}, adapter: {adapter_name}); "
+        f"pass --force to bypass or delete the file first"
+    )
+
+
 def _portable_state_key(adapter_name: str, path: Path) -> str:
     """Return a portable state-file key for ``path`` (G-04 · #290).
 
@@ -918,7 +944,21 @@ def convert_all(
                 return 2
             selected.append(REGISTRY[name])
     else:
-        selected = [cls for cls in REGISTRY.values() if cls.is_available()]
+        # #326: default-fire only AI-session adapters. Non-AI adapters
+        # (obsidian, jira, meeting, pdf) must be explicitly enabled via
+        # ``sessions_config.json`` with ``{<name>: {enabled: true}}`` —
+        # otherwise ``llmwiki sync`` never walks a user's personal
+        # Obsidian vault or ingests their Jira tickets silently.
+        for cls in REGISTRY.values():
+            if not cls.is_available():
+                continue
+            adapter_cfg = config.get(cls.name, {}) if isinstance(config, dict) else {}
+            explicit_enabled = (
+                isinstance(adapter_cfg, dict)
+                and adapter_cfg.get("enabled") is True
+            )
+            if getattr(cls, "is_ai_session", True) or explicit_enabled:
+                selected.append(cls)
 
     if not selected:
         print("No adapters available. Install Claude Code or Codex CLI first.", file=sys.stderr)
@@ -991,6 +1031,14 @@ def convert_all(
                     print(f"  [dry-run] {out_path.relative_to(REPO_ROOT) if out_path.is_relative_to(REPO_ROOT) else out_path} ({len(text)} bytes)")
                 else:
                     out_path.parent.mkdir(parents=True, exist_ok=True)
+                    try:
+                        _raw_write_guard(out_path, force=force, source=str(path),
+                                         adapter_name=cls.name)
+                    except FileExistsError as e:
+                        errors += 1
+                        _bump(cls.name, "errored")
+                        _quarantine_add(cls.name, str(path), str(e))
+                        continue
                     out_path.write_text(redact(text), encoding="utf-8")
                     state[key] = mtime
                 converted += 1
@@ -1016,6 +1064,14 @@ def convert_all(
                     print(f"  [dry-run] {out_path.relative_to(REPO_ROOT) if out_path.is_relative_to(REPO_ROOT) else out_path} ({len(md)} bytes)")
                 else:
                     out_path.parent.mkdir(parents=True, exist_ok=True)
+                    try:
+                        _raw_write_guard(out_path, force=force, source=str(path),
+                                         adapter_name=cls.name)
+                    except FileExistsError as e:
+                        errors += 1
+                        _bump(cls.name, "errored")
+                        _quarantine_add(cls.name, str(path), str(e))
+                        continue
                     out_path.write_text(md, encoding="utf-8")
                     state[key] = mtime
                 converted += 1
@@ -1059,6 +1115,14 @@ def convert_all(
                 print(f"  [dry-run] {out_path.relative_to(REPO_ROOT)} ({len(md)} bytes)")
             else:
                 out_path.parent.mkdir(parents=True, exist_ok=True)
+                try:
+                    _raw_write_guard(out_path, force=force, source=str(path),
+                                     adapter_name=cls.name)
+                except FileExistsError as e:
+                    errors += 1
+                    _bump(cls.name, "errored")
+                    _quarantine_add(cls.name, str(path), str(e))
+                    continue
                 out_path.write_text(md, encoding="utf-8")
                 state[key] = mtime
             converted += 1

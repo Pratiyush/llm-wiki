@@ -45,7 +45,7 @@ docker compose run --rm llmwiki build
 # Sync session transcripts (needs host agent stores bind-mounted)
 docker compose run --rm llmwiki sync --dry-run
 
-# Run all 11 lint rules
+# Run every registered lint rule (15 at last count — see `llmwiki lint --help`)
 docker compose run --rm llmwiki lint --fail-on-errors
 
 # Generate a knowledge graph

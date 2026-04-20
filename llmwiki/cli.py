@@ -234,7 +234,15 @@ def _adapter_status(
     else:
         configured = "auto"
     available = adapter_cls.is_available()
-    will_fire = "yes" if available and configured != "off" else "no"
+    # #326: non-AI adapters are opt-in only, so ``auto`` on an Obsidian /
+    # Jira / Meeting / PDF adapter means "available but won't fire".
+    is_ai = getattr(adapter_cls, "is_ai_session", True)
+    if configured == "off":
+        will_fire = "no"
+    elif configured == "explicit":
+        will_fire = "yes" if available else "no"
+    else:  # auto
+        will_fire = "yes" if (available and is_ai) else "no"
     return configured, will_fire
 
 
@@ -813,8 +821,8 @@ def cmd_manifest(args: argparse.Namespace) -> int:
 
 
 def cmd_lint(args: argparse.Namespace) -> int:
-    """Run all 11 lint rules against the wiki and print a report."""
-    from llmwiki.lint import load_pages, run_all, summarize
+    """Run every registered lint rule against the wiki and print a report."""
+    from llmwiki.lint import REGISTRY, load_pages, run_all, summarize  # noqa: F401
 
     wiki_dir = args.wiki_dir or (REPO_ROOT / "wiki")
     if not wiki_dir.is_dir():
@@ -1509,10 +1517,12 @@ def build_parser() -> argparse.ArgumentParser:
     mf.add_argument("--fail-on-violations", action="store_true")
     mf.set_defaults(func=cmd_manifest)
 
-    # lint (v1.0, #155) — 11 lint rules
+    # lint (v1.0, #155) — live count via the rule registry (currently 15)
+    from llmwiki.lint import REGISTRY as _LINT_REG
+    from llmwiki.lint import rules as _lint_rules  # noqa: F401 — force registration
     lint = sub.add_parser(
         "lint",
-        help="Run all 11 lint rules against the wiki (8 basic + 3 LLM-powered)",
+        help=f"Run all {len(_LINT_REG)} lint rules against the wiki",
     )
     lint.add_argument("--wiki-dir", type=Path, default=None,
                       help="Wiki directory (default: ./wiki)")

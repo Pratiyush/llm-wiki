@@ -1,6 +1,7 @@
 ---
 title: "GPT-5"
 type: entity
+tags: [ai-model, openai, gpt, llm, multimodal, frontier-model]
 entity_kind: ai-model
 provider: OpenAI
 model: {"context_window": 128000, "max_output": 16384, "license": "proprietary", "released": "2026-02-14"}

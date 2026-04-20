@@ -283,6 +283,13 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
 </head>
 <body>
 <div id="header">
+  <!-- #268: lightweight back-to-site link so graph.html isn't a dead end -->
+  <a href="index.html" class="control" id="back-to-site"
+     aria-label="Back to the main site"
+     style="text-decoration: none; color: var(--g-muted);">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
+    <span style="margin-left: 4px;">Home</span>
+  </a>
   <h1>llmwiki — Knowledge Graph</h1>
   <span class="crumbs" id="top-crumbs"></span>
   <span class="spacer"></span>

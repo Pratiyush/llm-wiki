@@ -38,7 +38,7 @@ When you need to recall something:
 
 Weekly:
   /wiki-lint            (spot broken links, orphans)
-  /wiki-review          (approve any candidates)
+  /wiki-candidates          (approve any candidates)
 ```
 
 **What you get:** an always-current wiki that takes ~30 seconds of

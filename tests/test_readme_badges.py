@@ -113,11 +113,71 @@ def test_test_count_badge_is_a_reasonable_number(readme_text: str):
     m = TEST_COUNT_RE.search(readme_text)
     assert m is not None
     count = int(m.group(1))
-    # We currently ship well over 1000 tests. If the badge drifts below
+    # We currently ship well over 2000 tests. If the badge drifts below
     # that threshold it's almost certainly stale or truncated.
-    assert count >= 1000, (
+    assert count >= 2000, (
         f"test-count badge reports {count} passing — that's suspiciously "
         "low; refresh the badge from the latest pytest run"
+    )
+
+
+# ─── #271: no hard-coded "11 lint rules" references in user-facing docs ─
+
+
+def test_no_stale_lint_rule_counts_in_user_docs():
+    """Lint-rule count changes when we add rules. Hard-coded numbers in
+    user-facing docs rot. We pin to the live ``REGISTRY`` as the source
+    of truth — this test flags any hard-coded '11 lint rules' /
+    '13 lint rules' string in README / CLI help / top-level design docs,
+    **unless** the surrounding line also mentions a historical release
+    (v0.x.y) — those are legitimate release-notes references."""
+    from llmwiki.lint import REGISTRY
+    from llmwiki.lint import rules  # noqa: F401 — force registration
+    live = len(REGISTRY)
+    assert live >= 15, "unexpectedly low lint-rule count"
+
+    targets = [
+        REPO_ROOT / "README.md",
+        REPO_ROOT / "CLAUDE.md",
+        REPO_ROOT / "docs" / "reference" / "slash-commands.md",
+        REPO_ROOT / "docs" / "deploy" / "docker.md",
+    ]
+    stale_phrases = (
+        "11 lint rules",  # pre-#51 / pre-#52 docs
+        "13 lint rules",  # pre-#302 / pre-#303 docs
+    )
+    offenders: list[str] = []
+    for p in targets:
+        if not p.is_file():
+            continue
+        text = p.read_text(encoding="utf-8")
+        for phrase in stale_phrases:
+            # Walk every occurrence individually; skip lines that cite
+            # a historical release (v0.x.y or v1.x.y-rcN) nearby.
+            start = 0
+            while True:
+                i = text.find(phrase, start)
+                if i < 0:
+                    break
+                # Inspect the containing line.
+                line_start = text.rfind("\n", 0, i) + 1
+                line_end = text.find("\n", i)
+                if line_end < 0:
+                    line_end = len(text)
+                line = text[line_start:line_end]
+                historical = bool(re.search(
+                    r"\bv0\.\d+\.(?:\d+|x)|v1\.\d+\.\d+-rc\d+", line
+                ))
+                if not historical:
+                    offenders.append(
+                        f"{p.relative_to(REPO_ROOT)}:line {text[:i].count(chr(10)) + 1}: "
+                        f"contains {phrase!r}"
+                    )
+                start = i + len(phrase)
+    assert not offenders, (
+        "stale lint-rule counts in user-facing docs — update to the "
+        f"live count ({live}) or reference it dynamically:\n  "
+        + "\n  ".join(offenders)
     )
 
 

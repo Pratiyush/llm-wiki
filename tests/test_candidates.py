@@ -335,14 +335,19 @@ def test_stale_candidates_lint_rule_registered():
 # ─── Slash command ───────────────────────────────────────────────────
 
 
-def test_wiki_review_slash_command_exists():
+def test_wiki_candidates_slash_command_exists():
+    """#272: renamed from `wiki-review` → `wiki-candidates` so the slash
+    matches the CLI subcommand (`llmwiki candidates …`)."""
     from llmwiki import REPO_ROOT
-    cmd = REPO_ROOT / ".claude" / "commands" / "wiki-review.md"
+    cmd = REPO_ROOT / ".claude" / "commands" / "wiki-candidates.md"
     assert cmd.is_file()
     text = cmd.read_text(encoding="utf-8")
     assert "promote" in text
     assert "merge" in text
     assert "discard" in text
+    # And the old name must be gone so docs can't regress.
+    old = REPO_ROOT / ".claude" / "commands" / "wiki-review.md"
+    assert not old.exists(), "old /wiki-review name should be removed"
 
 
 # ─── CLI integration ────────────────────────────────────────────────

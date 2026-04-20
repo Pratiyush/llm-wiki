@@ -34,6 +34,9 @@ from llmwiki.adapters.base import BaseAdapter
 class MeetingAdapter(BaseAdapter):
     """Meeting transcript adapter — VTT, SRT, and plain-text transcripts."""
 
+    #: #326: Meeting transcripts are user content, not AI sessions.
+    is_ai_session = False
+
     session_store_path: Path | list[Path] = Path("~/meetings")
 
     def __init__(self, config: dict[str, Any] | None = None):

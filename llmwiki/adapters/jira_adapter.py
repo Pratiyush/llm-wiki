@@ -52,6 +52,9 @@ def _j2m_available() -> bool:
 class JiraAdapter(BaseAdapter):
     """Jira REST API adapter — fetches tickets and converts to markdown."""
 
+    #: #326: Jira tickets are organisational content, not AI sessions.
+    is_ai_session = False
+
     session_store_path: Path | list[Path] = Path("/dev/null")
 
     def __init__(self, config: dict[str, Any] | None = None):

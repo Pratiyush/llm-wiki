@@ -299,6 +299,44 @@ def _discover_raw_sessions(
     return out
 
 
+def _derive_baseline_tags(meta: dict[str, Any]) -> list[str]:
+    """Return a never-empty baseline tag list for synthesized source pages.
+
+    Takes the raw session's ``meta["tags"]`` and augments it with tags
+    derived from the project slug + model (when the raw list is empty
+    or just carries the boilerplate ``[session-transcript]``).  The
+    goal: **every** synthesized page leaves the pipeline with at least
+    one meaningful tag so filters / graph chips / the new
+    ``tags_topics_convention`` lint rule don't see empty lists.
+    """
+    out: list[str] = []
+    seen: set[str] = set()
+    # Start with whatever the raw frontmatter shipped.
+    for t in meta.get("tags", []) or []:
+        t = str(t).strip()
+        if t and t not in seen:
+            out.append(t)
+            seen.add(t)
+    # Ensure the adapter source stamp (claude-code / codex-cli / obsidian / …)
+    # appears at least as session-transcript so routing by source stays cheap.
+    if "session-transcript" not in seen and "claude-code" not in seen:
+        out.append("session-transcript")
+        seen.add("session-transcript")
+    # Add the project slug as a tag so filters-by-project work out-of-the-box.
+    project = str(meta.get("project", "") or "").strip()
+    if project and project != "unknown" and project not in seen:
+        out.append(project)
+        seen.add(project)
+    # Model family as a coarse bucket (claude-sonnet-4-6 → claude).
+    model = str(meta.get("model", "") or "").strip().lower()
+    for family in ("claude", "gpt", "gemini", "llama", "opus"):
+        if family in model and family not in seen:
+            out.append(family)
+            seen.add(family)
+            break
+    return out
+
+
 def _build_source_page(
     meta: dict[str, Any],
     synthesized_body: str,
@@ -310,12 +348,13 @@ def _build_source_page(
     date = meta.get("date", "")
     model = meta.get("model", "")
     source_file = meta.get("source_file", "")
+    tags = _derive_baseline_tags(meta)
 
     fm = [
         "---",
         f'title: "{title}"',
         "type: source",
-        f"tags: [{', '.join(meta.get('tags', []))}]",
+        f"tags: [{', '.join(tags)}]",
         f"date: {date}",
         f"source_file: {source_file}",
         f"project: {project}",

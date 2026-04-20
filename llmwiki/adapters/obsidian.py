@@ -33,6 +33,11 @@ from llmwiki.adapters.base import BaseAdapter
 class ObsidianAdapter(BaseAdapter):
     """Obsidian — reads .md files from an Obsidian vault"""
 
+    #: #326: Obsidian is user-authored content, not an AI session store.
+    #: Opt-in only so ``llmwiki sync`` never silently ingests a user's
+    #: personal vault.
+    is_ai_session = False
+
     SUPPORTED_SCHEMA_VERSIONS = ["1.x"]
 
     DEFAULT_VAULT_PATHS = [

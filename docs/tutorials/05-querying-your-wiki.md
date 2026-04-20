@@ -31,7 +31,7 @@ type `/`.
 | `/wiki-sync` | Convert new sessions → markdown → ingest → auto-build |
 | `/wiki-ingest <path>` | Ingest one source or folder into `wiki/` |
 | `/wiki-query <q>` | Answer a question from the wiki |
-| `/wiki-review` | Triage pending candidates (promote / merge / discard) |
+| `/wiki-candidates` | Triage pending candidates (promote / merge / discard) |
 | `/wiki-lint` | Run 13 structural + LLM-powered lint rules |
 | `/wiki-graph` | Build the interactive knowledge graph |
 | `/wiki-build` | Regenerate `site/` |
@@ -120,7 +120,7 @@ hasn't seen before), it drops a candidate file rather than writing
 directly to `wiki/entities/`.
 
 ```
-/wiki-review
+/wiki-candidates
 ```
 
 For each candidate, Claude Code offers three actions:
@@ -153,7 +153,7 @@ your latest session. Do that first; it rebuilds `overview.md`.
 signal. Either link the page from somewhere (`/wiki-update`) or remove it if
 it's no longer useful.
 
-**`/wiki-review` shows candidates you thought you'd merged** — check
+**`/wiki-candidates` shows candidates you thought you'd merged** — check
 `wiki/candidates/<kind>/` — the file is still there. The slash command may
 have failed partway; run `python3 -m llmwiki candidates list` to see the
 canonical queue.

@@ -234,3 +234,19 @@ def test_generated_html_works_in_dark_mode():
     # (moved to css.py later, but for now lives here).
     # Alternative check: palette through-line is present.
     assert "data-theme" in html or "#7C3AED" in html  # at least one palette hook
+
+
+def test_every_prototype_state_has_back_to_site_link():
+    """#268: Prototype pages used to be dead-ends — no way back to the
+    live site without the browser back button. Every rendered state
+    must now include both a ← Back to site and an All prototypes link."""
+    from llmwiki.prototypes import PROTOTYPE_STATES, render_state
+    for state in PROTOTYPE_STATES:
+        html = render_state(state)
+        assert "Back to site" in html, f"{state.slug} missing Back-to-site link"
+        assert 'href="../index.html"' in html, (
+            f"{state.slug} back link doesn't point at the site root"
+        )
+        assert "All prototypes" in html, (
+            f"{state.slug} missing link back to the prototypes hub"
+        )

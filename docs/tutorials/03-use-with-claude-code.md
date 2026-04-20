@@ -54,7 +54,7 @@ You should see:
 
 ```
 wiki-build.md      wiki-graph.md      wiki-ingest.md     wiki-lint.md
-wiki-query.md      wiki-review.md     wiki-serve.md      wiki-sync.md
+wiki-query.md      wiki-candidates.md     wiki-serve.md      wiki-sync.md
 wiki-update.md     wiki-reflect.md
 ```
 
@@ -106,7 +106,7 @@ directly to `wiki/entities/`. It drops the draft into
 `wiki/candidates/entities/` with `status: candidate` so you can gate it:
 
 ```
-/wiki-review
+/wiki-candidates
 ```
 
 Claude Code will walk you through pending candidates and offer
@@ -143,7 +143,7 @@ Zero errors = wiki is valid. Warnings are fine as long as they're tracked.
 ```
 Open Claude Code, work on something.
 /wiki-sync            (after the session)
-/wiki-review          (if it flagged candidates)
+/wiki-candidates          (if it flagged candidates)
 /wiki-query <q>       (when you need to recall)
 ```
 

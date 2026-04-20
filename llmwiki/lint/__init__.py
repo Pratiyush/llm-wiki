@@ -1,7 +1,9 @@
 """Lint rule registry (v1.0 · #155).
 
-Implements the 11 lint rules from the LLM Book design spec
-(08-quality-maintenance.md). Each rule is a subclass of :class:`LintRule`
+Originally the 11 rules from the LLM Book design spec
+(08-quality-maintenance.md); has since grown past that.  The live
+count is ``len(REGISTRY)`` — see ``llmwiki/lint/rules.py`` for the
+canonical list.  Each rule is a subclass of :class:`LintRule`
 registered via the ``@register`` decorator.
 
 Usage::

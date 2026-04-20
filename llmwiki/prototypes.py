@@ -150,6 +150,18 @@ _BASE_HEAD = """\
 </head>
 <body>
 <div class="proto-stripe" aria-hidden="true"></div>
+<!-- #268 (G-19 cousin): give reviewers a way back to the live site
+     without having to use the browser back button. -->
+<nav class="proto-backnav" aria-label="Back to site"
+     style="max-width: 960px; margin: 8px auto 0; padding: 0 24px; font-size: 0.85rem;">
+  <a href="../index.html" style="color: var(--text-muted); text-decoration: none;">
+    ← Back to site
+  </a>
+  <span style="color: var(--text-muted); margin: 0 6px;">·</span>
+  <a href="index.html" style="color: var(--text-muted); text-decoration: none;">
+    All prototypes
+  </a>
+</nav>
 <main class="proto-frame">
 """
 

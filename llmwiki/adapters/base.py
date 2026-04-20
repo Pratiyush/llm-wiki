@@ -31,6 +31,14 @@ class BaseAdapter:
     #: Subclasses MUST override.
     session_store_path: Path | list[Path] = Path("/dev/null")
 
+    #: True if this adapter wraps an **AI coding-agent session store**
+    #: (Claude Code, Codex CLI, Copilot, Cursor, Gemini, etc.).  False
+    #: for adapters over user content (Obsidian vaults, Jira tickets,
+    #: meeting transcripts, PDFs) — those are opt-in only so
+    #: ``llmwiki sync`` never silently ingests non-session content.
+    #: See #326.
+    is_ai_session: bool = True
+
     def __init__(self, config: dict[str, Any] | None = None):
         self.config = config or {}
 
