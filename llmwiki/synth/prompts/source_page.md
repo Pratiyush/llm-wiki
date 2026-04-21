@@ -12,7 +12,26 @@ conversation transcript.
 Produce ONLY the body sections below (no frontmatter — the caller
 adds that). Use `[[wikilinks]]` for cross-references.
 
+The FIRST line of your response MUST be a suggested-tags HTML
+comment listing 3–5 topical tags (kebab-case, lowercase, no spaces)
+that describe *what the session was about*, not who produced it:
+
+```
+<!-- suggested-tags: prompt-caching, anthropic-api, token-budget -->
+```
+
+Good tags name concrete subjects a reader would search for (e.g.
+`prompt-caching`, `rag`, `regex-vs-llm`, `github-actions`, `sqlite-fts`).
+Bad tags are broad (`coding`, `discussion`) or structural (`summary`,
+`session`) — the pipeline already emits those.  Do NOT repeat the
+adapter (`claude-code`, `codex-cli`), project slug, or model family
+(`claude`, `gpt`) — those are added deterministically.
+
+Emit the comment, then a blank line, then the body:
+
 ```markdown
+<!-- suggested-tags: ..., ..., ... -->
+
 ## Summary
 
 2-4 sentence synthesis of what the session accomplished. Focus on

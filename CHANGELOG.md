@@ -8,6 +8,10 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
+### Added
+
+- **Automatic AI-suggested tags during synthesis** (#351) — before rc6 every wiki source page shipped with a deterministic-only tag list (`[<adapter>, session-transcript, <project>, <model-family>]`).  Readers got no *topical* signal — a session about prompt caching looked the same as a session about SQLite FTS.  Now the synthesizer's own call (Anthropic API in API mode, Ollama in Agent mode) emits a `<!-- suggested-tags: prompt-caching, anthropic-api, token-budget -->` block as the first line of its response, which `_extract_suggested_tags` parses and strips before the body hits disk.  `_merge_tags` then folds those topical tags into the deterministic baseline with (a) maintainer-curated tags preserved first (re-synthesize never overwrites hand edits), (b) stop-word filter so the LLM can't re-add `claude-code` / `session` / `summary`, (c) hard cap of 5 AI tags per page, (d) near-duplicate rejection at threshold 0.80 + prefix-containment check so `prompt-cache` gets blocked when `prompt-caching` already exists.  Zero extra API round-trips — rides the existing synthesis call.  22 new tests in `tests/test_ai_suggested_tags.py` cover parsing, merging, de-dup, stop-words, caps, re-synthesize preservation, and malformed-input graceful fallback.
+
 ## [1.1.0-rc6] — 2026-04-21
 
 rc6 batch.  Closes 4 open issues: #346 (adapter tag fix), #282 (tutorial UX), #277 (palette indexes), #283 (md cache).

@@ -299,6 +299,140 @@ def _discover_raw_sessions(
     return out
 
 
+# ─── #351: AI-suggested tags ──────────────────────────────────────────
+
+# Emitted by the LLM as the first line of its response — we strip it
+# from the body before writing, merge the tags into the frontmatter.
+# Format: ``<!-- suggested-tags: a, b, c -->``
+_SUGGESTED_TAGS_RE = re.compile(
+    r"^\s*<!--\s*suggested-tags:\s*(?P<body>[^>]*?)\s*-->\s*\n?",
+    re.IGNORECASE,
+)
+
+# Cap on AI-suggested tags per page (deterministic baseline is separate
+# and never counted against this budget).  5 keeps the frontmatter list
+# readable and prevents runaway tag-space growth on noisy sessions.
+_AI_TAG_CAP = 5
+
+# Tags the LLM sometimes proposes that duplicate the deterministic
+# baseline or add no value — drop silently so we don't pollute the tag
+# space with boilerplate the pipeline already emits.
+_AI_TAG_STOPWORDS = frozenset({
+    "session-transcript", "session", "claude-code", "codex-cli", "cursor",
+    "copilot-chat", "gemini-cli", "opencode", "chatgpt", "obsidian",
+    "claude", "gpt", "gemini", "llama", "opus",
+    "summary", "discussion", "conversation", "transcript",
+    # Empty-ish noise from malformed LLM responses.
+    "", "-", "tag", "tags",
+})
+
+
+def _extract_suggested_tags(body: str) -> tuple[list[str], str]:
+    """Pull the ``<!-- suggested-tags: … -->`` block off the top of
+    ``body`` and return ``(tags, cleaned_body)``.
+
+    Invariants:
+
+    * Missing / malformed block → ``([], body)`` (body untouched).
+    * Tags are kebab-cased + lowercased + deduped preserving order.
+    * Empty strings / stop-words filtered out.
+    * Hard-capped at :data:`_AI_TAG_CAP` before stop-word filtering so
+      a noisy LLM can't drown out the cap check.
+
+    Runs in pure Python — no LLM call.  This just parses whatever the
+    synthesizer already produced.
+    """
+    m = _SUGGESTED_TAGS_RE.match(body)
+    if not m:
+        return [], body
+    raw = m.group("body") or ""
+    cleaned_body = body[m.end():]
+    # Split on comma, normalise each.
+    tags: list[str] = []
+    seen: set[str] = set()
+    for part in raw.split(","):
+        t = part.strip().lower().replace(" ", "-")
+        if not t or t in seen or t in _AI_TAG_STOPWORDS:
+            continue
+        tags.append(t)
+        seen.add(t)
+        if len(tags) >= _AI_TAG_CAP:
+            break
+    return tags, cleaned_body
+
+
+def _merge_tags(
+    baseline: list[str],
+    suggested: list[str],
+    existing: Optional[list[str]] = None,
+) -> list[str]:
+    """Merge the three tag sources into the final frontmatter list.
+
+    Precedence (first-win, order preserved):
+
+    1. Maintainer-curated ``existing`` tags (preserve on re-synthesize).
+    2. Deterministic ``baseline`` (adapter + project + model family).
+    3. AI-``suggested`` topical tags — only if they don't collide with
+       or near-duplicate something already in 1 or 2.
+
+    Near-duplicate detection uses ``tags.near_duplicate_tags`` so we
+    reject ``prompt-cache`` when ``prompt-caching`` is already present.
+    """
+    # Local import to avoid a circular at module load.
+    from llmwiki.tags import near_duplicate_tags, TagEntry
+
+    out: list[str] = []
+    seen: set[str] = set()
+
+    def _push(tag: str) -> None:
+        t = tag.strip()
+        if not t:
+            return
+        key = t.lower()
+        if key in seen:
+            return
+        out.append(t)
+        seen.add(key)
+
+    for t in (existing or []):
+        _push(t)
+    for t in baseline:
+        _push(t)
+    # For each suggested tag, skip if a near-duplicate already exists.
+    # Uses a tighter threshold (0.80) than the CLI default (0.85) — we
+    # want auto-merge to be conservative so ``prompt-cache`` (0.846 vs
+    # ``prompt-caching``) gets rejected at ingest time.  Maintainers can
+    # still add it explicitly via ``llmwiki tag add``.
+    if suggested:
+        existing_snapshot = list(out)
+        for candidate in suggested:
+            candidate_lc = candidate.lower()
+            # Cheap prefix check: one is a prefix of the other.
+            def _substr_near(a: str, b: str) -> bool:
+                a_l, b_l = a.lower(), b.lower()
+                if a_l == b_l:
+                    return True
+                shorter, longer = sorted((a_l, b_l), key=len)
+                return len(shorter) >= 5 and shorter in longer
+            if any(_substr_near(candidate, existing_t) for existing_t in existing_snapshot):
+                continue
+            # Expensive fuzzy check for other near-dupes (typos, plural, etc.).
+            entries = [
+                TagEntry(page=Path("/virtual"), field="tags", tag=t)
+                for t in existing_snapshot + [candidate]
+            ]
+            dups = near_duplicate_tags(entries, threshold=0.80)
+            collides = any(
+                candidate_lc in (a.lower(), b.lower()) and a.lower() != b.lower()
+                for (a, b, _score) in dups
+            )
+            if collides:
+                continue
+            _push(candidate)
+            existing_snapshot.append(candidate)
+    return out
+
+
 def _derive_baseline_tags(meta: dict[str, Any]) -> list[str]:
     """Return a never-empty baseline tag list for synthesized source pages.
 
@@ -340,15 +474,45 @@ def _derive_baseline_tags(meta: dict[str, Any]) -> list[str]:
 def _build_source_page(
     meta: dict[str, Any],
     synthesized_body: str,
+    existing_page_path: Optional[Path] = None,
 ) -> str:
-    """Combine frontmatter + synthesized body into a full wiki source page."""
+    """Combine frontmatter + synthesized body into a full wiki source page.
+
+    #351: If the ``synthesized_body`` starts with a
+    ``<!-- suggested-tags: ... -->`` block (emitted by the LLM per the
+    ``source_page.md`` prompt), the tags are extracted, de-duplicated
+    against the deterministic baseline, and merged into the frontmatter.
+    The comment is stripped from the body so it never reaches the
+    rendered site.
+
+    If ``existing_page_path`` points at an existing wiki source file,
+    its current frontmatter ``tags`` are preserved verbatim (maintainer
+    curation is never overwritten on re-synthesize).
+    """
     slug = meta.get("slug", "unknown")
     title = meta.get("title", f"Source: {slug}")
     project = meta.get("project", "unknown")
     date = meta.get("date", "")
     model = meta.get("model", "")
     source_file = meta.get("source_file", "")
-    tags = _derive_baseline_tags(meta)
+
+    # #351: pull AI-suggested tags off the top of the body.
+    ai_tags, clean_body = _extract_suggested_tags(synthesized_body)
+
+    # Preserve any maintainer-curated tags on re-synthesize.
+    existing_tags: list[str] = []
+    if existing_page_path is not None and existing_page_path.exists():
+        try:
+            existing_meta, _existing_body = parse_frontmatter(
+                existing_page_path.read_text(encoding="utf-8")
+            )
+            existing_tags = list(existing_meta.get("tags", []) or [])
+        except Exception:
+            # Never fail synthesis on a frontmatter read error.
+            existing_tags = []
+
+    baseline = _derive_baseline_tags(meta)
+    tags = _merge_tags(baseline, ai_tags, existing_tags)
 
     fm = [
         "---",
@@ -363,7 +527,7 @@ def _build_source_page(
         "---",
         "",
     ]
-    return "\n".join(fm) + synthesized_body
+    return "\n".join(fm) + clean_body
 
 
 def synthesize_new_sessions(
@@ -459,13 +623,15 @@ def synthesize_new_sessions(
             )
             synthesized = backend.synthesize_source_page(body, meta, prompt)
 
-            # Build the full wiki source page
-            page_content = _build_source_page(meta, synthesized)
-
-            # Write to wiki/sources/<project>/<date>-<slug>.md  (G-06)
+            # Build the full wiki source page.
+            # #351: pass the existing path so maintainer-curated tags
+            # are preserved on re-synthesize.
             out_dir = sources_out / project
             out_dir.mkdir(parents=True, exist_ok=True)
             out_path = out_dir / f"{filename}.md"
+            page_content = _build_source_page(
+                meta, synthesized, existing_page_path=out_path
+            )
             out_path.write_text(page_content, encoding="utf-8")
 
             # Update state
