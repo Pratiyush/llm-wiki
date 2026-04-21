@@ -142,7 +142,7 @@ def test_slash_reference_counts_correctly():
 # listed here will fail — update the list AND the UI reference.
 EXPECTED_NAV_KEYS = {
     "home", "projects", "sessions", "models", "vs",
-    "graph", "docs", "prototypes", "changelog",
+    "graph", "docs", "changelog",
 }
 
 

@@ -681,10 +681,124 @@ mark { background: var(--accent-bg); color: var(--accent); padding: 0 2px; borde
 }
 """
 
-# v1.2 (#112): reader-first article shell CSS. Appended so pages that
-# don't opt in (via `reader_shell: true` frontmatter) keep rendering
-# exactly as before — no existing selectors are redefined.
-from llmwiki.reader_shell import READER_SHELL_CSS as _READER_SHELL_CSS  # noqa: E402
+# v1.2 (#112): reader-first article shell CSS (inlined from removed reader_shell module).
+_READER_SHELL_CSS = """\
+/* --- Reader shell (v1.2.0 · #112) --- */
+.reader-shell {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr) 280px;
+  gap: 32px;
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 32px 24px;
+  align-items: start;
+}
+.reader-shell__drawer,
+.reader-shell__rail {
+  position: sticky;
+  top: 24px;
+  align-self: start;
+  background: var(--bg-alt);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  padding: 16px;
+  font-size: 0.85rem;
+}
+.reader-shell__drawer h2,
+.reader-shell__rail h2 {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  margin: 0 0 10px 0;
+}
+.reader-shell__drawer ul,
+.reader-shell__rail ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.reader-shell__drawer li,
+.reader-shell__rail li { padding: 4px 0; }
+
+.reader-shell__drawer-empty {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  margin: 0;
+}
+
+.reader-shell__header {
+  border-bottom: 1px solid var(--border-subtle);
+  padding-bottom: 16px;
+  margin-bottom: 24px;
+}
+.reader-shell__crumbs {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+.reader-shell__crumbs .sep { margin: 0 6px; }
+.reader-shell__subtitle {
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+.reader-shell__utility {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+  flex-wrap: wrap;
+}
+.reader-shell__util-btn {
+  padding: 4px 10px;
+  font-size: 0.78rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-secondary);
+  text-decoration: none;
+  transition: border-color 0.15s;
+}
+.reader-shell__util-btn:hover { border-color: var(--accent); }
+
+.reader-shell__body { line-height: 1.7; }
+
+.reader-shell__infobox dl {
+  margin: 0;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 10px;
+  font-size: 0.82rem;
+}
+.reader-shell__infobox-row { display: contents; }
+.reader-shell__infobox dt { color: var(--text-muted); }
+.reader-shell__infobox dd { margin: 0; }
+
+.reader-shell__revisions,
+.reader-shell__see-also,
+.reader-shell__references {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+@media (max-width: 1100px) {
+  .reader-shell {
+    grid-template-columns: minmax(0, 1fr) 280px;
+  }
+  .reader-shell__drawer { display: none; }
+}
+@media (max-width: 760px) {
+  .reader-shell {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 24px;
+  }
+  .reader-shell__rail {
+    position: static;
+    margin-top: 24px;
+  }
+}
+"""
 CSS = CSS + "\n" + _READER_SHELL_CSS
 
 # v1.2 (#265): docs-shell CSS for the production documentation pages.

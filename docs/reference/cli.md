@@ -465,26 +465,6 @@ python3 -m llmwiki export-qmd --source-wiki ~/other-wiki --collection myproject
 
 ---
 
-## `eval` — structural eval checks over `wiki/`
-
-```bash
-python3 -m llmwiki eval
-python3 -m llmwiki eval --json --out wiki-eval.json
-python3 -m llmwiki eval --check content_hygiene link_density
-python3 -m llmwiki eval --fail-below 80
-```
-
-### Flags
-
-| Flag | What |
-|---|---|
-| `--check NAME [NAME ...]` | Run only named checks. Default: all. |
-| `--json` | JSON output to stdout. |
-| `--out PATH` | Write JSON report to this path. |
-| `--fail-below N` | Exit 1 if score < N%. |
-
----
-
 ## `check-links` — verify every internal link in `site/`
 
 ```bash
@@ -707,29 +687,6 @@ python3 -m llmwiki completion fish > ~/.config/fish/completions/llmwiki.fish
 
 Positional: `bash` / `zsh` / `fish`. No flags. Stdlib-only (no
 `argcomplete` dep).
-
----
-
-## `schedule` — OS-specific scheduled-sync templates
-
-```bash
-python3 -m llmwiki schedule                         # auto-detect platform
-python3 -m llmwiki schedule --platform macos
-python3 -m llmwiki schedule --platform linux --out ~/systemd-unit
-python3 -m llmwiki schedule --platform windows
-```
-
-### Flags
-
-| Flag | What |
-|---|---|
-| `--platform {macos,linux,windows}` | Target platform. Default: auto-detect from `sys.platform`. |
-| `--out PATH` | Output directory. Default: `./build/scheduled-sync/`. |
-
-Writes:
-- **macOS** → `com.llmwiki.sync.plist` (launchd)
-- **Linux** → `llmwiki-sync.service` + `.timer` (systemd)
-- **Windows** → `llmwiki-sync.xml` (Task Scheduler)
 
 ---
 

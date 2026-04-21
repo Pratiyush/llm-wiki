@@ -725,19 +725,6 @@ def cmd_export_obsidian(args: argparse.Namespace) -> int:
     )
 
 
-def cmd_eval(args: argparse.Namespace) -> int:
-    """Run the structural eval battery over wiki/."""
-    from llmwiki.eval import main as eval_main
-    sub_argv: list[str] = []
-    if args.check:
-        sub_argv.extend(["--check"] + args.check)
-    if args.json:
-        sub_argv.append("--json")
-    if args.out:
-        sub_argv.extend(["--out", str(args.out)])
-    if args.fail_below:
-        sub_argv.extend(["--fail-below", str(args.fail_below)])
-    return eval_main(sub_argv)
 
 
 def cmd_export_marp(args: argparse.Namespace) -> int:
@@ -1287,43 +1274,6 @@ def cmd_completion(args: argparse.Namespace) -> int:
     return 0
 
 
-def cmd_schedule(args: argparse.Namespace) -> int:
-    """Generate scheduled sync task files for the current platform (v1.0 · #162)."""
-    import json as _json
-    from llmwiki.scheduled_sync import (
-        detect_platform,
-        generate,
-        install_instructions,
-    )
-
-    target_platform = args.platform or detect_platform()
-    if target_platform == "unknown":
-        print("error: could not detect platform. Pass --platform macos|linux|windows", file=sys.stderr)
-        return 2
-
-    config_path = REPO_ROOT / "examples" / "sessions_config.json"
-    config: dict = {}
-    if config_path.is_file():
-        try:
-            config = _json.loads(config_path.read_text(encoding="utf-8"))
-        except (ValueError, OSError):
-            pass
-
-    outputs = generate(target_platform, config)
-    if not outputs:
-        print(f"error: unsupported platform {target_platform!r}", file=sys.stderr)
-        return 2
-
-    out_dir = args.out or REPO_ROOT / "build" / "scheduled-sync"
-    out_dir.mkdir(parents=True, exist_ok=True)
-    for name, content in outputs.items():
-        path = out_dir / name
-        path.write_text(content, encoding="utf-8")
-        print(f"  wrote {path.relative_to(REPO_ROOT) if path.is_relative_to(REPO_ROOT) else path}")
-
-    print()
-    print(install_instructions(target_platform))
-    return 0
 
 
 def cmd_install_skills(args: argparse.Namespace) -> int:
@@ -1632,14 +1582,6 @@ def build_parser() -> argparse.ArgumentParser:
     )
     exp_qmd.set_defaults(func=cmd_export_qmd)
 
-    # eval
-    ev = sub.add_parser("eval", help="Run structural eval checks over wiki/")
-    ev.add_argument("--check", nargs="*", help="Run only these named checks")
-    ev.add_argument("--json", action="store_true", help="Print JSON to stdout")
-    ev.add_argument("--out", type=Path, default=None, help="Write JSON report to this path")
-    ev.add_argument("--fail-below", type=int, default=0, help="Exit non-zero if score %% < this")
-    ev.set_defaults(func=cmd_eval)
-
     # check-links (v0.4)
     cl = sub.add_parser("check-links", help="Verify every internal link in site/ resolves")
     cl.add_argument("--site-dir", type=Path, default=None)
@@ -1765,21 +1707,6 @@ def build_parser() -> argparse.ArgumentParser:
         help="Which shell to generate completion for",
     )
     comp.set_defaults(func=cmd_completion)
-
-    # schedule (v1.0, #162) — generate scheduled sync task for the current OS
-    sched = sub.add_parser(
-        "schedule",
-        help="Generate OS-specific scheduled sync task files (launchd/systemd/Task Scheduler)",
-    )
-    sched.add_argument(
-        "--platform", choices=["macos", "linux", "windows"], default=None,
-        help="Target platform (default: auto-detect).",
-    )
-    sched.add_argument(
-        "--out", type=Path, default=None,
-        help="Output directory (default: build/scheduled-sync/).",
-    )
-    sched.set_defaults(func=cmd_schedule)
 
     # link-obsidian (v1.0, Obsidian integration)
     lo = sub.add_parser(

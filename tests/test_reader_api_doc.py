@@ -22,13 +22,7 @@ from llmwiki import REPO_ROOT
 from llmwiki.lifecycle import LifecycleState
 from llmwiki.schema import ENTITY_TYPES
 
-# cache_tiers lands in a sibling PR (#52) — import it if present,
-# otherwise fall back to the documented constants so this test suite
-# stays green regardless of merge order.
-try:
-    from llmwiki.cache_tiers import CACHE_TIERS  # type: ignore[import-not-found]
-except ImportError:
-    CACHE_TIERS = ("L1", "L2", "L3", "L4")
+CACHE_TIERS = ("L1", "L2", "L3", "L4")
 
 
 API_DOC = REPO_ROOT / "docs" / "reference" / "reader-api.md"

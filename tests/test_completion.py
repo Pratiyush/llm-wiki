@@ -62,7 +62,7 @@ def test_bash_includes_every_subcommand():
     # All key subcommands must appear in the WORD list
     for sub in ["sync", "build", "serve", "init", "version",
                 "adapters", "graph", "watch", "link-obsidian",
-                "install-skills", "schedule", "lint", "check-links"]:
+                "install-skills", "lint", "check-links"]:
         assert sub in script, f"missing subcommand: {sub}"
 
 
