@@ -8,7 +8,20 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
+## [1.1.0-rc8] — 2026-04-21
+
+rc8 batch.  Completes Mode B end-to-end with CLI + slash-command plumbing on top of the agent-delegate backend from rc8.
+
 ### Added
+
+- **`llmwiki synthesize --list-pending`** (#316 follow-up) — prints every pending agent-synthesis prompt as a table (`UUID  SLUG · PROJECT · DATE`).  Returns exit 0 even when empty so the slash-command layer can use "no pending prompts" as a success signal.  Zero-cost read of `.llmwiki-pending-prompts/*.md`.
+- **`llmwiki synthesize --complete <uuid> --page <path>`** (#316 follow-up) — the agent-side counterpart of the backend's placeholder-writing step.  Reads the synthesized body from `--body <file>` or stdin, verifies the target page carries the matching `<!-- llmwiki-pending: <uuid> -->` sentinel, rewrites the placeholder in place (preserving frontmatter), and deletes the pending prompt file.  Non-zero exit on: missing `--page`, empty body, missing target file, missing sentinel, uuid mismatch.  9 tests in `tests/test_synthesize_cli_pending.py`.
+- **`/wiki-sync` step 6** — slash command now scans for pending agent-delegate prompts after ingest.  For each pending uuid: reads the prompt file, synthesizes inside the current agent turn (including the `<!-- suggested-tags: ... -->` block from #351), writes a scratch body, calls `llmwiki synthesize --complete` to rewrite the placeholder.  Serial loop — the agent is single-conversation.
+- **`/wiki-synthesize` two new natural-language variants** — "list pending agent prompts" → `--list-pending`; "complete pending synthesis <uuid>" → `--complete <uuid> --page <path>`.
+
+### Changed
+
+- **`docs/modes/agent/backend.md`** — expanded with the real CLI surface + exit-code table + `/wiki-sync` step-6 walkthrough.
 
 - **Mode B agent-delegate synthesis backend** (#316) — a new `agent` value for `synthesis.backend` in `sessions_config.json` that defers the LLM call to the user's running Claude Code / Codex CLI session instead of making an HTTP API call.  The backend (`llmwiki/synth/agent_delegate.py`) writes the rendered prompt to `.llmwiki-pending-prompts/<uuid>.md` and returns a placeholder page whose first line is the machine-readable sentinel `<!-- llmwiki-pending: <uuid> -->`.  The slash-command layer reads pending prompts on the next agent turn, synthesizes the content inside the existing session, and calls `complete_pending(uuid, body, page)` to rewrite the placeholder in place.  Zero incremental API cost (piggybacks on the agent subscription).  Zero bytes of session content leave the laptop.  Works when `ANTHROPIC_API_KEY` is unset.  `is_available()` auto-detects the agent runtime via `LLMWIKI_AGENT_MODE` / `CLAUDE_CODE` / `CODEX_CLI` / `CURSOR_AGENT` env vars; returns `False` outside an agent so the pipeline falls back to `dummy` instead of silently producing placeholders forever.  29 tests in `tests/test_agent_delegate.py` cover runtime detection, prompt writing, sentinel round-trip, uuid reuse for re-synthesize, `complete_pending` + `list_pending`, `resolve_backend` wiring for `agent` / `agent-delegate` / `agent_delegate` / case-insensitive names, and a hard network-isolation guard (neutralised `socket.socket` during synthesis — the call still succeeds because no HTTP path exists).  New docs: `docs/modes/agent/backend.md`.
 

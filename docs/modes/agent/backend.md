@@ -66,12 +66,31 @@ Outside an agent runtime, `is_available()` returns `False` and the pipeline fall
 ## CLI
 
 ```bash
-# Show pending prompts
+# Show pending prompts (0 exit even when empty)
 python3 -m llmwiki synthesize --list-pending
 
-# Complete a pending synthesis (agent calls this after producing content)
-python3 -m llmwiki synthesize --complete <uuid> --page wiki/sources/<project>/<slug>.md < body.md
+# Complete a pending synthesis — body via stdin
+python3 -m llmwiki synthesize --complete <uuid> \
+  --page wiki/sources/<project>/<slug>.md < body.md
+
+# Complete a pending synthesis — body via file
+python3 -m llmwiki synthesize --complete <uuid> \
+  --page wiki/sources/<project>/<slug>.md \
+  --body /tmp/synth-<uuid>.md
 ```
+
+Exit codes: `0` success, `1` for any of: missing `--page`, empty body, missing target file, missing sentinel on target page, uuid mismatch between page and `--complete` argument.
+
+## How `/wiki-sync` uses these
+
+Step 6 of the `/wiki-sync` slash command (post-rc8) runs `--list-pending` after ingest. For every pending uuid:
+
+1. Slash command reads `.llmwiki-pending-prompts/<uuid>.md`.
+2. Slash command synthesizes the wiki body inside its own agent turn (including the `<!-- suggested-tags: ... -->` block).
+3. Slash command writes the body to a scratch file.
+4. Slash command runs `llmwiki synthesize --complete <uuid> --page <path> --body <scratch>` which rewrites the placeholder and deletes the prompt file.
+
+The loop is serial — the agent is single-conversation.
 
 ## Invariants
 

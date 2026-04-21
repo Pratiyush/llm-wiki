@@ -14,6 +14,8 @@ translates the phrasing into flags.
 | "check the backend is reachable" | `python3 -m llmwiki synthesize --check` |
 | "force re-synthesize everything" | `python3 -m llmwiki synthesize --force` |
 | "synthesize but don't touch my wiki yet" | `python3 -m llmwiki synthesize --dry-run` |
+| "list pending agent prompts" / "what's waiting on me?" | `python3 -m llmwiki synthesize --list-pending` |
+| "complete pending synthesis \<uuid\>" | `python3 -m llmwiki synthesize --complete <uuid> --page <path>` (body via `--body` or stdin) |
 
 ## Expected output
 

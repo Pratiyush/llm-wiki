@@ -9,7 +9,7 @@ Rebuilt on every `master` push from the synthetic sessions in [`examples/demo-se
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/)
-[![Version](https://img.shields.io/badge/version-v1.1.0--rc7-10B981.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-v1.1.0--rc8-10B981.svg)](CHANGELOG.md)
 [![Tests](https://img.shields.io/badge/tests-2368%20passing-10B981.svg)](tests/)
 [![CI](https://github.com/Pratiyush/llm-wiki/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/Pratiyush/llm-wiki/actions/workflows/ci.yml)
 [![Link check](https://github.com/Pratiyush/llm-wiki/actions/workflows/link-check.yml/badge.svg?branch=master)](https://github.com/Pratiyush/llm-wiki/actions/workflows/link-check.yml)
@@ -530,6 +530,7 @@ Per-adapter docs:
 | [v1.1.0-rc5](https://github.com/Pratiyush/llm-wiki/releases/tag/v1.1.0-rc5) | Site audit + 5 closed batches — session-local ref stripping (351 → 247 broken), cheatsheet, README/CONTRIBUTING compile, expanded E2E, slash-CLI parity test, 4 adapter docs, Ollama tutorial, dual-mode docs skeleton, `/wiki-synthesize` slash | `v1.1.0-rc5` |
 | [v1.1.0-rc6](https://github.com/Pratiyush/llm-wiki/releases/tag/v1.1.0-rc6) | rc6 batch — fixed adapter tag hardcoded to `claude-code` for every adapter (#346), tutorial UX polish with in-page TOC + prev/next + edit-on-GitHub (#282), command palette now indexes 107 doc pages + 17 slash commands (#277), content-hash cache for `md_to_html` (#283) | `v1.1.0-rc6` |
 | [v1.1.0-rc7](https://github.com/Pratiyush/llm-wiki/releases/tag/v1.1.0-rc7) | rc7 batch — automatic AI-suggested tags during synthesis (#351), link-checker config fix (#348, #350, #353) | `v1.1.0-rc7` |
+| [v1.1.0-rc8](https://github.com/Pratiyush/llm-wiki/releases/tag/v1.1.0-rc8) | rc8 batch — complete Mode B agent-delegate backend (#316): new `llmwiki synthesize --list-pending` + `--complete <uuid>` CLI subcommands, `/wiki-sync` step 6 auto-detects pending prompts, Mode B ships end-to-end without an API key | `v1.1.0-rc8` |
 
 ## Roadmap
 

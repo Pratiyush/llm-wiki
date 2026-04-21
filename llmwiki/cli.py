@@ -938,6 +938,12 @@ def cmd_synthesize(args: argparse.Namespace) -> int:
     if args.estimate:
         return _synthesize_estimate()
 
+    # #316: agent-delegate operations that don't need a backend.
+    if args.list_pending:
+        return _synthesize_list_pending()
+    if args.complete:
+        return _synthesize_complete(args)
+
     backend = resolve_backend(config)
     print(f"Backend: {backend.name}")
 
@@ -967,6 +973,87 @@ def cmd_synthesize(args: argparse.Namespace) -> int:
         for err in summary["errors"]:
             print(f"  ! {err}", file=sys.stderr)
         return 1
+    return 0
+
+
+# ─── #316 agent-delegate CLI helpers ─────────────────────────────────
+
+
+def _synthesize_list_pending() -> int:
+    """Print the pending-prompts table for ``--list-pending``.
+
+    Two-column layout: uuid │ slug · project · date · prompt-path.
+    Exit 0 even when empty — the slash-command layer treats "nothing
+    pending" as a success signal.
+    """
+    from llmwiki.synth.agent_delegate import list_pending
+
+    rows = list_pending()
+    if not rows:
+        print("No pending prompts.")
+        return 0
+    # Max-width uuid column for alignment.
+    uuid_w = max(len(r["uuid"]) for r in rows)
+    print(f"{'UUID':<{uuid_w}}  SLUG · PROJECT · DATE")
+    print(f"{'-' * uuid_w}  " + "-" * 40)
+    for r in rows:
+        meta = " · ".join(
+            part for part in (r["slug"], r["project"], r["date"]) if part
+        )
+        print(f"{r['uuid']:<{uuid_w}}  {meta}")
+    print(f"\n{len(rows)} pending prompt(s).")
+    return 0
+
+
+def _synthesize_complete(args: argparse.Namespace) -> int:
+    """Rewrite a placeholder wiki page with the agent's synthesis.
+
+    Reads the synthesized body from ``args.body`` (file) or stdin, calls
+    :func:`llmwiki.synth.agent_delegate.complete_pending` to replace the
+    sentinel + prompt-file pair with the real content.  Exit codes:
+
+    * ``0`` — success
+    * ``1`` — missing --page, uuid mismatch, missing sentinel, or I/O
+      error
+    """
+    from llmwiki.synth.agent_delegate import complete_pending
+
+    if not args.page:
+        print("error: --complete requires --page <path>", file=sys.stderr)
+        return 1
+
+    page_path = Path(args.page)
+    if not page_path.is_absolute():
+        page_path = REPO_ROOT / page_path
+
+    if args.body:
+        body_path = Path(args.body)
+        if not body_path.is_absolute():
+            body_path = REPO_ROOT / body_path
+        try:
+            body = body_path.read_text(encoding="utf-8")
+        except OSError as e:
+            print(f"error: reading --body {body_path}: {e}", file=sys.stderr)
+            return 1
+    else:
+        body = sys.stdin.read()
+        if not body:
+            print(
+                "error: --complete expects a body on stdin or via --body",
+                file=sys.stderr,
+            )
+            return 1
+
+    try:
+        complete_pending(args.complete, body, page_path)
+    except FileNotFoundError as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 1
+    except ValueError as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 1
+
+    print(f"completed: {page_path}")
     return 0
 
 
@@ -1648,6 +1735,23 @@ def build_parser() -> argparse.ArgumentParser:
     syn.add_argument(
         "--estimate", action="store_true",
         help="Print cached-vs-fresh token + dollar estimate without calling a backend (#50)",
+    )
+    # #316 — agent-delegate backend helpers.
+    syn.add_argument(
+        "--list-pending", action="store_true",
+        help="List pending prompts awaiting agent synthesis (agent-delegate backend, #316)",
+    )
+    syn.add_argument(
+        "--complete", metavar="UUID", default=None,
+        help="Complete a pending synthesis: read body from --body or stdin, rewrite --page in place (#316)",
+    )
+    syn.add_argument(
+        "--page", metavar="PATH", default=None,
+        help="Target wiki source page for --complete (path relative to repo root or absolute)",
+    )
+    syn.add_argument(
+        "--body", metavar="PATH", default=None,
+        help="Read synthesized body from this file for --complete (default: stdin)",
     )
     syn.set_defaults(func=cmd_synthesize)
 
