@@ -8,6 +8,18 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Frontmatter `tags:` was hardcoded to `claude-code` for every adapter** (#346, reported by @fengguanghuai) — `render_session_markdown` emitted `tags: [claude-code, session-transcript]` regardless of which adapter (`claude_code`, `codex_cli`, `cursor`, `copilot-chat`, `gemini_cli`, `opencode`, `chatgpt`) produced the session.  Result: every session grouped under the Claude chip on the compiled site even when the user was on Codex or Cursor.  Fix: new `_adapter_tag()` helper normalises the registry name (`claude_code` → `claude-code`, `codex_cli` → `codex-cli`, `copilot-chat` → `copilot-chat`), and `render_session_markdown` now takes an `adapter_name` kwarg propagated from `convert_all`.  Back-compat default of `claude-code` for callers that don't pass the kwarg so no silent regression on existing tests.  22 new parametrized tests in `tests/test_adapter_tag.py`.
+
+### Added
+
+- **Tutorial UX polish** (#282) — every numbered tutorial under `docs/tutorials/` now ships with (a) an in-page table of contents built from `##` / `###` headings (collapsed `<details>` block, click to jump), (b) a prev/next footer showing the adjacent tutorials with their titles, (c) an "Edit on GitHub ↗" link pointing at the raw `.md` source so readers can file PRs from the rendered page.  Styled via new CSS rules under `.docs-shell .tutorial-toc`, `.tutorial-footer`, `.tutorial-edit` — all tokens inherited from the brand-system CSS, no hard-coded hex.  Mobile: prev/next cards stack vertically below 760 px.  15 new tests cover sequence building, TOC emission thresholds, footer placement, edit-link shape, and passthrough-page exclusion.
+
+- **Command palette indexes every doc page + every slash command** (#277) — the `⌘K` / `/` palette used to only match sessions, projects, and 3 hard-coded pages (home / projects / sessions).  Now it includes 107 `docs/**/*.md` pages (every tutorial, reference, adapter guide, deploy guide) and 17 `.claude/commands/*.md` slashes.  Docs entries use their frontmatter `title` + first paragraph as the body for matching; slash entries show `/wiki-<name>` and copy the command to clipboard on Enter (instead of trying to navigate — slashes aren't URLs).  11 new tests in `tests/test_palette_indexes.py` pin coverage for cheatsheet, upgrade guide, tutorials, references, and known `/wiki-*` wrappers.
+
+- **Content-hash cache for `md_to_html`** (#283) — SHA-256-keyed in-memory cache in front of the markdown renderer.  Deterministic output + boilerplate sections (`## Connections`, `## Raw Mentions`) called hundreds of times per build means a ~60-80 % hit rate on real corpora.  Bounded at 4096 entries with FIFO eviction to cap memory.  New `md_to_html_cache_stats()` / `md_to_html_cache_clear()` helpers for tests + observability.  Semantics unchanged: `_md_to_html_uncached` runs on every miss and the cached result is byte-for-byte identical.  11 tests cover hit/miss counters, eviction, clear, round-trip, empty body, unicode, and cached-vs-uncached equivalence.
+
 ## [1.1.0-rc5] — 2026-04-21
 
 Site audit + 5 closed batches.  Closes 12 open issues in one pass:

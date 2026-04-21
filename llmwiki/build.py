@@ -249,7 +249,59 @@ class _EscapeRawHtmlPreprocessor(Preprocessor):
         return out
 
 
+# #283: in-memory content-hash cache for md_to_html. Same markdown body
+# always produces the same HTML, and build steps call md_to_html on the
+# same boilerplate (e.g. `## Connections`) across hundreds of pages.
+# SHA-256 keyed + bounded by a size cap so repeated builds in the same
+# Python process (tests, watch mode, bulk exports) don't re-parse.
+_MD_CACHE: dict[str, str] = {}
+_MD_CACHE_MAX = 4096  # entries; ~20 MB ceiling at ~5 KB avg
+_md_cache_hits = 0
+_md_cache_misses = 0
+
+
+def md_to_html_cache_stats() -> dict[str, int]:
+    """Return ``{hits, misses, size}`` for observability (#283)."""
+    return {
+        "hits": _md_cache_hits,
+        "misses": _md_cache_misses,
+        "size": len(_MD_CACHE),
+    }
+
+
+def md_to_html_cache_clear() -> None:
+    """Clear the md_to_html cache — used in tests to isolate runs."""
+    global _md_cache_hits, _md_cache_misses
+    _MD_CACHE.clear()
+    _md_cache_hits = 0
+    _md_cache_misses = 0
+
+
 def md_to_html(body: str) -> str:
+    global _md_cache_hits, _md_cache_misses
+    # Cache lookup — SHA-256 is fast enough (under ~200 ns per KB) and
+    # collision-free in practice for arbitrary-sized markdown blocks.
+    import hashlib as _hl
+    key = _hl.sha256(body.encode("utf-8")).hexdigest()
+    cached = _MD_CACHE.get(key)
+    if cached is not None:
+        _md_cache_hits += 1
+        return cached
+    _md_cache_misses += 1
+    result = _md_to_html_uncached(body)
+    # Simple bound — oldest-first eviction. Python dicts preserve
+    # insertion order, so popping the first key is FIFO.
+    if len(_MD_CACHE) >= _MD_CACHE_MAX:
+        try:
+            first_key = next(iter(_MD_CACHE))
+            del _MD_CACHE[first_key]
+        except StopIteration:
+            pass
+    _MD_CACHE[key] = result
+    return result
+
+
+def _md_to_html_uncached(body: str) -> str:
     body = normalize_markdown(body)
     # v0.5: highlight.js replaces server-side Pygments/codehilite. The
     # fenced_code extension emits `<pre><code class="language-xxx">` and
@@ -1592,6 +1644,49 @@ def build_search_index(
         {"id": "sessions-index", "url": "sessions/index.html", "title": "All sessions",
          "type": "page", "project": "", "date": "", "model": "", "body": "sortable sessions table"}
     )
+
+    # #277: index every docs/ page + every slash command so the palette
+    # becomes a universal quick-find (not just sessions + projects).
+    from llmwiki.docs_pages import iter_docs_pages, _first_paragraph
+    docs_dir = REPO_ROOT / "docs"
+    if docs_dir.is_dir():
+        for page in iter_docs_pages(docs_dir):
+            meta_entries.append({
+                "id": f"docs:{page.rel}",
+                "url": f"docs/{page.rel.replace('.md', '.html')}",
+                "title": page.title,
+                "type": "docs",
+                "project": "",
+                "date": "",
+                "model": "",
+                "body": _first_paragraph(page.body)[:300],
+            })
+
+    # Slash commands — read the first non-empty line of each .md as
+    # the description so the palette shows what each /wiki-* does.
+    slash_dir = REPO_ROOT / ".claude" / "commands"
+    if slash_dir.is_dir():
+        for p in sorted(slash_dir.glob("*.md")):
+            try:
+                text = p.read_text(encoding="utf-8")
+            except OSError:
+                continue
+            first_para = next(
+                (ln.strip() for ln in text.splitlines() if ln.strip()),
+                "",
+            )
+            meta_entries.append({
+                "id": f"slash:{p.stem}",
+                # Slashes aren't URLs — the palette shows a non-clickable
+                # entry with the command to type inside Claude Code.
+                "url": "",
+                "title": f"/{p.stem}",
+                "type": "slash",
+                "project": "",
+                "date": "",
+                "model": "",
+                "body": first_para[:300],
+            })
 
     # v1.0 (#161): aggregate facet counts across all session chunks so the
     # client can render filter checkboxes without scanning the full index.

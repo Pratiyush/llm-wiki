@@ -342,4 +342,103 @@ DOCS_SHELL_CSS = """
     margin-bottom: 48px;
   }
 }
+
+/* #282: tutorial table of contents + prev/next footer + edit-on-GitHub.
+   Scoped under `.docs-shell`. */
+
+.docs-shell .tutorial-toc {
+  margin: 24px 0 40px 0;
+  padding: 14px 18px;
+  background: var(--bg-alt);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  font-size: 0.92rem;
+}
+.docs-shell .tutorial-toc summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 0.78rem;
+}
+.docs-shell .tutorial-toc ul {
+  list-style: none;
+  padding: 0;
+  margin: 10px 0 0 0;
+}
+.docs-shell .tutorial-toc li {
+  padding: 2px 0;
+}
+.docs-shell .tutorial-toc a {
+  color: var(--text);
+  text-decoration: none;
+}
+.docs-shell .tutorial-toc a:hover {
+  text-decoration: underline;
+}
+
+.docs-shell .tutorial-footer-rule {
+  margin-top: 48px;
+  border: 0;
+  border-top: 1px solid var(--border-subtle);
+}
+.docs-shell .tutorial-footer {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-top: 24px;
+}
+.docs-shell .tutorial-footer .prev-tut,
+.docs-shell .tutorial-footer .next-tut {
+  display: flex;
+  flex-direction: column;
+  padding: 14px 18px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  text-decoration: none;
+  color: var(--text);
+  transition: border-color 0.15s, transform 0.15s;
+}
+.docs-shell .tutorial-footer .prev-tut:hover,
+.docs-shell .tutorial-footer .next-tut:hover {
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+.docs-shell .tutorial-footer .next-tut {
+  text-align: right;
+}
+.docs-shell .tutorial-footer .placeholder {
+  visibility: hidden;
+}
+.docs-shell .tutorial-footer .tut-nav-dir {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.docs-shell .tutorial-footer .tut-nav-title {
+  font-weight: 600;
+  margin-top: 4px;
+}
+
+.docs-shell .tutorial-edit {
+  text-align: center;
+  margin: 20px 0 8px 0;
+  font-size: 0.85rem;
+}
+.docs-shell .tutorial-edit a {
+  color: var(--text-muted);
+  text-decoration: none;
+}
+.docs-shell .tutorial-edit a:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+@media (max-width: 760px) {
+  .docs-shell .tutorial-footer {
+    grid-template-columns: 1fr;
+  }
+}
 """

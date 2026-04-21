@@ -230,6 +230,117 @@ def _breadcrumb(page: DocsPage) -> str:
     )
 
 
+_GITHUB_EDIT_BASE = (
+    "https://github.com/Pratiyush/llm-wiki/edit/master/docs"
+)
+
+
+def _tutorial_seq(pages: list["DocsPage"]) -> list["DocsPage"]:
+    """Return numbered tutorial pages (``docs/tutorials/NN-*.md``) sorted
+    by their leading two-digit prefix.  Used for prev/next wiring (#282)."""
+    tuts = []
+    for p in pages:
+        if not p.rel.startswith("tutorials/"):
+            continue
+        name = p.rel.rsplit("/", 1)[-1]
+        m = re.match(r"^(\d{2})-", name)
+        if not m:
+            continue
+        tuts.append((int(m.group(1)), p))
+    tuts.sort(key=lambda t: t[0])
+    return [p for _, p in tuts]
+
+
+def _tutorial_toc_html(body: str) -> str:
+    """Build an in-page table of contents from ``## `` and ``### `` headings.
+
+    Returns empty string when fewer than 2 headings exist — TOC is
+    only useful on longer pages.
+    """
+    entries: list[tuple[int, str, str]] = []
+    for m in re.finditer(r"^(#{2,3})\s+(.+?)\s*$", body, re.MULTILINE):
+        level = len(m.group(1))
+        title = re.sub(r"[`*_]", "", m.group(2))  # strip markdown emphasis
+        slug = re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-")
+        entries.append((level, title, slug))
+    if len(entries) < 2:
+        return ""
+    items = []
+    for level, title, slug in entries:
+        indent = "  " * (level - 2)
+        items.append(
+            f'{indent}<li><a href="#{html.escape(slug)}">{html.escape(title)}</a></li>'
+        )
+    return (
+        '<nav class="tutorial-toc" aria-label="Table of contents">'
+        '<details open>'
+        '<summary>On this page</summary>'
+        '<ul>'
+        + "\n".join(items)
+        + "</ul>"
+        "</details>"
+        "</nav>"
+    )
+
+
+def _tutorial_footer_html(
+    current: "DocsPage",
+    all_pages: list["DocsPage"],
+    docs_rel_from_page: str,
+) -> str:
+    """Build the prev/next footer + edit-on-GitHub link shown at the
+    bottom of every numbered tutorial (#282).
+
+    ``docs_rel_from_page`` — e.g. ``"../"`` when the current page is
+    ``docs/tutorials/01-installation.md`` and we want the prev/next
+    hrefs rooted at ``docs/``.
+    """
+    tuts = _tutorial_seq(all_pages)
+    try:
+        idx = tuts.index(current)
+    except ValueError:
+        return ""
+
+    prev_tut = tuts[idx - 1] if idx > 0 else None
+    next_tut = tuts[idx + 1] if idx < len(tuts) - 1 else None
+
+    bits: list[str] = []
+    if prev_tut:
+        href = docs_rel_from_page + prev_tut.out_rel.replace(".md", ".html")
+        bits.append(
+            f'<a class="prev-tut" href="{html.escape(href)}" rel="prev">'
+            f'<span class="tut-nav-dir">← Previous</span>'
+            f'<span class="tut-nav-title">{html.escape(prev_tut.title)}</span>'
+            f'</a>'
+        )
+    else:
+        bits.append('<span class="prev-tut placeholder"></span>')
+    if next_tut:
+        href = docs_rel_from_page + next_tut.out_rel.replace(".md", ".html")
+        bits.append(
+            f'<a class="next-tut" href="{html.escape(href)}" rel="next">'
+            f'<span class="tut-nav-dir">Next →</span>'
+            f'<span class="tut-nav-title">{html.escape(next_tut.title)}</span>'
+            f'</a>'
+        )
+    else:
+        bits.append('<span class="next-tut placeholder"></span>')
+
+    edit_href = f"{_GITHUB_EDIT_BASE}/{current.rel}"
+    edit_html = (
+        f'<a class="edit-on-github" href="{html.escape(edit_href)}" '
+        f'target="_blank" rel="noopener">Edit on GitHub ↗</a>'
+    )
+
+    return (
+        '<hr class="tutorial-footer-rule">'
+        '<nav class="tutorial-footer" aria-label="Tutorial navigation">'
+        + "".join(bits)
+        + "</nav>"
+        + f'<div class="tutorial-edit">{edit_html}</div>'
+    )
+
+
 def compile_docs_site(
     docs_dir: Path,
     site_dir: Path,
@@ -255,17 +366,25 @@ def compile_docs_site(
 
     out_root = site_dir / "docs"
     written: list[Path] = []
+    all_pages = list(iter_docs_pages(docs_dir))
 
-    for page in iter_docs_pages(docs_dir):
+    for page in all_pages:
         meta_strip = render_meta_strip(page.body) if page.is_shell else ""
         body_without_meta = (
             _strip_meta_lines(page.body) if page.is_shell else page.body
         )
         body_html = md_to_html(body_without_meta)
 
-        # Splice the meta strip right after the <h1>…</h1> line.
-        if meta_strip:
-            body_html = body_html.replace("</h1>", "</h1>\n" + meta_strip, 1)
+        # #282: insert an in-page table of contents on tutorials that
+        # have ≥2 section headings. Slots in right after the <h1>.
+        toc_html = ""
+        if page.rel.startswith("tutorials/"):
+            toc_html = _tutorial_toc_html(body_without_meta)
+
+        # Splice the meta strip (then TOC) right after the <h1>…</h1> line.
+        if meta_strip or toc_html:
+            replacement = f"</h1>\n{meta_strip}\n{toc_html}"
+            body_html = body_html.replace("</h1>", replacement, 1)
 
         # #270: route source-code + repo-root-only links to GitHub
         # before the generic .md→.html pass, so e.g. `../../llmwiki/convert.py`
@@ -287,12 +406,23 @@ def compile_docs_site(
         css_prefix = _css_prefix(page.depth)
         nav = nav_builder(css_prefix) if nav_builder else ""
 
+        # #282: prev/next + edit-on-GitHub footer for numbered tutorials.
+        footer_html = ""
+        if page.rel.startswith("tutorials/") and re.match(
+            r"^\d{2}-", page.rel.rsplit("/", 1)[-1]
+        ):
+            # docs_rel_from_page: we need a path that resolves from the
+            # current page back to the docs root. Tutorials live at
+            # site/docs/tutorials/NN-x.html so "../" gets us to docs/.
+            footer_html = _tutorial_footer_html(page, all_pages, "../")
+
         html_doc = (
             page_head(page.title, description, css_prefix=css_prefix)
             + nav
             + f'<main id="main-content" class="{shell_class}">'
             + _breadcrumb(page)
             + body_html
+            + footer_html
             + "</main>\n</body>\n</html>\n"
         )
 

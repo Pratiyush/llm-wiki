@@ -465,10 +465,19 @@ document.addEventListener("DOMContentLoaded", function () {
 
   function openResult(i) {
     if (!currentResults[i]) return;
+    const r = currentResults[i];
+    // #277: slash commands don't have URLs — copy the command text
+    // to the clipboard + flash a hint instead of navigating.
+    if (r.type === "slash" || !r.url) {
+      try { navigator.clipboard && navigator.clipboard.writeText(r.title); } catch (e) {}
+      const input = document.getElementById("palette-input");
+      if (input) { input.value = r.title; input.placeholder = "copied — paste inside Claude Code"; }
+      return;
+    }
     const pageUrl = window.LLMWIKI_INDEX_URL || "";
     // Compute base dir from current page URL
     const pathPrefix = pageUrl.substring(0, pageUrl.lastIndexOf("/") + 1) || "";
-    window.location.href = pathPrefix + currentResults[i].url;
+    window.location.href = pathPrefix + r.url;
   }
 
   function openPalette() {

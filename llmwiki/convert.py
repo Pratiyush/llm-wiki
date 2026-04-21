@@ -796,6 +796,25 @@ def _source_hash8(source_path: Path) -> str:
     return _hl.sha256(str(source_path).encode("utf-8")).hexdigest()[:8]
 
 
+def _adapter_tag(adapter_name: str) -> str:
+    """Normalise an adapter registry name for the frontmatter ``tags``
+    field.  Matches the convention used across the codebase:
+
+    * ``claude_code`` → ``claude-code``
+    * ``codex_cli``   → ``codex-cli``
+    * ``copilot-chat`` → ``copilot-chat`` (already hyphenated)
+    * unknown / empty → ``claude-code`` (back-compat default so the
+      auto-tagger never emits an empty tag)
+    """
+    if not adapter_name:
+        return "claude-code"
+    normalised = adapter_name.strip().replace("_", "-")
+    # Whitespace-only input strips to empty — fall back to the default.
+    if not normalised:
+        return "claude-code"
+    return normalised
+
+
 def render_session_markdown(
     records: list[dict[str, Any]],
     jsonl_path: Path,
@@ -803,6 +822,7 @@ def render_session_markdown(
     redact: Redactor,
     config: dict[str, Any],
     is_subagent_file: bool,
+    adapter_name: str = "claude_code",
 ) -> tuple[str, str, datetime]:
     started = first_record_time(records) or datetime.now(timezone.utc)
     ended = latest_record_time(records) or started
@@ -830,11 +850,16 @@ def render_session_markdown(
     duration_seconds = compute_duration_seconds(records)
 
     title = f"Session: {slug} — {date_str}"
+    # #346: emit the actual adapter name instead of hardcoding
+    # ``claude-code`` — codex_cli / cursor / copilot-chat / gemini_cli
+    # sessions were mis-tagged and grouped under the wrong chip on
+    # the compiled site.
+    tag_adapter = _adapter_tag(adapter_name)
     front = [
         "---",
         f'title: "{title}"',
         "type: source",
-        "tags: [claude-code, session-transcript]",
+        f"tags: [{tag_adapter}, session-transcript]",
         f"date: {date_str}",
         f"source_file: raw/sessions/{started.strftime('%Y-%m-%dT%H-%M')}-{project_slug}-{slug}.md",
         f"sessionId: {session_id}",
@@ -1116,7 +1141,9 @@ def convert_all(
                 continue
             try:
                 md, slug, started = render_session_markdown(
-                    records, path, project_slug, redact, config, adapter.is_subagent(path)
+                    records, path, project_slug, redact, config,
+                    adapter.is_subagent(path),
+                    adapter_name=cls.name,
                 )
             except Exception as e:
                 print(f"  error: {path.name}: {e}", file=sys.stderr)

@@ -21,6 +21,7 @@ wiki/syntheses/*
 wiki/index.md
 wiki/overview.md
 wiki/log.md
+wiki/log-archive-*.md
 wiki/lint-report.md
 wiki/MEMORY.md
 wiki/SOUL.md
