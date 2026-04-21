@@ -8,6 +8,10 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
+### Added
+
+- **Mode B agent-delegate synthesis backend** (#316) — a new `agent` value for `synthesis.backend` in `sessions_config.json` that defers the LLM call to the user's running Claude Code / Codex CLI session instead of making an HTTP API call.  The backend (`llmwiki/synth/agent_delegate.py`) writes the rendered prompt to `.llmwiki-pending-prompts/<uuid>.md` and returns a placeholder page whose first line is the machine-readable sentinel `<!-- llmwiki-pending: <uuid> -->`.  The slash-command layer reads pending prompts on the next agent turn, synthesizes the content inside the existing session, and calls `complete_pending(uuid, body, page)` to rewrite the placeholder in place.  Zero incremental API cost (piggybacks on the agent subscription).  Zero bytes of session content leave the laptop.  Works when `ANTHROPIC_API_KEY` is unset.  `is_available()` auto-detects the agent runtime via `LLMWIKI_AGENT_MODE` / `CLAUDE_CODE` / `CODEX_CLI` / `CURSOR_AGENT` env vars; returns `False` outside an agent so the pipeline falls back to `dummy` instead of silently producing placeholders forever.  29 tests in `tests/test_agent_delegate.py` cover runtime detection, prompt writing, sentinel round-trip, uuid reuse for re-synthesize, `complete_pending` + `list_pending`, `resolve_backend` wiring for `agent` / `agent-delegate` / `agent_delegate` / case-insensitive names, and a hard network-isolation guard (neutralised `socket.socket` during synthesis — the call still succeeds because no HTTP path exists).  New docs: `docs/modes/agent/backend.md`.
+
 ## [1.1.0-rc7] — 2026-04-21
 
 rc7 batch.  Closes 4 issues: #351 (AI auto-tags), #348/#350/#353 (recurring broken-link reports).

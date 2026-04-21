@@ -61,6 +61,10 @@ def resolve_backend(
     Supported values:
       - ``"dummy"`` (default) — canned offline backend for previews/tests
       - ``"ollama"`` — local Ollama HTTP backend (#35)
+      - ``"agent"`` — defer to the running Claude Code / Codex CLI
+        agent (#316). Writes pending prompts to
+        ``.llmwiki-pending-prompts/`` for the slash-command layer to
+        pick up on the next agent turn.  No HTTP, no API key.
 
     Unknown values fall back to the dummy backend with a warning so a
     typo in config.json doesn't crash sync.
@@ -74,6 +78,14 @@ def resolve_backend(
         from llmwiki.synth.ollama import OllamaSynthesizer, load_ollama_config
 
         return OllamaSynthesizer(config=load_ollama_config(cfg))
+
+    if name in {"agent", "agent_delegate", "agent-delegate"}:
+        # Imported lazily — the agent backend is a thin file-I/O layer
+        # but we keep symmetry with the other backends' lazy import
+        # pattern so ``import llmwiki.synth.pipeline`` stays cheap.
+        from llmwiki.synth.agent_delegate import AgentDelegateSynthesizer
+
+        return AgentDelegateSynthesizer()
 
     if name != "dummy":
         import logging

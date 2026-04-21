@@ -14,15 +14,18 @@ incremental cost beyond your existing agent subscription.
 
 ## Status
 
-Ships today for every command that's already a prompt-driven
-workflow: `/wiki-sync`, `/wiki-ingest`, `/wiki-query`, `/wiki-reflect`,
-`/wiki-update`, `/wiki-lint`.  A dedicated `agent-delegate` backend
-that lets `llmwiki synthesize` marshal prompts back to the running
-agent is tracked under **[#316 · feat: Mode B agent-delegate synthesis](https://github.com/Pratiyush/llm-wiki/issues/316)**.
+**Shipping in v1.1.0-rc8 (#316).** Every slash command is prompt-
+driven — `/wiki-sync`, `/wiki-ingest`, `/wiki-query`, `/wiki-reflect`,
+`/wiki-update`, `/wiki-lint`.  The new `agent-delegate` synthesize
+backend closes the last remaining gap: `llmwiki synthesize` now writes
+rendered prompts to `.llmwiki-pending-prompts/<uuid>.md` and returns a
+placeholder page with a `<!-- llmwiki-pending: <uuid> -->` sentinel.
+The running agent picks the pending prompts up on the next turn and
+calls `llmwiki synthesize --complete <uuid>` to rewrite the page with
+the actual synthesis.
 
-Until #316 merges, `synthesize` uses one of the local backends
-(`dummy` / `ollama`) even in Agent mode — but every **other** slash
-command works end-to-end.
+Zero incremental API cost.  Zero bytes of session content leave your
+laptop.  Works when `ANTHROPIC_API_KEY` is unset.
 
 ## Setup (no API key)
 
