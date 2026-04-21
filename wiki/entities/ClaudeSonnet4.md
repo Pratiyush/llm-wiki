@@ -14,6 +14,8 @@ sources: []
 confidence: 0.56
 lifecycle: reviewed
 entity_type: tool
+cache_tier: L1
+reader_shell: true
 ---
 
 # Claude Sonnet 4

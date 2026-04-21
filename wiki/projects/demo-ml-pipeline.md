@@ -6,6 +6,7 @@ project: demo-ml-pipeline
 topics: [python, machine-learning, distilbert, transformers, huggingface, wandb, training, fine-tuning]
 description: "DistilBERT fine-tuning pipeline — data preparation, HuggingFace Trainer loop, W&B logging, and evaluation. Uses the classic transformers + datasets stack."
 homepage: "https://example.com/demo-ml-pipeline"
+cache_tier: L2
 ---
 
 # demo-ml-pipeline

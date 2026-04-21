@@ -169,10 +169,23 @@ under `.reader-shell`:
   the first real adopter is a maintainer-chosen page. Bulk migration is
   a follow-up.
 
+## Live adopters (#285)
+
+Pages with `reader_shell: true` as of v1.1.0-rc8:
+
+| Page | Why |
+|---|---|
+| [`wiki/entities/ClaudeSonnet4.md`](../../wiki/entities/ClaudeSonnet4.md) | Flagship model entity — has infobox-worthy pricing, benchmarks, modalities that map cleanly to the Wikipedia-style shell |
+| [`wiki/projects/llm-wiki.md`](../../wiki/projects/llm-wiki.md) | Meta project page — showcases `reader_shell` on the framework's own canonical page |
+
+To opt a page in, add `reader_shell: true` to its frontmatter and rebuild with `llmwiki build`. The shell renders infobox + table of contents + references rail automatically from the page's existing frontmatter + wikilinks.
+
 ## Related
 
 - `llmwiki/reader_shell.py` — implementation
 - `llmwiki/render/css.py` — where `READER_SHELL_CSS` gets appended
 - `docs/design/brand-system.md` — the CSS tokens this shell inherits
+- `docs/reference/cache-tiers.md` — sibling opt-in feature, now also has live adopters (#285)
 - `#112` — this issue
 - `#114` — static prototype hub (the sibling layout surface)
+- `#285` — live-adoption polish for this + cache_tier

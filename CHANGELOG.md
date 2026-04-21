@@ -8,6 +8,10 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
+### Changed
+
+- **Live adoption of `cache_tier` + `reader_shell` on seeded wiki pages** (#285) — 6 committed wiki pages now carry explicit `cache_tier` (4× L2, 2× L1) and 2 have `reader_shell: true`. The `cache_tier_consistency` lint rule now runs against real data and correctly flags the 2 L1 pages as needing inbound wikilinks (which is useful, actionable info). `docs/reference/cache-tiers.md` + `docs/reference/reader-shell.md` gain "Live adopters" sections listing the opt-in pages + why each tier was picked. Closes the loop on two features that shipped scaffolds + tests + docs but had zero real adoption.
+
 ## [1.1.0-rc8] — 2026-04-21
 
 rc8 batch.  Completes Mode B end-to-end with CLI + slash-command plumbing on top of the agent-delegate backend from rc8.

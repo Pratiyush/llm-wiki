@@ -6,6 +6,7 @@ project: demo-todo-api
 topics: [python, fastapi, rest, oauth2, sqlite, api, crud, web]
 description: "FastAPI CRUD service for a to-do app — bootstrap, SQLite persistence layer, then OAuth2 authentication with the Authorization Code flow. Small and real."
 homepage: "https://example.com/demo-todo-api"
+cache_tier: L2
 ---
 
 # demo-todo-api
