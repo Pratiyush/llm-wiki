@@ -176,11 +176,27 @@ graph/
 eval-report.json
 
 # ─── E2E screenshot artifacts (v0.9, #45) ────────────────────────────────
-# Playwright + pytest-bdd produces per-breakpoint screenshots for
-# visual regression. Committed baselines would explode the repo; CI
-# uploads them as workflow artifacts instead.
 tests/e2e/screenshots/
 test-results/
 playwright-report/
+
+# ─── Claude Code worktrees + plans ───────────────────────────────────────
 .claude/worktrees/
+.claude/plans/
+
+# ─── Wiki helper pages (generated locally) ───────────────────────────────
+wiki/help.md
+
+# ─── Obsidian vault exports (local-only) ─────────────────────────────────
+# Never push personal vault data. Exports go to ~/Documents/Obsidian Vault/Temp/
+# which is outside the repo.
+
+# ─── Utility scripts output (local-only) ─────────────────────────────────
+# One-shot fix scripts that modify raw/wiki — output is local, scripts are committed.
+
+# ─── Stale planning docs (removed, keep ignored) ─────────────────────────
 gaps.md
+_marketing-playbook.md
+_progress.md
+idea-brief.md
+tasks.md
