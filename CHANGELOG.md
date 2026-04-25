@@ -8,6 +8,14 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
+## [1.2.11] — 2026-04-26
+
+Patch release fixing the `ToolsConsistency` lint rule's silent `TypeError` on list-typed `tools_used` flagged by the Opus 4.7 code review (#403). Pure correctness fix — no API change; the rule now actually runs on every page instead of aborting after the first list-typed value.
+
+### Fixed
+
+- **`ToolsConsistency` raised `TypeError` on list-typed `tools_used`** (#410) — `lint/rules.py:754` did `re.search(_TOOLS_USED_RE, tools_used_raw)` directly. Frontmatter parsed by `_frontmatter.py`'s inline-list path returns `tools_used` as a real Python `list`, not a string, so `re.search(regex, list)` raised `TypeError` and silently aborted the whole rule (16 → 15 effective rules). One source page with parsed-list `tools_used` was enough to take the rule out. Fix: new `_normalise_tools_used(value)` and `_normalise_tool_counts_keys(value)` helpers coerce list / str / dict / None / number / bool into a consistent `set[str]` before the comparison runs. Adds 7 regression tests covering the type matrix (list, quoted-list, empty list, str, missing, dict tool_counts, hostile types).
+
 ## [1.2.7] — 2026-04-26
 
 Patch release fixing the `wiki_search` MCP-tool hit cap and pinning the project-filter substring contract flagged by the Opus 4.7 code review (#403). No API change; same response shape, correct cap.
