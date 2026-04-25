@@ -71,7 +71,7 @@ llmwiki <version>
 Once [#246](https://github.com/Pratiyush/llm-wiki/issues/246) is set up:
 
 ```bash
-pip install llmwiki
+pip install llm-notebook
 llmwiki --version
 ```
 

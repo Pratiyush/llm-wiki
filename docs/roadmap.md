@@ -148,7 +148,7 @@ Sorted **first by priority (M → S → C → W), then by layer (L0 → L7)**. E
 | M | L4 | M-L4-12 | **MCP server** exposing `wiki_query`, `wiki_ingest`, `wiki_search`, `wiki_lint` tools | Promoted from S → M on 2026-04-08. Stub in v0.1, full in v0.2. |
 | M | L4 | M-L4-13 | `.claude/launch.json` for Claude_Preview integration | Lets contributors preview llmwiki from inside Claude Code |
 | S | L4 | S-L4-01 | Claude Code plugin packaging (`.claude-plugin/plugin.json`) | marketplace-ready |
-| S | L4 | S-L4-02 | `pip install llmwiki` on PyPI | |
+| S | L4 | S-L4-02 | `pip install llm-notebook` on PyPI | |
 | S | L4 | S-L4-03 | Homebrew formula | |
 | S | L5 | S-L5-01 | Domain examples (personal / research / business) | |
 | S | L5 | S-L5-02 | Use-case examples (solo / team / multi-agent) | |

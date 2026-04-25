@@ -61,7 +61,7 @@ llmwiki graph --format json            # json only
 llmwiki graph --format html            # interactive HTML only
 ```
 
-Install Graphify: `pip install llmwiki[graph]`
+Install Graphify: `pip install llm-notebook[graph]`
 
 Graphify outputs to `graphify-out/`: `graph.json`, `graph.html`, `GRAPH_REPORT.md`.
 Features: tree-sitter AST extraction, semantic analysis, community detection, confidence-scored edges.
@@ -223,7 +223,7 @@ llmwiki sync && llmwiki serve --open
 llmwiki sync --project my-project --no-auto-lint --since $(date -v-1d +%Y-%m-%d)
 
 # AI knowledge graph
-pip install llmwiki[graph]
+pip install llm-notebook[graph]
 llmwiki graph --engine graphify
 
 # CI quality gate

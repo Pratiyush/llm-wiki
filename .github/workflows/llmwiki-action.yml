@@ -51,7 +51,7 @@ jobs:
           python-version: ${{ inputs.python-version }}
 
       - name: Install llmwiki
-        run: pip install llmwiki
+        run: pip install llm-notebook
 
       - name: Initialise directory structure
         run: llmwiki init

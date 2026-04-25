@@ -2,7 +2,7 @@
 
 > Status: the Actions workflow (`/.github/workflows/release.yml`) is ready.
 > This document is the checklist for **one-time PyPI configuration** that
-> unblocks `pip install llmwiki` (#101).
+> unblocks `pip install llm-notebook` (#101).
 
 ## How the pipeline works
 
@@ -17,8 +17,13 @@ Every time a version tag (`v*.*.*`) is pushed:
    with `--generate-notes`, attaches all artifacts + signatures. Runs even
    if publish/sign fail so Releases always keep tracking tags.
 
-The package is uploaded as **`llmwiki`** (no hyphen). The CLI entry point
-stays `llmwiki` either way.
+The package is uploaded as **`llm-notebook`** — `llmwiki` was already
+taken on PyPI. The CLI command, the Python import (`import llmwiki`),
+and the GitHub repo (`Pratiyush/llm-wiki`) all stay unchanged. Same
+pattern as `pillow` → `import PIL`.
+
+A future cleanup may unify all three — see the open issue for the full
+repo / CLI rename to `llm-notebook`.
 
 ## One-time setup (do this once, on pypi.org)
 
@@ -26,24 +31,21 @@ stays `llmwiki` either way.
 
 1. Log in to [pypi.org](https://pypi.org) (create an account if you
    haven't yet — GitHub sign-in works).
-2. **"Your projects" → "Manage"** — the `llmwiki` name might already be
-   taken. If it is, either:
-   - Use a variant: `llmwiki-py`, `karpathy-llmwiki`, etc. (update
-     `pyproject.toml::name` + the PyPI project name in the workflow to
-     match), or
-   - Ask PyPI admins to transfer the name (see
-     [PEP 541](https://peps.python.org/pep-0541/)).
-3. Once the name is yours (or a variant is chosen), continue.
+2. **"Your projects" → "Manage"** — the `llmwiki` name was already
+   registered to another user. We use **`llm-notebook`** instead.
+3. Reserve the `llm-notebook` name (PyPI lets you create a project
+   directly via the trusted-publisher flow below — no upload needed).
 
 ### 2. Add the GitHub repo as a trusted publisher
 
-Inside the PyPI project page:
+Inside the PyPI **"Your account → Publishing"** page (or the project's
+own Publishing tab once it exists):
 
-**Publishing → Add a new publisher → GitHub**
+**Add a new pending publisher → GitHub**
 
 | Field | Value |
 |---|---|
-| PyPI Project Name | `llmwiki` |
+| PyPI Project Name | `llm-notebook` |
 | Owner | `Pratiyush` |
 | Repository name | `llm-wiki` |
 | Workflow name | `release.yml` |
@@ -93,7 +95,7 @@ The `publish` job should now run and show `uploading` + `success`.
 
 ```bash
 python3 -m venv /tmp/pypi-smoke && source /tmp/pypi-smoke/bin/activate
-pip install llmwiki
+pip install llm-notebook
 llmwiki --version    # should match the tag
 llmwiki adapters     # should list Claude Code, Codex, Cursor, Gemini, …
 deactivate

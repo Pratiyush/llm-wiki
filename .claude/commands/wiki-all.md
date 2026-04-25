@@ -4,7 +4,7 @@ Usage: /wiki-all [flags]
 
 `$ARGUMENTS` is forwarded verbatim to `python3 -m llmwiki all`. Common flags:
 
-- `--graph-engine builtin` — skip optional Graphify (use when `pip install llmwiki[graph]` has not been run)
+- `--graph-engine builtin` — skip optional Graphify (use when `pip install llm-notebook[graph]` has not been run)
 - `--skip-graph` — skip the graph step entirely
 - `--strict` — exit non-zero if lint reports any errors/warnings (good for CI)
 - `--fail-fast` — stop at the first non-zero step instead of continuing to the next

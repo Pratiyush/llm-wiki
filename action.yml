@@ -38,7 +38,7 @@ runs:
 
     - name: Install llmwiki
       shell: bash
-      run: pip install llmwiki
+      run: pip install llm-notebook
 
     - name: Initialise directory structure
       shell: bash

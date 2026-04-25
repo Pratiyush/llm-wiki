@@ -24,7 +24,7 @@ python3 -m llmwiki              # same as --help
 ```
 
 The shorter alias `llmwiki` works too once the package is installed
-(`pip install llmwiki` or via Homebrew — see
+(`pip install llm-notebook` or via Homebrew — see
 [`deploy/pypi-publishing.md`](../deploy/pypi-publishing.md) /
 [`deploy/homebrew-setup.md`](../deploy/homebrew-setup.md)).
 
@@ -221,7 +221,7 @@ auto-copied into `site/graph.html` on every `build`.
 tree-sitter AST extraction for code, semantic analysis for docs, Leiden community
 detection, god-node analysis. Outputs to `graphify-out/` (graph.json, graph.html,
 GRAPH_REPORT.md) and copies to `graph/` for build compatibility. Install:
-`pip install llmwiki[graph]` or `pip install graphifyy`.
+`pip install llm-notebook[graph]` or `pip install graphifyy`.
 
 ---
 
@@ -406,7 +406,7 @@ python3 -m llmwiki query "Flutter mobile" --depth 2 --budget 1000
 | `--depth N` | BFS traversal depth. Default: `3`. |
 | `--budget N` | Max output tokens. Default: `2000`. |
 
-Requires Graphify (`pip install llmwiki[graph]`). Run `llmwiki graph` first
+Requires Graphify (`pip install llm-notebook[graph]`). Run `llmwiki graph` first
 to build the graph.
 
 ---
