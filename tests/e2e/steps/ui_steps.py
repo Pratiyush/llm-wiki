@@ -756,6 +756,15 @@ def _capture_screenshot(page: Page, tag: str, tmp_path_factory: "pytest.TempPath
         baseline_path.write_bytes(capture_path.read_bytes())
         return
 
+    # CI rendering differs from local rendering (Linux chromium vs macOS
+    # chromium produces different anti-aliased glyphs for the same content).
+    # Committed baselines reflect the dev's local platform; comparing them
+    # against CI's rendering is meaningless. Skip the assertion in CI but
+    # still capture the screenshot so a maintainer can inspect the artifact
+    # if something looks visibly broken on a CI deploy preview.
+    if os.environ.get("CI") == "true":
+        return
+
     # Baseline exists → compare. Pillow optional — skip with a warning
     # when missing instead of failing, so non-e2e contributors don't get
     # blocked by a missing image library.

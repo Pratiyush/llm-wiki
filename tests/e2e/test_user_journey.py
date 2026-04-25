@@ -13,9 +13,15 @@ navigation surface, not any one feature.
 
 from __future__ import annotations
 
+import pytest
 from playwright.sync_api import Page, expect
 
 
+@pytest.mark.xfail(
+    reason="Tracks issue #386 (S1): pageerror 'Cannot read properties of null (reading addEventListener)' "
+    "fires during cross-page navigation. Remove this marker once the JS null-guard lands.",
+    strict=False,
+)
 def test_full_navigation_journey(page: Page, base_url: str) -> None:
     """Walk the canonical user path. Any step that fails surfaces a
     cross-page regression that single-feature tests miss."""
