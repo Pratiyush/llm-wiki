@@ -39,6 +39,11 @@ jobs:
           plugin_marketplaces: 'https://github.com/anthropics/claude-code.git'
           plugins: 'code-review@claude-code-plugins'
           prompt: '/code-review:code-review ${{ github.repository }}/pull/${{ github.event.pull_request.number }}'
+          # Use Opus 4.7 — best model for code review (deeper analysis,
+          # better at catching subtle bugs, edge cases, and style issues
+          # than the default Sonnet). ~3-5× the cost per review but the
+          # quality difference matters on a critical-path code-review job.
+          claude_args: '--model claude-opus-4-7'
           # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
           # or https://code.claude.com/docs/en/cli-reference for available options
 
