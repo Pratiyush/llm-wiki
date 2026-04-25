@@ -8,6 +8,17 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
+## [1.2.3] — 2026-04-26
+
+Patch release fixing 2 critical URL-correctness bugs surfaced by the Opus 4.7 code review (#403). No behaviour change beyond the fixed URLs; safe to upgrade.
+
+### Fixed
+
+- **`source_file:` frontmatter now matches disambiguated filenames** (#404) — `render_session_markdown` rendered the canonical `source_file:` line *before* the collision disambiguator decided the actual on-disk filename. Disambiguated sessions (e.g. `<canonical>--<hash>.md`) silently shipped with a `source_file:` field that resolved to a sibling file (or a 404 in the graph viewer). Fix: rewrite `source_file:` to match the disambiguated filename whenever disambig fires. Adds a regression test (`tests/test_collision_retry.py::test_disambiguated_source_file_matches_disk`).
+- **JSON-LD / sitemap / RSS / per-page `.json` exporters URL drift** (#415) — exporters composed URLs as `sessions/<project>/<meta.slug>.html` while `build.py` writes HTML to `sessions/<project>/<path.stem>.html`. The two stems differ by the date prefix and any `--<hash>` disambiguator suffix → every URL emitted in `sitemap.xml`, `rss.xml`, `graph.jsonld`, and per-session `.json` siblings was wrong. Fix: unify on `path.stem` for URL composition; reserve `meta["slug"]` for display fields (titles, JSON-LD `name`).
+- **Claude Code CI actions now use Opus 4.7** (#401) — both `claude-code-review.yml` (auto-fires on every PR) and `claude.yml` (`@claude` mention) now pass `--model claude-opus-4-7` via `claude_args`. Was the action's default Sonnet.
+- **Stale `pip install llmwiki[graph]` reference in `graphify_bridge.py` docstring** (#402) — corrected to `pip install llm-notebook[graph]` after the PyPI distribution rename in #398.
+
 ## [1.2.2] — 2026-04-26
 
 Patch release closing the path-traversal vector flagged by the Opus 4.7 code review (#403). No user-visible behaviour change beyond rejecting poisoned slugs.
@@ -15,17 +26,6 @@ Patch release closing the path-traversal vector flagged by the Opus 4.7 code rev
 ### Fixed
 
 - **Path-traversal via attacker-controlled `project:` / `slug:` frontmatter** (#405) — `project_slug = str(meta.get("project") or path.parent.name)` was used verbatim in `out_dir / "sessions" / project_slug / ...`. A hand-crafted `raw/sessions/*.md` with `project: ../../../etc/passwd` would have written under `out_dir/../../...`. Fix: new `_safe_slug()` helper at `llmwiki/build.py` rejects non-`[A-Za-z0-9._-]` values, traversal segments, absolute paths, and null bytes — falling back to a clearly abnormal slug rather than escaping `out_dir`. Sanitization happens at the discovery boundary so every downstream consumer (project page, session page, search index, exporters) sees a safe value. Adds `tests/test_path_traversal.py` (35 cases) closing test-gap #428.
-
-## [1.2.1] — 2026-04-26
-
-Patch release fixing 2 critical URL-correctness bugs surfaced by the Opus 4.7 code review (#403). No behaviour change beyond the fixed URLs; safe to upgrade.
-
-### Fixed
-
-- **`source_file:` frontmatter now matches disambiguated filenames** (#404) — see #432.
-- **JSON-LD / sitemap / RSS / per-page `.json` exporters URL drift** (#415) — see #432.
-- **Claude Code CI actions now use Opus 4.7** (#401)
-- **Stale `pip install llmwiki[graph]` reference** (#402)
 
 ## [1.2.0] — 2026-04-25
 
