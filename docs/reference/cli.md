@@ -411,6 +411,37 @@ to build the graph.
 
 ---
 
+## `all` — run the full pipeline
+
+Convenience entry point that runs `build` → `graph` → `export all` → `lint`
+in order. This is the one command to run after `sync` to produce a
+CI-ready site.
+
+```bash
+python3 -m llmwiki all
+python3 -m llmwiki all --graph-engine builtin   # skip optional graphify
+python3 -m llmwiki all --skip-graph --strict    # fail CI on any lint issue
+```
+
+### Flags
+
+| Flag | What |
+|---|---|
+| `--out DIR` | Output dir for build + export. Default: `site/`. |
+| `--search-mode {auto,tree,flat}` | Forwarded to `build`. Default: `auto`. |
+| `--graph-engine {builtin,graphify}` | Forwarded to `graph`. Default: `graphify`. |
+| `--skip-graph` | Skip the graph step entirely (useful when graphify is not installed). |
+| `--fail-fast` | Stop at the first non-zero step. Default: continue, report the worst exit code. |
+| `--strict` | Exit `2` if `lint` reports any errors/warnings. |
+
+Exit codes:
+
+- `0` — every step succeeded.
+- non-zero — forwarded from the first (or worst) failing step.
+- `2` — `--strict` and lint reported issues.
+
+---
+
 ## Exit codes (conventions)
 
 | Code | Meaning |
