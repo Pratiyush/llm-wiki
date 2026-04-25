@@ -15,6 +15,75 @@ The canonical per-release detail is
 [CHANGELOG.md](https://github.com/Pratiyush/llm-wiki/blob/master/CHANGELOG.md)
 — this guide focuses on "what might break".
 
+## v1.2.0 — first stable on the 1.x line
+
+**Released: 2026-04-25.**
+
+### Install changes
+
+- **PyPI distribution name is `llm-notebook`** — the `llmwiki` name was
+  taken on PyPI. The Python module + CLI command stay `llmwiki`, only
+  the `pip install` line changes:
+  ```bash
+  pip install llm-notebook        # was: pip install llmwiki
+  llmwiki --version               # → 1.2.0  (CLI name unchanged)
+  python3 -c "import llmwiki"     # still works (import name unchanged)
+  ```
+
+### Removed CLI subcommands
+
+The CLI was slimmed in #362. If you scripted any of these, replace as
+noted:
+
+- `llmwiki schedule` — removed. Schedule `llmwiki sync` directly via
+  your OS's job runner (launchd / systemd / Task Scheduler).
+- `llmwiki install-skills` — removed. Manually copy
+  `.claude/commands/wiki-*.md` into `~/.claude/commands/` for global
+  availability.
+- `llmwiki check-links` — removed. Use the GitHub Actions link-check
+  workflow instead.
+- `llmwiki watch`, `llmwiki manifest`, `llmwiki link-obsidian`,
+  `llmwiki export-obsidian`, `llmwiki export-marp`, `llmwiki export-qmd`,
+  `llmwiki eval` — also removed.
+- `llmwiki export marp` is the new path for Marp slide export.
+
+### Removed adapters
+
+`jira_adapter`, `meeting`, `pdf` were removed in #363. If you depended
+on any of them, pin v1.1.0-rc8 until you migrate.
+
+### Demo data correctness
+
+`user_messages` / `tool_calls` counts on the 8 demo session files were
+2–10× higher than the body actually contained. The values are now
+recomputed from body content. Two new lint rules (`#16
+frontmatter_count_consistency`, `#17 tools_consistency`) prevent
+regression.
+
+### `sync --force` no longer drops colliding sessions
+
+If you ran `sync --force` against a corpus where two sources had the
+same canonical filename (rare but real on large corpora), one of them
+was silently overwritten. Fix: per-run filename tracking now
+disambiguates regardless of `--force`. Affected ~200 of 495 sessions
+on a real corpus we tested.
+
+### New: `llmwiki all`
+
+One-shot pipeline runner for CI:
+
+```bash
+llmwiki all                  # build → graph → export → lint
+llmwiki all --strict         # exit 2 on any lint warning
+```
+
+### Schema migrations
+
+None. JSON sibling files now correctly emit `int` and `bool` types for
+`user_messages` / `tool_calls` / `is_subagent` (were strings); any
+downstream that string-compared `is_subagent == "false"` now needs
+`is_subagent is False`.
+
 ## v1.1.0-rc5
 
 **Released: 2026-04-21.**
@@ -34,8 +103,9 @@ The canonical per-release detail is
 
 - **`/wiki-synthesize` slash command** — wraps `llmwiki synthesize`
   with natural-language flags ("estimate cost", "dry run", "force").
-  Install via `llmwiki install-skills` or copy manually from
-  `.claude/commands/wiki-synthesize.md`.
+  Copy `.claude/commands/wiki-synthesize.md` into `~/.claude/commands/`
+  for global availability. (`llmwiki install-skills` was removed in
+  v1.2.0; manual copy is the supported path.)
 
 - **Dual-mode docs landing pages.** `docs/modes/api/` and
   `docs/modes/agent/` exist as skeletons; the actual API / Agent

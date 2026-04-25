@@ -119,7 +119,7 @@ a subtle tinted background. No icons, no colored banners.
   the output follows on the next lines:
   ```bash
   $ llmwiki --version
-  llmwiki 1.1.0rc2
+  llmwiki 1.2.0
   ```
   If it's just the command (no output in the same block), drop the `$`:
   ```bash

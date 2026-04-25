@@ -23,8 +23,8 @@ class Llmwiki < Formula
 
   desc "LLM-powered knowledge base from Claude Code, Codex CLI, Cursor, and Obsidian sessions"
   homepage "https://github.com/Pratiyush/llm-wiki"
-  url "https://github.com/Pratiyush/llm-wiki/archive/refs/tags/v1.0.0.tar.gz"
-  sha256 "6150081554932c4c4e8e53a6a2ad514ccf18ba32e7b410c81d641a13cb25e609"
+  url "https://github.com/Pratiyush/llm-wiki/archive/refs/tags/v1.2.0.tar.gz"
+  sha256 "bb4501ffac42329af40403c0c9827b64bb89750e1e6ab507a641488afee67b08"
   license "MIT"
   head "https://github.com/Pratiyush/llm-wiki.git", branch: "master"
 

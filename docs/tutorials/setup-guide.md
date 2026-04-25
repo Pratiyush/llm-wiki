@@ -302,15 +302,17 @@ Shows default availability + configured state. Enable opt-in adapters in
 }
 ```
 
-### 5.2 Share skills across agents
+### 5.2 Share slash commands across agents
 
 ```bash
-llmwiki install-skills
+mkdir -p ~/.claude/commands
+cp .claude/commands/wiki-*.md ~/.claude/commands/
 ```
 
-Mirrors `.claude/skills/` into `.codex/skills/` and `.agents/skills/` so
-Claude Code, Codex CLI, and any universal-standard agent discover the same
-llmwiki skills.
+Copies the `.claude/commands/wiki-*.md` files into your global Claude
+Code commands dir. For Codex CLI / Cursor / other agents, copy them
+into the appropriate skill directory for that tool — the file format
+is portable.
 
 ### 5.3 Cross-platform paths
 
@@ -330,7 +332,6 @@ manually.
 - **[Obsidian integration guide](../obsidian-integration.md)** — plugins + config
 - **[Architecture](../architecture.md)** — 3-layer Karpathy + 8-layer build
 - **[Configuration](../configuration.md)** — every tuning knob
-- **[Scheduled sync](../scheduled-sync.md)** — daily auto-sync setup per OS
 - **[Privacy](../privacy.md)** — redaction rules + `.llmwikiignore`
 
 If you hit a snag, check [GitHub Issues](https://github.com/Pratiyush/llm-wiki/issues) or file a new one.
