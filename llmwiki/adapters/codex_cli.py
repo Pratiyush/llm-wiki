@@ -219,4 +219,10 @@ class CodexCliAdapter(BaseAdapter):
         return out
 
     def is_subagent(self, path: Path) -> bool:
-        return "subagent" in path.name or "agent-" in path.name
+        """Codex CLI has no sub-agent concept (#406). Returns False
+        unconditionally. The previous substring heuristic produced
+        false positives on any project named e.g. ``subagent-runner``
+        or any path containing ``agent-`` (which is also a common
+        prefix in user code).
+        """
+        return False

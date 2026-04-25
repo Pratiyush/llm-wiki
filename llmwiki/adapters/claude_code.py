@@ -45,3 +45,33 @@ class ClaudeCodeAdapter(BaseAdapter):
                 if tail:
                     return "-".join(tail)
         return "-".join(parts[-2:]) if len(parts) >= 2 else project_dir
+
+    def is_subagent(self, jsonl_path: Path) -> bool:
+        """Detect Claude Code sub-agent runs by canonical path layout (#406).
+
+        Claude Code stores sub-agent runs at:
+            ~/.claude/projects/<project>/<session-uuid>/subagents/agent-*.jsonl
+
+        Old heuristic was a substring check on ``"subagent" in path.parts``,
+        which mis-tagged any user project named e.g. ``subagent-runner`` —
+        every session in such a project was demoted to sub-agent on the
+        project page and excluded from session counts.
+
+        New rule: the file MUST live in a directory literally named
+        ``subagents`` (plural) AND have a filename starting with
+        ``agent-``. Both conditions match the canonical Claude layout
+        and exclude every false-positive case (project name "subagent",
+        "subagent-runner", "agent-subagent-helper", etc.).
+        """
+        parts = jsonl_path.parts
+        if "subagents" not in parts:
+            return False
+        # The 'subagents' segment must be the immediate parent directory.
+        try:
+            parent_idx = parts.index("subagents")
+        except ValueError:
+            return False
+        if parent_idx >= len(parts) - 1:
+            return False
+        # And the filename must start with 'agent-' (the canonical pattern).
+        return parts[-1].startswith("agent-")

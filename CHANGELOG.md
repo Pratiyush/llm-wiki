@@ -8,13 +8,13 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
-### Changed
+## [1.2.3] — 2026-04-26
 
-- **Claude Code CI actions now use Opus 4.7** (#401) — both `claude-code-review.yml` (auto-fires on every PR) and `claude.yml` (`@claude` mention) now pass `--model claude-opus-4-7` via `claude_args`. Was the action's default Sonnet. Catches more subtle bugs and handles multi-file refactor requests better, at ~3-5× the per-review cost (still well within Anthropic Pro/Max plan quota).
+Patch release fixing the `is_subagent` mis-classification flagged by the Opus 4.7 code review (#403). Pure correctness fix — no API change.
 
 ### Fixed
 
-- **Stale `pip install llmwiki[graph]` reference in `graphify_bridge.py` docstring** (#402) — the PyPI distribution was renamed to `llm-notebook` in #398; the module docstring missed the rename. Fixed: now reads `pip install llm-notebook[graph]`. Python import name (`import llmwiki`) unchanged.
+- **`is_subagent` heuristic mis-tagged top-level sessions whose path contains 'subagent'** (#406) — `BaseAdapter.is_subagent` returned True for any path with `"subagent"` in any segment. Combined with the renderer renaming the slug to `<slug>-subagent-<id>`, every session in any user project named e.g. `subagent-runner` was demoted to sub-agent on the project page and excluded from main-session counts. Fix: `BaseAdapter.is_subagent` now returns False (no adapter has the concept by default); `ClaudeCodeAdapter` overrides with a strict canonical-path check (parent directory must be literally named `subagents` AND filename must start with `agent-`). Same conservative fix applied to `CodexCliAdapter`. Adds `tests/test_is_subagent.py` (18 cases including a cross-product matrix of project-name × path × adapter) closing test-gap #430.
 
 ## [1.2.0] — 2026-04-25
 
