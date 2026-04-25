@@ -20,6 +20,8 @@ Post-v1.0 rules:
   13. cache_tier_consistency      (v1.2 · #52)
   14. tags_topics_convention      (G-16 · #302)
   15. stale_reference_detection   (G-17 · #303)
+  16. frontmatter_count_consistency  (v1.2 · issues.md #2)
+  17. tools_consistency              (v1.2 · issues.md #4)
 
 The live rule count lives in ``llmwiki.lint.REGISTRY`` — prefer
 ``len(REGISTRY)`` over hard-coded numbers in docs + help strings.
@@ -652,4 +654,139 @@ class StaleReferenceDetection(LintRule):
                     f"this page updated {stale.source_last_updated}): {excerpt!r}"
                 ),
             })
+        return issues
+
+
+# ═══════════════════════════════════════════════════════════════════════
+#  RULE 16 — frontmatter_count_consistency  (issues.md #2)
+# ═══════════════════════════════════════════════════════════════════════
+
+
+_TURN_USER_RE = re.compile(r"^### Turn \d+ — User\s*$", re.MULTILINE)
+_TOOL_BULLET_RE = re.compile(
+    r"^- `(Read|Write|Edit|Bash|Glob|Grep|Task|WebFetch|WebSearch|TodoWrite)`:",
+    re.MULTILINE,
+)
+
+
+@register
+class FrontmatterCountConsistency(LintRule):
+    """Source pages: frontmatter counts must match the rendered body.
+
+    Catches the class of bug in `issues.md` #2 where `user_messages`,
+    `turn_count`, or `tool_calls` in the frontmatter claim more activity
+    than the body actually contains. This matters because the values
+    surface on the site, in the JSON sibling, and in the search index —
+    if they're wrong everywhere downstream is wrong.
+
+    Only runs on ``type: source`` pages. Counts come from:
+      - user_messages / turn_count → ``### Turn N — User`` headings
+      - tool_calls                 → ``- `ToolName`:`` bullet lines
+    """
+
+    name = "frontmatter_count_consistency"
+    severity = "warning"
+
+    def run(self, pages, *, llm_callback=None):
+        issues: list[dict[str, Any]] = []
+        for rel, page in pages.items():
+            meta = page["meta"]
+            if meta.get("type") != "source":
+                continue
+            body = page.get("body", "")
+            actual_turns = len(_TURN_USER_RE.findall(body))
+            actual_tool_calls = len(_TOOL_BULLET_RE.findall(body))
+
+            for field, actual in (
+                ("user_messages", actual_turns),
+                ("turn_count", actual_turns),
+                ("tool_calls", actual_tool_calls),
+            ):
+                claimed_raw = meta.get(field)
+                if claimed_raw in (None, ""):
+                    continue
+                try:
+                    claimed = int(claimed_raw)
+                except (TypeError, ValueError):
+                    continue
+                if claimed != actual:
+                    issues.append({
+                        "rule": self.name,
+                        "severity": self.severity,
+                        "page": rel,
+                        "message": (
+                            f"frontmatter {field}={claimed} but body has "
+                            f"{actual}"
+                        ),
+                    })
+        return issues
+
+
+# ═══════════════════════════════════════════════════════════════════════
+#  RULE 17 — tools_consistency  (issues.md #4)
+# ═══════════════════════════════════════════════════════════════════════
+
+
+_TOOLS_USED_RE = re.compile(r"\[([^\]]*)\]")
+_TOOL_COUNTS_KEYS_RE = re.compile(r'"([A-Za-z_]+)"\s*:')
+
+
+@register
+class ToolsConsistency(LintRule):
+    """Source pages: ``tools_used`` and ``tool_counts.keys()`` must agree.
+
+    Catches the class of bug in `issues.md` #4 where a page lists a tool
+    in the ``tools_used`` frontmatter array but the corresponding
+    ``tool_counts`` object is missing that tool's entry (or vice-versa).
+    Both surface on the session page, so divergence silently misleads
+    anyone looking at the stats.
+    """
+
+    name = "tools_consistency"
+    severity = "warning"
+
+    def run(self, pages, *, llm_callback=None):
+        issues: list[dict[str, Any]] = []
+        for rel, page in pages.items():
+            meta = page["meta"]
+            if meta.get("type") != "source":
+                continue
+            tools_used_raw = meta.get("tools_used", "")
+            tool_counts_raw = meta.get("tool_counts", "")
+            if not tools_used_raw or not tool_counts_raw:
+                # One side missing — that's a different lint concern, skip.
+                continue
+
+            m = _TOOLS_USED_RE.search(tools_used_raw)
+            if not m:
+                continue
+            tools_used = {
+                t.strip().strip('"\'')
+                for t in m.group(1).split(",")
+                if t.strip()
+            }
+            tool_counts_keys = set(_TOOL_COUNTS_KEYS_RE.findall(tool_counts_raw))
+
+            only_used = tools_used - tool_counts_keys
+            only_counted = tool_counts_keys - tools_used
+            if only_used:
+                issues.append({
+                    "rule": self.name,
+                    "severity": self.severity,
+                    "page": rel,
+                    "message": (
+                        f"tools_used has {sorted(only_used)} but tool_counts "
+                        f"has no key for them"
+                    ),
+                })
+            if only_counted:
+                issues.append({
+                    "rule": self.name,
+                    "severity": self.severity,
+                    "page": rel,
+                    "message": (
+                        f"tool_counts has keys {sorted(only_counted)} but "
+                        f"tools_used does not list them"
+                    ),
+                })
         return issues

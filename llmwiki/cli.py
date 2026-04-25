@@ -14,6 +14,7 @@ Subcommands:
     lint              Run lint rules against the wiki
     candidates        List / promote / merge / discard candidate pages
     synthesize        Synthesize wiki source pages from raw sessions via LLM
+    all               Run the full pipeline: build → graph → export all → lint
     version           Print version and exit
 """
 
@@ -31,6 +32,77 @@ from llmwiki.adapters import REGISTRY, discover_adapters
 def cmd_version(args: argparse.Namespace) -> int:
     print(f"llmwiki {__version__}")
     return 0
+
+
+def cmd_all(args: argparse.Namespace) -> int:
+    """Run the full wiki pipeline end-to-end: build → graph → export all → lint.
+
+    This is the convenience entry point advertised as ``wiki-all`` in docs and
+    slash commands. It executes the usual post-sync steps in the canonical
+    order so a single command reproduces a CI-ready site.
+
+    Exit codes:
+      0  every step succeeded (lint warnings are informational).
+      1  at least one step returned a non-zero exit status.
+      2  ``--strict`` was passed and lint reported any error or warning.
+    """
+    import shlex
+
+    steps: list[tuple[str, list[str]]] = []
+    build_args = ["build", "--out", str(args.out)]
+    if args.search_mode:
+        build_args.extend(["--search-mode", args.search_mode])
+    steps.append(("build", build_args))
+
+    if not args.skip_graph:
+        steps.append(("graph", ["graph", "--format", "both", "--engine", args.graph_engine]))
+
+    steps.append(("export", ["export", "all", "--out", str(args.out)]))
+    # ``lint --fail-on-errors`` so error-severity issues already fail the step;
+    # ``--strict`` additionally escalates warnings (checked below).
+    lint_argv = ["lint", "--fail-on-errors"] if args.strict else ["lint"]
+    steps.append(("lint", lint_argv))
+
+    overall_rc = 0
+    lint_rc: Optional[int] = None
+    for name, argv in steps:
+        print(f"\n==> llmwiki {' '.join(shlex.quote(a) for a in argv)}")
+        sub_args = build_parser().parse_args(argv)
+        rc = sub_args.func(sub_args)
+        if name == "lint":
+            lint_rc = rc
+            continue  # lint's own exit policy is handled below
+        if rc != 0:
+            overall_rc = rc if overall_rc == 0 else overall_rc
+            if args.fail_fast:
+                print(f"error: step '{name}' exited {rc}; stopping (--fail-fast).", file=sys.stderr)
+                return rc
+
+    if args.strict:
+        # ``--strict`` escalates *any* lint signal — errors OR warnings —
+        # into a pipeline failure. Re-read the lint report directly so we
+        # don't depend on lint's own exit code, which by design only fires
+        # on error-severity issues.
+        from llmwiki.lint import load_pages, run_all, summarize
+        wiki_dir = REPO_ROOT / "wiki"
+        if wiki_dir.is_dir():
+            pages = load_pages(wiki_dir)
+            issues = run_all(pages)
+            counts = summarize(issues) if issues else {}
+            errors = counts.get("error", 0)
+            warnings = counts.get("warning", 0)
+            if errors or warnings:
+                print(
+                    f"error: --strict: lint reported "
+                    f"{errors} error(s) + {warnings} warning(s).",
+                    file=sys.stderr,
+                )
+                return 2
+
+    if lint_rc not in (None, 0) and overall_rc == 0:
+        overall_rc = lint_rc
+
+    return overall_rc
 
 
 def cmd_init(args: argparse.Namespace) -> int:
@@ -59,7 +131,7 @@ def cmd_init(args: argparse.Namespace) -> int:
         "wiki/hot.md": '---\ntitle: "Hot Cache"\ntype: navigation\nlast_updated: ""\nauto_maintained: true\n---\n\n# Hot Cache\n\n*Auto-maintained. Last 10 session summaries.*\n',
         "wiki/MEMORY.md": '---\ntitle: "Cross-Session Memory"\ntype: navigation\nlast_updated: ""\nmax_lines: 200\n---\n\n# MEMORY\n\n*200-line cap. Auto-consolidated by Auto Dream.*\n\n## User\n\n## Feedback\n\n## Project\n\n## Reference\n',
         "wiki/SOUL.md": '---\ntitle: "Wiki Identity"\ntype: navigation\nlast_updated: ""\n---\n\n# SOUL\n\nThis wiki compiles raw session transcripts into structured, interlinked pages.\nCustomize this file to set your wiki\'s voice and purpose.\n',
-        "wiki/CRITICAL_FACTS.md": '---\ntitle: "Critical Facts"\ntype: navigation\nlast_updated: ""\n---\n\n# Critical Facts\n\n- raw/ is immutable — never modify files under raw/\n- Wiki uses [[wikilinks]] for cross-references\n- Confidence: 0.0-1.0, 4-factor formula\n- Lifecycle: draft > reviewed > verified > stale > archived\n',
+        "wiki/CRITICAL_FACTS.md": '---\ntitle: "Critical Facts"\ntype: navigation\nlast_updated: ""\n---\n\n# Critical Facts\n\n- raw/ is immutable — never modify files under raw/\n- Wiki uses Obsidian-style double-bracket syntax for cross-references\n- Confidence: 0.0-1.0, 4-factor formula\n- Lifecycle: draft > reviewed > verified > stale > archived\n',
     }
 
     # v1.0 (#153): seed dashboard.md from examples/wiki_dashboard.md template
@@ -301,7 +373,7 @@ def cmd_query(args: argparse.Namespace) -> int:
     """Query the knowledge graph with a natural language question."""
     from llmwiki.graphify_bridge import is_available, query_graph
     if not is_available():
-        print("error: graphifyy not installed. Run: pip install llmwiki[graph]", file=sys.stderr)
+        print("error: graphify not installed. Run: pip install llmwiki[graph]", file=sys.stderr)
         return 2
     question = " ".join(args.question)
     result = query_graph(question, depth=args.depth, token_budget=args.budget)
@@ -315,7 +387,7 @@ def cmd_graph(args: argparse.Namespace) -> int:
     if engine == "graphify":
         from llmwiki.graphify_bridge import is_available, build_graphify_graph
         if not is_available():
-            print("  graphifyy not installed — falling back to builtin engine", file=sys.stderr)
+            print("  graphify not installed — falling back to builtin engine", file=sys.stderr)
             print("  install with: pip install llmwiki[graph]", file=sys.stderr)
             engine = "builtin"
         else:
@@ -1086,6 +1158,37 @@ def build_parser() -> argparse.ArgumentParser:
     # version
     ver = sub.add_parser("version", help="Print version")
     ver.set_defaults(func=cmd_version)
+
+    # all — run build + graph + export all + lint in sequence
+    all_p = sub.add_parser(
+        "all",
+        help="Run the full pipeline: build → graph → export all → lint",
+    )
+    all_p.add_argument(
+        "--out", type=Path, default=REPO_ROOT / "site",
+        help="Output dir for build + export (default: site/)",
+    )
+    all_p.add_argument(
+        "--search-mode", choices=["auto", "tree", "flat"], default="auto",
+        help="Search index mode passed through to build (default: auto)",
+    )
+    all_p.add_argument(
+        "--graph-engine", choices=["builtin", "graphify"], default="graphify",
+        help="Graph engine passed through to graph (default: graphify)",
+    )
+    all_p.add_argument(
+        "--skip-graph", action="store_true",
+        help="Skip the graph step (useful when graphify is not installed)",
+    )
+    all_p.add_argument(
+        "--fail-fast", action="store_true",
+        help="Stop at the first non-zero step (default: continue, report worst exit code)",
+    )
+    all_p.add_argument(
+        "--strict", action="store_true",
+        help="Exit 2 if lint reports any errors/warnings",
+    )
+    all_p.set_defaults(func=cmd_all)
 
     return p
 

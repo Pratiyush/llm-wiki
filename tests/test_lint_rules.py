@@ -37,9 +37,11 @@ def _mk_page(meta: dict, body: str) -> dict:
 def test_all_14_rules_registered():
     # 11 v1.0 + stale_candidates (v1.1 #51)
     # + tags_topics_convention (G-16 · #302) + stale_reference_detection (G-17 · #303)
+    # + frontmatter_count_consistency (issues.md #2)
+    # + tools_consistency (issues.md #4)
     # cache_tier_consistency removed (cache_tiers module deleted)
     from llmwiki.lint import rules  # noqa: F401
-    assert len(REGISTRY) == 14
+    assert len(REGISTRY) == 16
 
 
 def test_registered_rule_names():
@@ -59,6 +61,8 @@ def test_registered_rule_names():
         "stale_candidates",             # v1.1 (#51)
         "tags_topics_convention",       # G-16 · #302
         "stale_reference_detection",    # G-17 · #303
+        "frontmatter_count_consistency", # issues.md #2
+        "tools_consistency",             # issues.md #4
     }
     assert set(REGISTRY.keys()) == expected
 
@@ -508,3 +512,89 @@ def test_load_pages_reads_markdown(tmp_path: Path):
     assert "entities/Foo.md" in pages
     assert pages["entities/Foo.md"]["meta"]["title"] == "Foo"
     assert pages["entities/Foo.md"]["meta"]["type"] == "entity"
+
+
+# ─── frontmatter_count_consistency (issues.md #2) ───────────────────────
+
+
+def test_count_consistency_flags_inflated_user_messages():
+    body = "### Turn 1 — User\nhi\n\n### Turn 2 — User\nhello\n"
+    page = _mk_page(
+        {"title": "s", "type": "source", "user_messages": 6, "turn_count": 6,
+         "tool_calls": 0},
+        body,
+    )
+    issues = run_all({"sources/s.md": page},
+                     selected=["frontmatter_count_consistency"])
+    messages = {i["message"] for i in issues}
+    assert any("user_messages=6 but body has 2" in m for m in messages)
+    assert any("turn_count=6 but body has 2" in m for m in messages)
+
+
+def test_count_consistency_passes_when_counts_match():
+    body = "### Turn 1 — User\nhi\n- `Bash`: ls\n- `Write`: /tmp/x\n"
+    page = _mk_page(
+        {"title": "s", "type": "source", "user_messages": 1, "turn_count": 1,
+         "tool_calls": 2},
+        body,
+    )
+    issues = run_all({"sources/s.md": page},
+                     selected=["frontmatter_count_consistency"])
+    assert issues == []
+
+
+def test_count_consistency_skips_non_source_pages():
+    body = "### Turn 1 — User\nhi\n"
+    page = _mk_page(
+        {"title": "e", "type": "entity", "user_messages": 99},
+        body,
+    )
+    issues = run_all({"entities/e.md": page},
+                     selected=["frontmatter_count_consistency"])
+    assert issues == []
+
+
+# ─── tools_consistency (issues.md #4) ────────────────────────────────────
+
+
+def test_tools_consistency_flags_missing_tool_count_entry():
+    body = "# s"
+    page = _mk_page(
+        {
+            "title": "s", "type": "source",
+            "tools_used": "[Read, Write, Grep]",
+            "tool_counts": '{"Read": 1, "Write": 2}',
+        },
+        body,
+    )
+    issues = run_all({"sources/s.md": page}, selected=["tools_consistency"])
+    assert any("['Grep']" in i["message"] for i in issues)
+
+
+def test_tools_consistency_passes_when_sets_match():
+    body = "# s"
+    page = _mk_page(
+        {
+            "title": "s", "type": "source",
+            "tools_used": "[Read, Write]",
+            "tool_counts": '{"Read": 1, "Write": 2}',
+        },
+        body,
+    )
+    issues = run_all({"sources/s.md": page}, selected=["tools_consistency"])
+    assert issues == []
+
+
+def test_tools_consistency_flags_extra_tool_count_key():
+    """The reverse direction — tool_counts has a key that tools_used omits."""
+    body = "# s"
+    page = _mk_page(
+        {
+            "title": "s", "type": "source",
+            "tools_used": "[Read]",
+            "tool_counts": '{"Read": 1, "Bash": 3}',
+        },
+        body,
+    )
+    issues = run_all({"sources/s.md": page}, selected=["tools_consistency"])
+    assert any("['Bash']" in i["message"] for i in issues)

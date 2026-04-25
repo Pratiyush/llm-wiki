@@ -19,7 +19,7 @@ auth" a week later — two sessions, one project.
 
 ## Connections
 
-- [[Python]]
-- [[FastAPI]]
-- [[OAuth2]]
-- [[REST]]
+- Python
+- FastAPI
+- OAuth2
+- REST
