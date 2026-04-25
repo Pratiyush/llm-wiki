@@ -218,7 +218,9 @@ def test_prefix_tokens_auto_computed_from_real_files(tmp_path, monkeypatch):
 def test_cli_estimate_prints_three_bucket_header():
     cp = _run_cli("synthesize", "--estimate")
     assert cp.returncode == 0, cp.stderr
-    for line in ("Corpus:", "Synthesized (history):", "New since last run:"):
+    # #387 U4: the "Synthesized (history)" row label was confusing; renamed to
+    # "Already synthesized" for plainer English.
+    for line in ("Corpus:", "Already synthesized:", "New since last run:"):
         assert line in cp.stdout, f"missing `{line}`"
 
 

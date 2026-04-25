@@ -10,10 +10,15 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ### Added
 
+- **Sticky table of contents on the docs hub** (#387 U9) — the docs hub at `site/docs/index.html` enumerates ~80 editorial pages and was scrolling to ~5000 px without in-page navigation. The build now emits a `tutorial-toc` block on the hub the same way it does on tutorials, and on viewports ≥ 1024 px the TOC sticks to the top so users always have a way to jump.
 - **Branded 404 page** (#387 U8) — `llmwiki build` now emits `site/404.html` with the standard nav + footer + a "try one of these" panel linking back to home / projects / sessions / changelog. `llmwiki serve` overrides `SimpleHTTPRequestHandler.send_error` to use the branded body for any 404 response (status code stays 404 — this is the response body, not a redirect). Dead wikilinks now land users on something they can navigate from instead of the stdlib's plain-text default.
 
 ### Changed
 
+- **`llmwiki export` help text** (#387 U1) — the help string for the `export` subcommand previously listed three formats and trailed off with `...`. Now spells out the full set: `llms-txt`, `llms-full-txt`, `jsonld`, `sitemap`, `rss`, `robots`, `ai-readme`, `marp` (or `all`).
+- **`llmwiki sync --auto-build` / `--auto-lint` help text** (#387 U3) — the wording "if schedule allows" sounded calendar-based; updated to point explicitly at the `examples/sessions_config.json` `schedule.build` / `schedule.lint` config keys with the `on-sync` value that triggers them.
+- **`llmwiki synthesize --estimate` row label** (#387 U4) — renamed the second row from `Synthesized (history):` to `Already synthesized:`. Plain English without the parenthetical aside.
+- **Copy as markdown button** (#387 U5) — added an explicit `aria-label="Copy session content as markdown"` + `title` so a future icon-only variant doesn't lose its accessible name.
 - **`llmwiki adapters` column names** (#387 U2) — renamed `default` → `present`, `configured` → `enabled`, `will_fire` → `active`. The new names are immediately legible without consulting the legend below the table. The legend itself was tightened. No behavioural change.
 - **Hero-subtitle plural inflection** (#387 U7) — count strings on the homepage, projects index, and sessions index use the new `_pluralize(n, singular)` helper so users no longer see `"1 sessions"` / `"1 projects"`. Examples: `"1 main session · 0 sub-agent runs · 1 project"`, `"1 session total"`.
 

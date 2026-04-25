@@ -10,7 +10,7 @@ Subcommands:
     serve             Start local HTTP server
     adapters          List available session-store adapters
     graph             Build the knowledge graph (graph/graph.json + graph.html)
-    export            Export AI-consumable formats (llms-txt, jsonld, sitemap, ...)
+    export            Export AI-consumable formats: llms-txt, llms-full-txt, jsonld, sitemap, rss, robots, ai-readme, marp
     lint              Run lint rules against the wiki
     candidates        List / promote / merge / discard candidate pages
     synthesize        Synthesize wiki source pages from raw sessions via LLM
@@ -886,7 +886,7 @@ def _synthesize_estimate() -> int:
         print(f"warning: {w}")
 
     print(f"Corpus:                {report['corpus']:>6} sessions in raw/sessions/")
-    print(f"Synthesized (history): {report['synthesized']:>6} already in wiki/sources/")
+    print(f"Already synthesized:   {report['synthesized']:>6} pages in wiki/sources/")
     print(f"New since last run:    {report['new']:>6}")
     print()
     print(f"Prefix: {report['prefix_tokens']:,} tok  Model: {report['model']}")
@@ -990,11 +990,13 @@ def build_parser() -> argparse.ArgumentParser:
     sync.add_argument("--force", action="store_true", help="Ignore state file, reconvert everything")
     sync.add_argument(
         "--auto-build", action=argparse.BooleanOptionalAction, default=True,
-        help="After sync, auto-rebuild the static site if schedule allows (default: on)",
+        help="After sync, rebuild the site when sessions_config.json's "
+             "schedule.build is 'on-sync' (default: on; pass --no-auto-build to skip)",
     )
     sync.add_argument(
         "--auto-lint", action=argparse.BooleanOptionalAction, default=True,
-        help="After sync, auto-run lint if schedule allows (default: on)",
+        help="After sync, run lint when sessions_config.json's "
+             "schedule.lint is 'on-sync' (default: on; pass --no-auto-lint to skip)",
     )
     sync.add_argument(
         "--vault", type=Path, default=None,
@@ -1060,7 +1062,10 @@ def build_parser() -> argparse.ArgumentParser:
     graph.set_defaults(func=cmd_graph)
 
     # export (v0.4)
-    exp2 = sub.add_parser("export", help="Export AI-consumable formats (llms-txt, jsonld, sitemap, ...)")
+    exp2 = sub.add_parser(
+        "export",
+        help="Export AI-consumable formats: llms-txt, llms-full-txt, jsonld, sitemap, rss, robots, ai-readme, marp (or 'all')",
+    )
     exp2.add_argument(
         "format",
         choices=["llms-txt", "llms-full-txt", "jsonld", "sitemap", "rss", "robots", "ai-readme", "marp", "all"],

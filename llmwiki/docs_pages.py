@@ -377,8 +377,11 @@ def compile_docs_site(
 
         # #282: insert an in-page table of contents on tutorials that
         # have ≥2 section headings. Slots in right after the <h1>.
+        # #387 U9: also emit a TOC on the docs hub — it's a 5000+ px
+        # page that enumerates all editorial pages, and without
+        # in-page navigation users have to scroll blind.
         toc_html = ""
-        if page.rel.startswith("tutorials/"):
+        if page.rel.startswith("tutorials/") or page.is_hub:
             toc_html = _tutorial_toc_html(body_without_meta)
 
         # Splice the meta strip (then TOC) right after the <h1>…</h1> line.
