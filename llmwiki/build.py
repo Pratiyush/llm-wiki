@@ -140,6 +140,48 @@ def group_by_project(
     return g
 
 
+def ensure_project_stubs(
+    groups: dict[str, list[tuple[Path, dict[str, Any], str]]],
+    meta_dir: Path,
+) -> list[Path]:
+    """Auto-seed ``wiki/projects/<slug>.md`` for any discovered project
+    that doesn't already have one (`issues-commands.md` I-12).
+
+    Without this, real projects render a bare hero — no description, no
+    topic chips, no homepage — because those fields come from a hand-
+    authored file that never gets created on sync. Seeding an empty stub
+    gets every real project to demo-parity the moment the user fills in
+    two or three fields. Existing files are never overwritten.
+
+    Returns the list of stub paths actually written (empty if all project
+    metadata files already existed).
+    """
+    meta_dir.mkdir(parents=True, exist_ok=True)
+    written: list[Path] = []
+    for slug in sorted(groups):
+        target = meta_dir / f"{slug}.md"
+        if target.exists():
+            continue
+        stub = (
+            f"---\n"
+            f'title: "{slug}"\n'
+            f"type: entity\n"
+            f"entity_type: project\n"
+            f"project: {slug}\n"
+            f"topics: []\n"
+            f'description: ""\n'
+            f'homepage: ""\n'
+            f"---\n\n"
+            f"# {slug}\n\n"
+            f"*Auto-generated project stub. Fill in `description`, "
+            f"`topics`, and `homepage` in the frontmatter above to "
+            f"enable the rich hero rendering on this project's page.*\n"
+        )
+        target.write_text(stub, encoding="utf-8")
+        written.append(target)
+    return written
+
+
 # ─── markdown normaliser + renderer ───────────────────────────────────────
 
 _H1_LINE_RE = re.compile(r"^#\s+.*\n", re.MULTILINE)
@@ -1787,6 +1829,12 @@ def build_site(
     print(f"  found {len(sources)} source markdowns")
     groups = group_by_project(sources)
     print(f"  grouped into {len(groups)} projects")
+
+    # I-12 (issues-commands.md): auto-seed wiki/projects/<slug>.md stubs
+    # so real projects get the same hero surface area as demo projects.
+    stubs_written = ensure_project_stubs(groups, PROJECTS_META_DIR)
+    if stubs_written:
+        print(f"  seeded {len(stubs_written)} new wiki/projects/ stubs")
 
     # Reset output dir (clear contents only — the HTTP server may be cwd'd here)
     if out_dir.exists():

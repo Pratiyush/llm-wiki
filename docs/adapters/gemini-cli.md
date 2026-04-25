@@ -1,8 +1,8 @@
 # Gemini CLI adapter
 
 **Status:** Production (v0.5)
-**Module:** `llmwiki.adapters.gemini_cli`
-**Source:** [`llmwiki/adapters/gemini_cli.py`](../../llmwiki/adapters/gemini_cli.py)
+**Module:** `llmwiki.adapters.contrib.gemini_cli`
+**Source:** [`llmwiki/adapters/contrib/gemini_cli.py`](../../llmwiki/adapters/contrib/gemini_cli.py)
 **Tracking issue:** #38
 
 ## What it reads
@@ -61,6 +61,6 @@ A minimal synthetic fixture is provided at `tests/fixtures/gemini_cli/minimal.js
 
 ## Reference
 
-- [`llmwiki/adapters/gemini_cli.py`](../../llmwiki/adapters/gemini_cli.py) -- the adapter source
+- [`llmwiki/adapters/contrib/gemini_cli.py`](../../llmwiki/adapters/contrib/gemini_cli.py) -- the adapter source
 - [`llmwiki/convert.py`](../../llmwiki/convert.py) -- the shared converter
 - [README](../../README.md) -- project overview

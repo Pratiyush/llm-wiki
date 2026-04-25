@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import importlib.util
 import json
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -9,6 +10,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from llmwiki.graphify_bridge import is_available, GRAPHIFY_OUT
+
+_GRAPHIFY_INSTALLED = importlib.util.find_spec("graphify") is not None
 
 
 # ─── availability check ─────────────────────────────────────────────
@@ -19,8 +22,12 @@ def test_is_available_returns_bool():
     assert isinstance(result, bool)
 
 
+@pytest.mark.skipif(
+    not _GRAPHIFY_INSTALLED,
+    reason="graphify is an optional dependency; install with `pip install llmwiki[graph]`",
+)
 def test_is_available_true_when_graphify_installed():
-    """graphifyy is installed in our dev environment."""
+    """When graphify is installed in the dev environment, is_available() is True."""
     assert is_available() is True
 
 

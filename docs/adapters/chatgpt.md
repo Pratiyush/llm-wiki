@@ -71,7 +71,7 @@ filesystem-safe chars via the usual slug normaliser).
 
 ## Code
 
-- `llmwiki/adapters/chatgpt.py`
+- `llmwiki/adapters/contrib/chatgpt.py`
 - Tests: `tests/test_chatgpt_adapter.py` (28 cases)
 - Issue history: #44 (initial) · #326 (is_ai_session flag)
 

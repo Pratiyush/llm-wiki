@@ -34,10 +34,11 @@ python3 -m llmwiki init
 # 5. Show available adapters
 python3 -m llmwiki adapters
 
-# 6. First sync (dry-run so users see what would happen)
+# 6. First sync (status probe so users see how many sessions exist
+#    without actually converting them yet)
 echo
-echo "==> dry-run of first sync:"
-python3 -m llmwiki sync --dry-run || true
+echo "==> sync status:"
+python3 -m llmwiki sync --status || true
 
 echo
 echo "================================================================"

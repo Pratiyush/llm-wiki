@@ -13,12 +13,12 @@ cwd: /Users/demo/code/demo-blog-engine
 gitBranch: feat/syntax-highlight
 permissionMode: default
 model: claude-sonnet-4-6
-user_messages: 4
-tool_calls: 12
-tools_used: [Read, Edit, Bash, Grep]
-tool_counts: {"Edit": 5, "Read": 4, "Bash": 2, "Grep": 1}
+user_messages: 2
+tool_calls: 5
+tools_used: [Bash, Edit, Read]
+tool_counts: {"Edit": 2, "Bash": 2, "Read": 1}
 token_totals: {"input": 6100, "cache_creation": 9400, "cache_read": 22000, "output": 3100}
-turn_count: 4
+turn_count: 2
 hour_buckets: {"2026-03-18T14": 6, "2026-03-18T15": 8, "2026-03-18T16": 2}
 duration_seconds: 6342
 is_subagent: false

@@ -19,7 +19,7 @@ the final polish passes (RSS + dark mode).
 
 ## Connections
 
-- [[Rust]]
-- [[StaticSiteGeneration]]
-- [[pulldown-cmark]]
-- [[syntect]]
+- Rust
+- Static site generation
+- pulldown-cmark
+- syntect

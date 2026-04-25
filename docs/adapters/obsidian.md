@@ -1,8 +1,8 @@
 # Obsidian adapter
 
 **Status:** ✅ Production (v0.1) — input mode
-**Module:** `llmwiki.adapters.obsidian`
-**Source:** [`llmwiki/adapters/obsidian.py`](../../llmwiki/adapters/obsidian.py)
+**Module:** `llmwiki.adapters.contrib.obsidian`
+**Source:** [`llmwiki/adapters/contrib/obsidian.py`](../../llmwiki/adapters/contrib/obsidian.py)
 
 ## What it does
 

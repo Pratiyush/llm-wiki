@@ -1,7 +1,7 @@
 # GitHub Copilot adapters
 
 **Status:** Production (v0.6)
-**Modules:** `llmwiki.adapters.copilot_chat`, `llmwiki.adapters.copilot_cli`
+**Modules:** `llmwiki.adapters.contrib.copilot_chat`, `llmwiki.adapters.contrib.copilot_cli`
 **Tracking issue:** #93
 
 llmwiki ships two adapters for GitHub Copilot, covering the two distinct storage layouts.
@@ -10,8 +10,8 @@ llmwiki ships two adapters for GitHub Copilot, covering the two distinct storage
 
 ## Copilot Chat (VS Code extension)
 
-**Module:** `llmwiki.adapters.copilot_chat`
-**Source:** [`llmwiki/adapters/copilot_chat.py`](../../llmwiki/adapters/copilot_chat.py)
+**Module:** `llmwiki.adapters.contrib.copilot_chat`
+**Source:** [`llmwiki/adapters/contrib/copilot_chat.py`](../../llmwiki/adapters/contrib/copilot_chat.py)
 **Registry name:** `copilot-chat`
 
 ### What it reads
@@ -66,8 +66,8 @@ Override roots in `config.json`:
 
 ## Copilot CLI
 
-**Module:** `llmwiki.adapters.copilot_cli`
-**Source:** [`llmwiki/adapters/copilot_cli.py`](../../llmwiki/adapters/copilot_cli.py)
+**Module:** `llmwiki.adapters.contrib.copilot_cli`
+**Source:** [`llmwiki/adapters/contrib/copilot_cli.py`](../../llmwiki/adapters/contrib/copilot_cli.py)
 **Registry name:** `copilot-cli`
 
 ### What it reads
@@ -126,7 +126,7 @@ python3 -m pytest tests/test_copilot_adapters.py -v
 
 ## Reference
 
-- [`llmwiki/adapters/copilot_chat.py`](../../llmwiki/adapters/copilot_chat.py) -- Chat adapter source
-- [`llmwiki/adapters/copilot_cli.py`](../../llmwiki/adapters/copilot_cli.py) -- CLI adapter source
+- [`llmwiki/adapters/contrib/copilot_chat.py`](../../llmwiki/adapters/contrib/copilot_chat.py) -- Chat adapter source
+- [`llmwiki/adapters/contrib/copilot_cli.py`](../../llmwiki/adapters/contrib/copilot_cli.py) -- CLI adapter source
 - [`llmwiki/convert.py`](../../llmwiki/convert.py) -- the shared converter
 - [README](../../README.md) -- project overview
