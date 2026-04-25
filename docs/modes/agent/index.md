@@ -29,10 +29,11 @@ laptop.  Works when `ANTHROPIC_API_KEY` is unset.
 
 ## Setup (no API key)
 
-Just install the slash commands:
+Just copy the slash commands into your global Claude Code commands dir:
 
 ```bash
-llmwiki install-skills   # copies .claude/commands/*.md into ~/.claude/
+mkdir -p ~/.claude/commands
+cp .claude/commands/wiki-*.md ~/.claude/commands/
 ```
 
 That's it.  Open Claude Code, type `/wiki-sync`, and it runs.

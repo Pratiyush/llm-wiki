@@ -29,7 +29,7 @@ Verify:
 
 ```
 llmwiki --version
-# -> llmwiki 1.1.0rc8
+# -> llmwiki 1.2.0
 ```
 
 ---

@@ -426,17 +426,10 @@ llmwiki triage rules.
 The repo ships `.claude/commands/*.md` — Claude Code picks them up
 automatically when it opens the repo (no separate install step).
 
-For **Codex CLI / Cursor / Gemini CLI / other agents**, mirror the
-commands with:
-
-```bash
-python3 -m llmwiki install-skills
-```
-
-That creates symlinks under `.codex/skills/` and `.agents/skills/` so
-every agent sees the same commands.
-
-See the **[CLI reference — install-skills](cli.md#install-skills--mirror-claudeskills-into-sibling-agent-paths)**.
+For **Codex CLI / Cursor / Gemini CLI / other agents**, copy the
+`.claude/commands/wiki-*.md` files into the corresponding skill
+directory for that agent (typically `.codex/skills/` or
+`.agents/skills/`) — the file format is portable across agents.
 
 ---
 

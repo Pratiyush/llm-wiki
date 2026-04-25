@@ -10,7 +10,7 @@ Rebuilt on every `master` push from the synthetic sessions in [`examples/demo-se
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/)
 [![Version](https://img.shields.io/badge/version-v1.2.0-10B981.svg)](CHANGELOG.md)
-[![Tests](https://img.shields.io/badge/tests-2368%20passing-10B981.svg)](tests/)
+[![Tests](https://img.shields.io/badge/tests-2068%20passing-10B981.svg)](tests/)
 [![CI](https://github.com/Pratiyush/llm-wiki/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/Pratiyush/llm-wiki/actions/workflows/ci.yml)
 [![Link check](https://github.com/Pratiyush/llm-wiki/actions/workflows/link-check.yml/badge.svg?branch=master)](https://github.com/Pratiyush/llm-wiki/actions/workflows/link-check.yml)
 [![Wiki checks](https://github.com/Pratiyush/llm-wiki/actions/workflows/wiki-checks.yml/badge.svg?branch=master)](https://github.com/Pratiyush/llm-wiki/actions/workflows/wiki-checks.yml)
@@ -33,7 +33,8 @@ Every Claude Code, Codex CLI, Copilot, Cursor, and Gemini CLI session writes a f
 ./build.sh && ./serve.sh           # build + serve at http://127.0.0.1:8765
 ```
 
-![llm-wiki demo](docs/demo.gif)
+<!-- TODO: re-record demo GIF for v1.2 (#248). Removed broken ref to docs/demo.gif. -->
+
 
 **Contributing in one line:** read [`CONTRIBUTING.md`](CONTRIBUTING.md), keep PRs focused (one concern each), use `feat:` / `fix:` / `docs:` / `chore:` / `test:` commit prefixes, never commit real session data (`raw/` is gitignored), no new runtime deps. CI must be green to merge.
 
@@ -95,7 +96,7 @@ Site-level AI-agent entry points:
 
 | File | What |
 |---|---|
-| [`/llms.txt`](docs/v0.4-roadmap.md) | Short index per [llmstxt.org spec](https://llmstxt.org) |
+| [`/llms.txt`](https://llmstxt.org) | Short index per [llmstxt.org spec](https://llmstxt.org) |
 | `/llms-full.txt` | Flattened plain-text dump (~5 MB cap) — paste into any LLM's context |
 | `/graph.jsonld` | Schema.org JSON-LD entity/concept/source graph |
 | `/sitemap.xml` | Standard sitemap with `lastmod` |
@@ -109,7 +110,7 @@ Every page also includes an `<!-- llmwiki:metadata -->` HTML comment that AI age
 ### Quality & governance (v1.0)
 - **4-factor confidence scoring** — source count, source quality, recency, cross-references; with Ebbinghaus-inspired decay per content-type
 - **5-state lifecycle machine** — draft → reviewed → verified → stale → archived with 90-day auto-stale
-- **14 lint rules** — 8 structural (frontmatter, link integrity, orphans, freshness, duplicates, index sync…) + 3 LLM-powered (contradictions, claim verification, summary accuracy) + stale_candidates (#51) + tags_topics_convention (#302) + stale_reference_detection (#303)
+- **16 lint rules** — 8 structural (frontmatter, link integrity, orphans, freshness, duplicates, index sync…) + 3 LLM-powered (contradictions, claim verification, summary accuracy) + stale_candidates (#51) + tags_topics_convention (#302) + stale_reference_detection (#303) + frontmatter_count_consistency (#378) + tools_consistency (#378)
 - **Auto Dream** — MEMORY.md consolidation after 24h + 5 sessions: resolve relative dates, prune outdated, 200-line cap
 - **9 navigation files** — CLAUDE.md, AGENTS.md, MEMORY.md, SOUL.md, CRITICAL_FACTS.md, hints.md, hot.md + per-project hot caches
 
@@ -122,11 +123,9 @@ Every page also includes an `<!-- llmwiki:metadata -->` HTML comment that AI age
 
 ### Automation
 - **SessionStart hook** — auto-syncs new sessions in the background on every Claude Code launch
-- **File watcher** — `llmwiki watch` polls agent stores with debounce and runs sync on change
 - **Auto-build on sync** — `/wiki-sync` triggers `/wiki-build` (configurable; default on)
-- **Configurable scheduled sync** — `llmwiki schedule` generates OS-specific task files (launchd/systemd/Task Scheduler)
+- **One-shot pipeline** — `llmwiki all` runs build → graph → export → lint in a single command (`--strict` for CI)
 - **MCP server** — 12 production tools (query, search, list, read, lint, sync, export, + confidence, lifecycle, dashboard, entity search, category browse) queryable from any MCP client (Claude Desktop, Cline, Cursor, ChatGPT desktop)
-- **Multi-agent skill mirror** — `llmwiki install-skills` mirrors `.claude/skills/` to `.codex/skills/` and `.agents/skills/`
 - **Pending ingest queue** — SessionStart hook converts + queues; `/wiki-sync` processes queue
 - **No servers, no database, no npm** — Python stdlib + `markdown`. Syntax highlighting loads from a highlight.js CDN at view time.
 
@@ -325,15 +324,7 @@ stdout/stderr, screenshot on failure.
 
 ## Scheduled sync
 
-Run `llmwiki schedule` to generate the right scheduled task file for your OS from your config (cadence, time, paths). Or copy a static template:
-
-| OS | Auto-generate | Static template | Install guide |
-|---|---|---|---|
-| macOS | `llmwiki schedule --platform macos` | [`launchd.plist`](examples/scheduled-sync-templates/launchd.plist) | [docs/scheduled-sync.md](docs/scheduled-sync.md#macos-launchd) |
-| Linux | `llmwiki schedule --platform linux` | [`systemd.timer`](examples/scheduled-sync-templates/llmwiki-sync.timer) + [`.service`](examples/scheduled-sync-templates/llmwiki-sync.service) | [docs/scheduled-sync.md](docs/scheduled-sync.md#linux-systemd) |
-| Windows | `llmwiki schedule --platform windows` | [`task.xml`](examples/scheduled-sync-templates/llmwiki-sync-task.xml) | [docs/scheduled-sync.md](docs/scheduled-sync.md#windows-task-scheduler) |
-
-Cadence (`daily` / `weekly` / `hourly`), hour/minute, and paths are all configurable in `examples/sessions_config.json`. See [`docs/scheduled-sync.md`](docs/scheduled-sync.md) for full instructions.
+For a daily / weekly cron-style sync, schedule `llmwiki sync` directly via your OS's native job runner (`launchd` on macOS, `systemd` on Linux, Task Scheduler on Windows). Paths and adapter selection come from `examples/sessions_config.json`.
 
 ## CLI reference
 
@@ -346,17 +337,10 @@ llmwiki adapters                # list available adapters + configured state (v1
 llmwiki graph                   # build knowledge graph (v0.2)
 llmwiki watch                   # file watcher with debounce (v0.2)
 llmwiki export-obsidian         # write wiki to Obsidian vault (v0.2)
-llmwiki export-qmd              # export wiki as a qmd collection (v0.6)
-llmwiki export-marp             # export Marp slide deck from wiki (v0.7)
-llmwiki eval                    # 7-check structural quality score /100 (v0.3)
-llmwiki lint                    # 11-rule wiki lint (8 basic + 3 LLM-powered, v1.0)
-llmwiki check-links             # verify internal links in site/ (v0.4)
+llmwiki lint                    # 16-rule wiki lint (v1.2)
 llmwiki export <format>         # AI-consumable exports (v0.4)
 llmwiki synthesize              # auto-ingest synthesis pipeline (v0.5)
-llmwiki manifest                # build site manifest + perf budget (v0.4)
-llmwiki link-obsidian           # symlink project into Obsidian vault (v1.0)
-llmwiki install-skills          # mirror .claude/skills to .codex/ and .agents/ (v1.0)
-llmwiki schedule                # generate OS-specific scheduled sync task (v1.0)
+llmwiki all                     # build → graph → export → lint in one shot (v1.2)
 llmwiki version
 ```
 
@@ -490,13 +474,11 @@ See [docs/architecture.md](docs/architecture.md) for the full breakdown and how 
 - [Architecture](docs/architecture.md) — Karpathy 3-layer + 8-layer build breakdown
 - [Configuration](docs/configuration.md) — every tuning knob
 - [Privacy](docs/privacy.md) — redaction rules + `.llmwikiignore` + localhost binding
-- [Scheduled sync](docs/scheduled-sync.md) — daily/weekly/hourly task setup per OS
 - [Windows setup](docs/windows-setup.md) — Windows-specific gotchas
 - [Framework](docs/framework.md) — Open Source Framework v4.1 adapted for agent-native dev tools
 - [Research](docs/research.md) — Phase 1.25 analysis of 15 prior LLM Wiki implementations
 - [Feature matrix](docs/feature-matrix.md) — all 161 features across 16 categories
 - [Roadmap](docs/roadmap.md) — Phase × Layer × Item MoSCoW table
-- [v0.4 roadmap](docs/v0.4-roadmap.md) — AI & Human Dual-Format plan
 - **Translations**: [i18n/zh-CN](docs/i18n/zh-CN/), [i18n/ja](docs/i18n/ja/), [i18n/es](docs/i18n/es/)
 
 Per-adapter docs:
@@ -505,7 +487,6 @@ Per-adapter docs:
 - [Cursor adapter](docs/adapters/cursor.md)
 - [Gemini CLI adapter](docs/adapters/gemini-cli.md)
 - [Obsidian adapter](docs/adapters/obsidian.md)
-- [PDF adapter](docs/adapters/pdf.md)
 - [Copilot adapter (Chat + CLI)](docs/adapters/copilot.md)
 
 ## Releases
@@ -531,6 +512,7 @@ Per-adapter docs:
 | [v1.1.0-rc6](https://github.com/Pratiyush/llm-wiki/releases/tag/v1.1.0-rc6) | rc6 batch — fixed adapter tag hardcoded to `claude-code` for every adapter (#346), tutorial UX polish with in-page TOC + prev/next + edit-on-GitHub (#282), command palette now indexes 107 doc pages + 17 slash commands (#277), content-hash cache for `md_to_html` (#283) | `v1.1.0-rc6` |
 | [v1.1.0-rc7](https://github.com/Pratiyush/llm-wiki/releases/tag/v1.1.0-rc7) | rc7 batch — automatic AI-suggested tags during synthesis (#351), link-checker config fix (#348, #350, #353) | `v1.1.0-rc7` |
 | [v1.1.0-rc8](https://github.com/Pratiyush/llm-wiki/releases/tag/v1.1.0-rc8) | rc8 batch — complete Mode B agent-delegate backend (#316): new `llmwiki synthesize --list-pending` + `--complete <uuid>` CLI subcommands, `/wiki-sync` step 6 auto-detects pending prompts, Mode B ships end-to-end without an API key | `v1.1.0-rc8` |
+| [**v1.2.0**](https://github.com/Pratiyush/llm-wiki/releases/tag/v1.2.0) | **First stable on the 1.x line** — `llmwiki all` one-shot pipeline runner, Playwright + axe-core E2E suite (#384), project-stub auto-seeding, 2 new lint rules, critical export-fidelity + sync-collision fixes, 10 UX-critique items (#387). PyPI distribution name: `llm-notebook`. | `v1.2.0` |
 
 ## Roadmap
 

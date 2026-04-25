@@ -140,4 +140,3 @@ ports:
 - [GitHub Pages deployment](github-pages.md) — static hosting instead of container
 - [GitLab Pages deployment](gitlab-pages.md)
 - [Vercel / Netlify](vercel-netlify.md)
-- [Scheduled sync](../scheduled-sync.md) — daily auto-sync (outside Docker)

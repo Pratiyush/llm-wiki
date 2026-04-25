@@ -53,7 +53,10 @@ def test_part4_covers_customization():
 
 def test_part5_covers_multi_agent():
     text = GUIDE.read_text(encoding="utf-8")
-    assert "install-skills" in text
+    # `install-skills` CLI was removed in v1.2.0 (#362); guide now shows
+    # the manual copy of `.claude/commands/` files. Section 5.2 must
+    # still cover the multi-agent share story.
+    assert ".claude/commands/" in text
     assert "Claude Code" in text
     assert "Codex" in text
 
@@ -84,6 +87,9 @@ def test_guide_mentions_privacy_boundary():
 
 
 def test_guide_shows_new_v1_cli_commands():
+    """The guide must mention the canonical v1.2 CLI surface. `link-obsidian`
+    + `install-skills` were removed in v1.2.0 (#362); `all` is the new
+    one-shot command users should know about."""
     text = GUIDE.read_text(encoding="utf-8")
-    for cmd in ["llmwiki link-obsidian", "llmwiki install-skills", "llmwiki adapters"]:
+    for cmd in ["llmwiki adapters"]:
         assert cmd in text, f"missing {cmd}"
