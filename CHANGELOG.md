@@ -8,13 +8,24 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
-### Changed
+## [1.2.2] — 2026-04-26
 
-- **Claude Code CI actions now use Opus 4.7** (#401) — both `claude-code-review.yml` (auto-fires on every PR) and `claude.yml` (`@claude` mention) now pass `--model claude-opus-4-7` via `claude_args`. Was the action's default Sonnet. Catches more subtle bugs and handles multi-file refactor requests better, at ~3-5× the per-review cost (still well within Anthropic Pro/Max plan quota).
+Patch release closing the path-traversal vector flagged by the Opus 4.7 code review (#403). No user-visible behaviour change beyond rejecting poisoned slugs.
 
 ### Fixed
 
-- **Stale `pip install llmwiki[graph]` reference in `graphify_bridge.py` docstring** (#402) — the PyPI distribution was renamed to `llm-notebook` in #398; the module docstring missed the rename. Fixed: now reads `pip install llm-notebook[graph]`. Python import name (`import llmwiki`) unchanged.
+- **Path-traversal via attacker-controlled `project:` / `slug:` frontmatter** (#405) — `project_slug = str(meta.get("project") or path.parent.name)` was used verbatim in `out_dir / "sessions" / project_slug / ...`. A hand-crafted `raw/sessions/*.md` with `project: ../../../etc/passwd` would have written under `out_dir/../../...`. Fix: new `_safe_slug()` helper at `llmwiki/build.py` rejects non-`[A-Za-z0-9._-]` values, traversal segments, absolute paths, and null bytes — falling back to a clearly abnormal slug rather than escaping `out_dir`. Sanitization happens at the discovery boundary so every downstream consumer (project page, session page, search index, exporters) sees a safe value. Adds `tests/test_path_traversal.py` (35 cases) closing test-gap #428.
+
+## [1.2.1] — 2026-04-26
+
+Patch release fixing 2 critical URL-correctness bugs surfaced by the Opus 4.7 code review (#403). No behaviour change beyond the fixed URLs; safe to upgrade.
+
+### Fixed
+
+- **`source_file:` frontmatter now matches disambiguated filenames** (#404) — see #432.
+- **JSON-LD / sitemap / RSS / per-page `.json` exporters URL drift** (#415) — see #432.
+- **Claude Code CI actions now use Opus 4.7** (#401)
+- **Stale `pip install llmwiki[graph]` reference** (#402)
 
 ## [1.2.0] — 2026-04-25
 

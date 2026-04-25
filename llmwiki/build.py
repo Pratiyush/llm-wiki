@@ -109,6 +109,38 @@ def parse_frontmatter(text: str) -> tuple[dict[str, Any], str]:
 
 # ─── discovery ─────────────────────────────────────────────────────────────
 
+
+# #405 path-traversal guard. Site paths are composed by joining `out_dir`
+# with `project_slug` and other slug values from frontmatter. A poisoned
+# `project: ../../etc/passwd` would otherwise write outside `out_dir`.
+_SAFE_SLUG_RE = re.compile(r"^[A-Za-z0-9._-]+$")
+
+
+def _safe_slug(value: str | None, *, fallback: str = "_unknown") -> str:
+    """Return a path-safe single-segment slug.
+
+    Rejects empty values, traversal segments (``..``), absolute paths
+    (leading ``/`` or backslash), null bytes, and anything containing
+    characters outside ``[A-Za-z0-9._-]``. Falls back to ``fallback`` so
+    the build keeps going on poisoned frontmatter — the offending
+    session lands under a clearly abnormal slug rather than escaping
+    ``out_dir``.
+    """
+    if not value:
+        return fallback
+    s = str(value).strip()
+    # Strip surrounding quotes leaked from naive YAML parsers.
+    if len(s) >= 2 and s[0] == s[-1] and s[0] in ("'", '"'):
+        s = s[1:-1]
+    if not s or s in (".", ".."):
+        return fallback
+    if "/" in s or "\\" in s or "\x00" in s:
+        return fallback
+    if not _SAFE_SLUG_RE.match(s):
+        return fallback
+    return s
+
+
 def discover_sources(root: Path) -> list[tuple[Path, dict[str, Any], str]]:
     out: list[tuple[Path, dict[str, Any], str]] = []
     if not root.exists():
@@ -124,6 +156,15 @@ def discover_sources(root: Path) -> list[tuple[Path, dict[str, Any], str]]:
         except OSError:
             continue
         meta, body = parse_frontmatter(text)
+        # #405: sanitize the frontmatter values that compose output paths.
+        # Original values stay available via meta.get(); the *_safe_*
+        # versions are what every path-composition site downstream uses.
+        meta["project"] = _safe_slug(
+            meta.get("project") or p.parent.name,
+            fallback=_safe_slug(p.parent.name, fallback="_unknown"),
+        )
+        if "slug" in meta:
+            meta["slug"] = _safe_slug(meta["slug"], fallback=p.stem)
         out.append((p, meta, body))
     return out
 
