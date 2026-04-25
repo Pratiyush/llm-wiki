@@ -13,12 +13,12 @@ cwd: /Users/demo/code/demo-blog-engine
 gitBranch: main
 permissionMode: default
 model: claude-sonnet-4-6
-user_messages: 6
-tool_calls: 18
-tools_used: [Read, Write, Edit, Bash, Glob, Grep]
-tool_counts: {"Write": 6, "Read": 5, "Edit": 4, "Bash": 2, "Glob": 1}
+user_messages: 3
+tool_calls: 8
+tools_used: [Bash, Edit, Read, Write]
+tool_counts: {"Write": 4, "Bash": 2, "Edit": 1, "Read": 1}
 token_totals: {"input": 8400, "cache_creation": 12000, "cache_read": 31000, "output": 4200}
-turn_count: 6
+turn_count: 3
 hour_buckets: {"2026-03-12T09": 7, "2026-03-12T10": 11, "2026-03-12T11": 4}
 duration_seconds: 7912
 is_subagent: false

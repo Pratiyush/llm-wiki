@@ -1019,6 +1019,13 @@ def convert_all(
         })
         c[field] = c.get(field, 0) + 1
 
+    # Names claimed by this sync run. Independent of --force and of the
+    # state file — its sole purpose is to stop two source jsonls in this
+    # single run from writing to the same canonical filename. Without this
+    # set, `sync --force` silently overwrote colliding outputs because the
+    # disambiguator on disk was gated on ``not force`` (bug #339).
+    names_written_this_run: set[str] = set()
+
     for cls in selected:
         adapter = cls(config)
         print(f"==> adapter: {cls.name}")
@@ -1154,23 +1161,30 @@ def convert_all(
             date_str = started.strftime("%Y-%m-%d")
             out_name = flat_output_name(started, project_slug, slug)
             out_path = out_dir / out_name
-            # #339: if the canonical name already exists on disk AND
-            # the state file doesn't record US as the writer (different
-            # source jsonl), this is a real collision — retry with the
-            # jsonl's path-hash appended so both sources land side by
-            # side.  Parent session stays at the canonical filename;
-            # subagents + same-minute siblings carry a --<hash8> suffix.
-            if (
-                not dry_run
-                and not force
-                and out_path.exists()
-                and state.get(key) != mtime
-            ):
+            # #339: disambiguate when the canonical name would collide with
+            # a different source. Two cases, both must trigger the retry:
+            #   (a) Another source in THIS sync run already claimed the
+            #       canonical name. Independent of --force — otherwise
+            #       `sync --force` silently overwrites sibling sessions
+            #       whose project+date+slug happen to collide (~200
+            #       dropped sessions on a real claude-code corpus).
+            #   (b) Canonical exists on disk from a prior run AND the
+            #       state file does not record us as its writer. Only
+            #       consulted when --force is off; under --force the user
+            #       has explicitly asked to overwrite their own prior
+            #       outputs.
+            needs_disambig = not dry_run and (
+                out_name in names_written_this_run
+                or (not force and out_path.exists() and state.get(key) != mtime)
+            )
+            if needs_disambig:
                 out_name = flat_output_name(
                     started, project_slug, slug,
                     disambiguator=_source_hash8(path),
                 )
                 out_path = out_dir / out_name
+            if not dry_run:
+                names_written_this_run.add(out_name)
             if dry_run:
                 print(f"  [dry-run] {out_path.relative_to(REPO_ROOT)} ({len(md)} bytes)")
             else:
