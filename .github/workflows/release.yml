@@ -6,7 +6,9 @@ name: Release to PyPI
 #
 # Prerequisites (one-time manual setup): see docs/deploy/pypi-publishing.md
 # for the full walkthrough. TL;DR:
-#   1. Register `llmwiki` on PyPI as a trusted publisher:
+#   1. Register `llm-notebook` on PyPI as a trusted publisher (the
+#      `llmwiki` name was already taken; the wheel is published as
+#      llm-notebook but the Python module + CLI stay `llmwiki`):
 #      https://docs.pypi.org/trusted-publishers/creating-a-project-through-oidc/
 #      Owner: Pratiyush · Repo: llm-wiki · Workflow: release.yml · Env: release
 #   2. Create a GitHub environment called "release" (Settings > Environments).

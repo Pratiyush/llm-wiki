@@ -73,7 +73,7 @@ The tag push triggers `.github/workflows/release.yml` which automatically:
 4. Creates a GitHub Release with build artifacts + signature bundles
 
 - [ ] Confirm the release workflow ran: `gh run list --workflow=release.yml --limit=3`
-- [ ] Confirm the package is on PyPI: `pip install llmwiki==X.Y.Z`
+- [ ] Confirm the package is on PyPI: `pip install llm-notebook==X.Y.Z`
 - [ ] Confirm the release shows up at
       `https://github.com/Pratiyush/llm-wiki/releases`
 - [ ] If the workflow failed, check the "release" environment protection rules

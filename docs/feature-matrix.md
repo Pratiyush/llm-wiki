@@ -97,7 +97,7 @@
 | E4 | **Claude Code plugin** (marketplace install) | ⭐⭐⭐⭐⭐ | kfchou, sinzin91, remember-md | v0.2 |
 | E5 | Homebrew formula | ⭐⭐⭐ | raine (Go) | v0.3 |
 | E6 | Precompiled single binary (Go/Rust?) | ⭐⭐ | sinzin91 (Go) | won't (Python) |
-| E7 | `pip install llmwiki` on PyPI | ⭐⭐⭐⭐ | lucasastorian | v0.3 |
+| E7 | `pip install llm-notebook` on PyPI | ⭐⭐⭐⭐ | lucasastorian | v0.3 |
 | E8 | Docker image | ⭐⭐ | — | v0.4 |
 
 ## F · Multi-agent support

@@ -2,7 +2,7 @@
 
 **Release date:** 2026-04-25
 **Tag:** `v1.2.0`
-**PyPI:** `pip install llmwiki==1.2.0` (once trusted publisher is configured — see issue #246)
+**PyPI:** `pip install llm-notebook==1.2.0` (once trusted publisher is configured — see issue #246)
 **Homebrew:** `brew install Pratiyush/tap/llmwiki` (once tap is published — see issue #247)
 
 This is the first stable release on the 1.x line. It promotes the eight rc1–rc8 prereleases into a single stable tag and bundles the post-rc8 audit fixes, a one-shot pipeline runner, the new Playwright/axe-core E2E suite, and ten UX-critique items into one shippable cut.
@@ -56,7 +56,7 @@ The wiki lint registry now ships 16 rules.
 
 - **Adapters split: core vs contrib** (#363). 3 core auto-discovered (claude_code, codex_cli, obsidian); 6 moved to `adapters/contrib/` (chatgpt, copilot, cursor, gemini, opencode).
 - **CLI slimmed from 25 to 11 subcommands** (#362). Removed: quarantine, backlinks, references, tag, log, watch, export-obsidian, export-marp/jupyter/qmd, check-links, manifest, install-skills, link-obsidian, completion.
-- **Graphify is now an optional dep** (#364). `pip install llmwiki[graph]`.
+- **Graphify is now an optional dep** (#364). `pip install llm-notebook[graph]`.
 
 ## Removed
 
@@ -71,7 +71,7 @@ The wiki lint registry now ships 16 rules.
 This release is a drop-in upgrade — nothing in the public API changed, just the underlying behaviour got more correct. Run:
 
 ```bash
-pip install --upgrade llmwiki
+pip install --upgrade llm-notebook
 python3 -m llmwiki all --strict     # verify everything still passes
 ```
 

@@ -32,7 +32,7 @@ The v1.0 release is a stability pass. No new features -- just hardening.
 | Upgrade guide | Migration recipes for every breaking change between 0.x and 1.0 |
 | LTS branch | v1.x gets security fixes for 12 months |
 | Docs polish | Every feature documented, every tutorial up to date |
-| PyPI stable | `pip install llmwiki` with stable version |
+| PyPI stable | `pip install llm-notebook` with stable version |
 | Homebrew formula | `brew install llmwiki` |
 
 ## Planned: post-v1.0

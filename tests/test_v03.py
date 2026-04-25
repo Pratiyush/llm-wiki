@@ -29,7 +29,9 @@ def test_pyproject_exists():
     assert p.exists()
     content = p.read_text(encoding="utf-8")
     # Minimal sanity
-    assert 'name = "llmwiki"' in content
+    # Distribution name is `llm-notebook` (the `llmwiki` name was taken on
+    # PyPI). Python module + CLI command remain `llmwiki`.
+    assert 'name = "llm-notebook"' in content
     # Accept any valid semver — bumped to 1.0 in v1.0.0 release
     import re
     assert re.search(r'version = "\d+\.\d+\.\d+', content), "missing version string"
