@@ -361,7 +361,17 @@ def _extract_snippet(content: str, tokens: list[str], max_chars: int = 400) -> s
     return content[:max_chars] + ("…" if len(content) > max_chars else "")
 
 
+_SEARCH_HIT_CAP = 200
+
+
 def tool_wiki_search(args: dict[str, Any]) -> dict[str, Any]:
+    # #413: the old loop had three nested terminators (`for line`,
+    # `for p`, `for root`) but only the inner two had a 200-cap break.
+    # With include_raw=True the cap was effectively per-root, so we
+    # could return up to 400 hits when the schema implies 200, while
+    # still scanning the entire raw/ tree after the wiki/ tree had
+    # already capped. Restructured as a single iterator with one
+    # termination check, and the search term is lowercased once.
     term = (args.get("term") or "").strip()
     include_raw = bool(args.get("include_raw", False))
     if not term:
@@ -371,17 +381,23 @@ def tool_wiki_search(args: dict[str, Any]) -> dict[str, Any]:
     if include_raw:
         roots.append(REPO_ROOT / "raw" / "sessions")
 
+    term_lower = term.lower()
     hits: list[dict[str, Any]] = []
+    truncated = False
     for root in roots:
+        if truncated:
+            break
         if not root.exists():
             continue
         for p in root.rglob("*.md"):
+            if truncated:
+                break
             try:
                 text = p.read_text(encoding="utf-8")
             except OSError:
                 continue
             for i, line in enumerate(text.splitlines(), start=1):
-                if term in line or term.lower() in line.lower():
+                if term_lower in line.lower():
                     hits.append(
                         {
                             "path": str(p.relative_to(REPO_ROOT)),
@@ -389,11 +405,10 @@ def tool_wiki_search(args: dict[str, Any]) -> dict[str, Any]:
                             "text": line.strip()[:200],
                         }
                     )
-                    if len(hits) >= 200:
+                    if len(hits) >= _SEARCH_HIT_CAP:
+                        truncated = True
                         break
-            if len(hits) >= 200:
-                break
-    return _ok(json.dumps({"term": term, "matches": hits, "truncated": len(hits) >= 200}, indent=2))
+    return _ok(json.dumps({"term": term, "matches": hits, "truncated": truncated}, indent=2))
 
 
 def tool_wiki_list_sources(args: dict[str, Any]) -> dict[str, Any]:
