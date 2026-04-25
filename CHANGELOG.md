@@ -8,6 +8,14 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
+## [1.2.12] — 2026-04-26
+
+Patch release fixing the `IndexSync` lint rule's false-positive flood on relative href prefixes flagged by the Opus 4.7 code review (#403). No API change; the rule now correctly resolves `./`, `..`, `#anchor`, and `?query` instead of treating each as a dead link.
+
+### Fixed
+
+- **`IndexSync` false positives on relative href prefixes** (#411) — `lint/rules.py` did `if href not in pages and not href.lstrip("./") in pages`, which is an operator-precedence quirk that *happens* to handle bare `./` and false-positive'd on every other shape: `../entities/Foo.md`, `entities/Foo.md#section`, `entities/Foo.md?v=2`, `entities/Foo.md?v=2#section`. The first time someone built a wiki with realistic links to anchors or query-versioned pages, the rule reported a wave of dead links that weren't dead. Fix: new `_resolve_index_href(href)` helper strips `#anchor` and `?query`, drops `./` prefixes, and collapses `..` segments via `PurePosixPath`. Hrefs that escape the wiki root (more `..` than parent dirs) return `""` and are silently dropped — the missing-page check still catches them via the inverse direction. External links (`http://`, `https://`, `mailto:`) skip the resolver entirely. Adds 9 regression tests covering the full href shape matrix plus a direct unit test for the resolver.
+
 ## [1.2.8] — 2026-04-26
 
 Patch release unifying the frontmatter parsers and fixing two correctness bugs surfaced by the Opus 4.7 code review (#403). Windows-authored files (CRLF, BOM-prefixed) now parse identically to LF input. No user-visible behaviour change beyond formerly-dropped frontmatter now landing.
