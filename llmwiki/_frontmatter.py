@@ -19,15 +19,32 @@ from __future__ import annotations
 import re
 from typing import Any, Optional, Tuple
 
-_FRONTMATTER_RE = re.compile(r"^---\n?(.*?)\n?---\n?(.*)$", re.DOTALL)
+# Accept LF, CRLF, or CR after each fence so Windows-authored (CRLF) and
+# old-Mac (CR) files parse identically to LF input. The optional newline
+# slots match the historical regex (`\n?(.*?)\n?---\n?`) so empty
+# frontmatter (`---\n---\nbody`) still parses. BOM is handled separately
+# in `_strip_bom()` before the regex runs. See #409, #423.
+_FRONTMATTER_RE = re.compile(
+    r"^---[ \t]*(?:\r\n|\r|\n)?(.*?)(?:\r\n|\r|\n)?---[ \t]*(?:\r\n|\r|\n)?(.*)$",
+    re.DOTALL,
+)
+
+
+def _strip_bom(text: str) -> str:
+    """Strip leading UTF-8 BOM if present (#423)."""
+    if text and text[0] == "\ufeff":
+        return text[1:]
+    return text
 
 
 def parse_frontmatter(text: str) -> Tuple[dict[str, Any], str]:
     """Return ``(meta, body)`` — the canonical shape.
 
     Empty or malformed input returns ``({}, text)`` so callers can
-    treat every file uniformly.
+    treat every file uniformly. Handles UTF-8 BOM and CR/LF/CRLF
+    line endings transparently.
     """
+    text = _strip_bom(text)
     m = _FRONTMATTER_RE.match(text)
     if not m:
         return {}, text
@@ -53,6 +70,7 @@ def parse_frontmatter_or_none(text: str) -> Tuple[Optional[str], str]:
     """Return ``(raw_frontmatter_text | None, body)`` — legacy shape
     used by ``llmwiki/tags.py`` which does its own line-level parsing
     inside the frontmatter block."""
+    text = _strip_bom(text)
     m = _FRONTMATTER_RE.match(text)
     if not m:
         return None, text
