@@ -8,6 +8,19 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
+## [1.2.8] — 2026-04-26
+
+Patch release unifying the frontmatter parsers and fixing two correctness bugs surfaced by the Opus 4.7 code review (#403). Windows-authored files (CRLF, BOM-prefixed) now parse identically to LF input. No user-visible behaviour change beyond formerly-dropped frontmatter now landing.
+
+### Fixed
+
+- **Two divergent frontmatter parsers unified** (#409) — `build.py` shipped its own regex (`^---\n(.*?)\n---\n`) and a simpler list parser that disagreed with `_frontmatter.py` on CRLF input and quoted list elements. A Windows-authored `wiki/projects/<slug>.md` silently produced an empty meta dict on the build path while every other consumer saw the populated dict. Fix: delete the duplicate parser; `build.py` re-exports `parse_frontmatter` from `_frontmatter.py`. The canonical regex now accepts LF, CRLF, and CR after each fence.
+- **UTF-8 BOM dropped frontmatter silently** (#423) — files saved by Notepad on Windows ship with `\ufeff` at offset 0; the `^---` regex never matched, so the page was treated as headerless. Fix: `_strip_bom()` runs before the regex in every public entry point (`parse_frontmatter`, `parse_frontmatter_dict`, `parse_frontmatter_or_none`).
+
+### Added
+
+- **14 new tests** covering CRLF, CR-only, mixed line-endings, UTF-8 BOM, BOM+CRLF combination, and end-to-end `discover_sources` paths for Windows-authored files. `tests/test_frontmatter_shared.py` is now 43 cases.
+
 ## [1.2.7] — 2026-04-26
 
 Patch release fixing the `wiki_search` MCP-tool hit cap and pinning the project-filter substring contract flagged by the Opus 4.7 code review (#403). No API change; same response shape, correct cap.
