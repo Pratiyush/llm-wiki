@@ -124,7 +124,20 @@ def cmd_init(args: argparse.Namespace) -> int:
 
     # Seed index/log/overview + navigation files if not present
     seeds = {
-        "wiki/index.md": "# Wiki Index\n\n## Overview\n- [Overview](overview.md)\n\n## Sources\n\n## Entities\n\n## Concepts\n\n## Syntheses\n",
+        "wiki/index.md": (
+            "# Wiki Index\n\n"
+            "<!-- #387 U6: each section heading carries a (count) so the index\n"
+            "stays scannable as the wiki grows past ~50 pages. Update the count\n"
+            "in the heading when adding/removing pages. The index is otherwise\n"
+            "kept flat (no nested folders) so a single grep/scan can find any\n"
+            "page without descending into a tree. -->\n\n"
+            "## Overview (1)\n- [Overview](overview.md)\n\n"
+            "## Sources (0)\n\n"
+            "## Entities (0)\n\n"
+            "## Projects (0)\n\n"
+            "## Concepts (0)\n\n"
+            "## Syntheses (0)\n"
+        ),
         "wiki/overview.md": '---\ntitle: "Overview"\ntype: synthesis\nsources: []\nlast_updated: ""\n---\n\n# Overview\n\n*This page is maintained by your coding agent.*\n',
         "wiki/log.md": "# Wiki Log\n\nAppend-only chronological record of all operations.\n\nFormat: `## [YYYY-MM-DD] <operation> | <title>`\n\n---\n",
         "wiki/hints.md": '---\ntitle: "Navigation Hints"\ntype: navigation\nlast_updated: ""\n---\n\n# Hints\n\nWriting conventions, entity naming rules, and navigation guidance.\nCustomize this file for your project.\n',

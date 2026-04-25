@@ -15,6 +15,7 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ### Changed
 
+- **`wiki/index.md` section headings carry a `(count)`** (#387 U6) — past ~50 pages the flat bullet lists per section became hard to scan at a glance. Each section heading now reads `## Entities (4)` / `## Projects (4)` etc., so a reader can see the size of each bucket without scrolling. The seed in `cmd_init` and the documented format in `CLAUDE.md` both updated so future ingest agents preserve the format. Closes the last open item in #387.
 - **`llmwiki export` help text** (#387 U1) — the help string for the `export` subcommand previously listed three formats and trailed off with `...`. Now spells out the full set: `llms-txt`, `llms-full-txt`, `jsonld`, `sitemap`, `rss`, `robots`, `ai-readme`, `marp` (or `all`).
 - **`llmwiki sync --auto-build` / `--auto-lint` help text** (#387 U3) — the wording "if schedule allows" sounded calendar-based; updated to point explicitly at the `examples/sessions_config.json` `schedule.build` / `schedule.lint` config keys with the `on-sync` value that triggers them.
 - **`llmwiki synthesize --estimate` row label** (#387 U4) — renamed the second row from `Synthesized (history):` to `Already synthesized:`. Plain English without the parenthetical aside.
