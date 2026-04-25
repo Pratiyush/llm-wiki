@@ -8,13 +8,25 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
-## [1.2.5] — 2026-04-26
+## [1.2.9] — 2026-04-26
 
 Patch release fixing the `is_subagent` mis-classification flagged by the Opus 4.7 code review (#403). Pure correctness fix — no API change.
 
 ### Fixed
 
 - **`is_subagent` heuristic mis-tagged top-level sessions whose path contains 'subagent'** (#406) — `BaseAdapter.is_subagent` returned True for any path with `"subagent"` in any segment. Combined with the renderer renaming the slug to `<slug>-subagent-<id>`, every session in any user project named e.g. `subagent-runner` was demoted to sub-agent on the project page and excluded from main-session counts. Fix: `BaseAdapter.is_subagent` now returns False (no adapter has the concept by default); `ClaudeCodeAdapter` overrides with a strict canonical-path check (parent directory must be literally named `subagents` AND filename must start with `agent-`). Same conservative fix applied to `CodexCliAdapter`. Adds `tests/test_is_subagent.py` (18 cases including a cross-product matrix of project-name × path × adapter) closing test-gap #430.
+
+## [1.2.7] — 2026-04-26
+
+Patch release fixing the `wiki_search` MCP-tool hit cap and pinning the project-filter substring contract flagged by the Opus 4.7 code review (#403). No API change; same response shape, correct cap.
+
+### Fixed
+
+- **`wiki_search` 200-cap was per-root, not total** (#413) — the search loop had three nested `for` loops (root → file → line) but only the inner two had a `break` on the cap. `include_raw=True` could return up to 400 hits when the schema implies 200, and the entire `raw/sessions/` tree got scanned even after `wiki/` had already capped — doubling the work on a 500 MB corpus. Fix: hoist the cap to a single `truncated` flag checked at every loop boundary so the search terminates atomically when 200 is reached. Lowercase the search term once (was being re-lowercased per line). The `truncated` field in the response now reflects the actual cap state instead of a `>=` heuristic.
+
+### Added
+
+- **`wiki_list_sources` `project=` filter regression tests** (#431) — the filter is unsanitized substring match by design, but no test pinned that contract. Added `tests/test_mcp_safety.py` with 13 hostile-input cases (`../`, `../../etc`, `..\\`, `/etc/passwd`, URL-encoded traversal, command-injection patterns, backtick + `$()` substitution) confirming none escape `raw/sessions/`. Plus 12 cap-correctness tests for `wiki_search` (cap fires across roots, single file with 1000 hits caps at 200, case-insensitive match preserved, regex metacharacters treated literally, unicode/emoji terms work, empty + whitespace-only term rejected). Closes test-gap #431.
 
 ## [1.2.3] — 2026-04-26
 
