@@ -13,12 +13,12 @@ cwd: /Users/demo/code/demo-blog-engine
 gitBranch: feat/dark-mode
 permissionMode: default
 model: gemini-2.5-pro
-user_messages: 3
-tool_calls: 8
-tools_used: [Read, Edit, Write]
-tool_counts: {"Edit": 4, "Read": 2, "Write": 2}
+user_messages: 1
+tool_calls: 3
+tools_used: [Edit, Write]
+tool_counts: {"Edit": 2, "Write": 1}
 token_totals: {"input": 3800, "cache_creation": 6000, "cache_read": 15000, "output": 1900}
-turn_count: 3
+turn_count: 1
 hour_buckets: {"2026-04-01T15": 6, "2026-04-01T16": 2}
 duration_seconds: 4500
 is_subagent: false

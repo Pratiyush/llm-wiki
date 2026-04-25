@@ -19,7 +19,7 @@ best-F1 checkpoint callback.
 
 ## Connections
 
-- [[Python]]
-- [[DistilBERT]]
-- [[HuggingFaceTransformers]]
-- [[WeightsAndBiases]]
+- Python
+- DistilBERT
+- HuggingFace Transformers
+- Weights & Biases

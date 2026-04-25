@@ -13,12 +13,12 @@ cwd: /Users/demo/code/demo-ml-pipeline
 gitBranch: main
 permissionMode: default
 model: gpt-5.4
-user_messages: 7
-tool_calls: 24
-tools_used: [Read, Write, Edit, Bash, Glob, Grep]
-tool_counts: {"Read": 8, "Edit": 6, "Write": 5, "Bash": 3, "Grep": 2}
+user_messages: 2
+tool_calls: 5
+tools_used: [Bash, Write]
+tool_counts: {"Write": 4, "Bash": 1}
 token_totals: {"input": 14000, "cache_creation": 22000, "cache_read": 52000, "output": 6400}
-turn_count: 7
+turn_count: 2
 hour_buckets: {"2026-01-20T09": 8, "2026-01-20T10": 10, "2026-01-20T11": 4, "2026-01-20T12": 2}
 duration_seconds: 11700
 is_subagent: false
