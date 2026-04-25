@@ -10,6 +10,7 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ### Added
 
+- **Playwright + visual + a11y E2E suite** (#384) — 8 new pytest-playwright modules under `tests/e2e/` covering CLI smoke for every subcommand, build-artifact integrity (`search-index.json`, `sitemap.xml`, `llms.txt`, `manifest.json`, `robots.txt`, `rss.xml`, `graph.jsonld`), automated WCAG scan via axe-core, multi-step user journey, 404 handling, dark-mode persistence (incl. `prefers-color-scheme`), search-palette result ranking, and UX/microcopy guards. Visual regression switched from capture-only to PIL `ImageChops` compare-mode with a per-channel threshold (16/255) and 5% pixel tolerance — 12 PNG baselines committed (~400 KB). Surfaced 3 real bugs (issues #385 a11y contrast, #386 JS null `addEventListener`) and 9 UI/UX critique items (#387). Adds `Pillow>=10.0` to `[e2e]` extras.
 - **Graphify integration** (#364) — `pip install llmwiki[graph]` adds `graphifyy` as optional dependency. New `graphify_bridge.py` module provides AI-powered knowledge graph building via tree-sitter AST extraction, Leiden community detection, and confidence-scored edges. Run with `llmwiki graph --engine graphify`.
 
 ### Changed
