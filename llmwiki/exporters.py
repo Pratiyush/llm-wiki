@@ -140,7 +140,10 @@ def write_page_json(
         "wikilinks_out": sorted(set(wikilinks_out)),
         "body_text": _plain_text(markdown_body),
         "sha256": _sha256_16(markdown_body),
-        "source_url": f"sessions/{meta.get('project', '')}/{meta.get('slug', '')}.html",
+        # #415: source_url must match build.py's session HTML path which uses
+        # page_html_path.stem (carries date prefix + any disambig hash),
+        # NOT the bare slug field.
+        "source_url": f"sessions/{meta.get('project', '')}/{page_html_path.stem}.html",
     }
     # Drop None values so the JSON is clean
     data = {k: v for k, v in data.items() if v is not None}
@@ -305,14 +308,20 @@ def write_graph_jsonld(
     # Session nodes
     for p, meta, _body in sources:
         project = str(meta.get("project") or p.parent.name)
-        slug = str(meta.get("slug", p.stem))
+        # #415: build.py writes session HTML at sessions/<project>/<path.stem>.html
+        # — exporters MUST use the same path.stem for URL composition, not the
+        # slug field. The slug is the bare slug; the on-disk stem includes the
+        # date prefix (and any --<hash> disambiguator from collision retry).
+        # Mismatch was producing dead links in JSON-LD / sitemap / RSS.
+        url_stem = p.stem
+        slug = str(meta.get("slug", p.stem))  # used only for display @id
         node = {
-            "@id": f"session/{_page_id(project, slug)}",
+            "@id": f"session/{_page_id(project, url_stem)}",
             "@type": "CreativeWork",
             "name": meta.get("title") or slug,
             "dateCreated": meta.get("started") or meta.get("date"),
             "isPartOf": {"@id": f"project/{project}"},
-            "url": f"sessions/{project}/{slug}.html",
+            "url": f"sessions/{project}/{url_stem}.html",
         }
         if meta.get("model"):
             node["creator"] = {"@type": "SoftwareApplication", "name": str(meta["model"])}
@@ -360,10 +369,10 @@ def write_sitemap(
         lines.append(url(f"projects/{project}.html", priority="0.8"))
     for p, meta, _ in sources:
         project = str(meta.get("project") or p.parent.name)
-        slug = str(meta.get("slug", p.stem))
-        started = str(meta.get("started", ""))
-        lastmod = started.split("T")[0] if started else None
-        lines.append(url(f"sessions/{project}/{slug}.html", lastmod=lastmod, priority="0.6"))
+        # #415: use path.stem for URL — matches build.py's session HTML output path
+        lines.append(url(f"sessions/{project}/{p.stem}.html",
+                         lastmod=(str(meta.get("started", "")).split("T")[0] or None),
+                         priority="0.6"))
     lines.append("</urlset>")
     out_path = out_dir / "sitemap.xml"
     out_path.write_text("\n".join(lines), encoding="utf-8")
@@ -400,7 +409,8 @@ def write_rss(
         project = str(meta.get("project") or p.parent.name)
         slug = str(meta.get("slug", p.stem))
         title = str(meta.get("title", slug))
-        href_rel = f"sessions/{project}/{slug}.html"
+        # #415: use path.stem for URL — matches build.py's session HTML output path
+        href_rel = f"sessions/{project}/{p.stem}.html"
         link = f"{site_base_url.rstrip('/')}/{href_rel}" if site_base_url else href_rel
         summary = _plain_text(body)[:300]
         started = str(meta.get("started", ""))

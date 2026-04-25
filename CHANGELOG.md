@@ -8,13 +8,16 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
-### Changed
+## [1.2.1] — 2026-04-26
 
-- **Claude Code CI actions now use Opus 4.7** (#401) — both `claude-code-review.yml` (auto-fires on every PR) and `claude.yml` (`@claude` mention) now pass `--model claude-opus-4-7` via `claude_args`. Was the action's default Sonnet. Catches more subtle bugs and handles multi-file refactor requests better, at ~3-5× the per-review cost (still well within Anthropic Pro/Max plan quota).
+Patch release fixing 2 critical URL-correctness bugs surfaced by the Opus 4.7 code review (#403). No behaviour change beyond the fixed URLs; safe to upgrade.
 
 ### Fixed
 
-- **Stale `pip install llmwiki[graph]` reference in `graphify_bridge.py` docstring** (#402) — the PyPI distribution was renamed to `llm-notebook` in #398; the module docstring missed the rename. Fixed: now reads `pip install llm-notebook[graph]`. Python import name (`import llmwiki`) unchanged.
+- **`source_file:` frontmatter now matches disambiguated filenames** (#404) — `render_session_markdown` rendered the canonical `source_file:` line *before* the collision disambiguator decided the actual on-disk filename. Disambiguated sessions (e.g. `<canonical>--<hash>.md`) silently shipped with a `source_file:` field that resolved to a sibling file (or a 404 in the graph viewer). Fix: rewrite `source_file:` to match the disambiguated filename whenever disambig fires. Adds a regression test (`tests/test_collision_retry.py::test_disambiguated_source_file_matches_disk`).
+- **JSON-LD / sitemap / RSS / per-page `.json` exporters URL drift** (#415) — exporters composed URLs as `sessions/<project>/<meta.slug>.html` while `build.py` writes HTML to `sessions/<project>/<path.stem>.html`. The two stems differ by the date prefix and any `--<hash>` disambiguator suffix → every URL emitted in `sitemap.xml`, `rss.xml`, `graph.jsonld`, and per-session `.json` siblings was wrong. Fix: unify on `path.stem` for URL composition; reserve `meta["slug"]` for display fields (titles, JSON-LD `name`).
+- **Claude Code CI actions now use Opus 4.7** (#401) — both `claude-code-review.yml` (auto-fires on every PR) and `claude.yml` (`@claude` mention) now pass `--model claude-opus-4-7` via `claude_args`. Was the action's default Sonnet.
+- **Stale `pip install llmwiki[graph]` reference in `graphify_bridge.py` docstring** (#402) — corrected to `pip install llm-notebook[graph]` after the PyPI distribution rename in #398.
 
 ## [1.2.0] — 2026-04-25
 
