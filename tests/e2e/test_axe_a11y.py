@@ -100,11 +100,6 @@ def test_homepage_has_no_critical_a11y_violations(page: Page, base_url: str) -> 
     _scan(page, base_url, "/index.html")
 
 
-@pytest.mark.xfail(
-    reason="Tracks issue #385 (S2): hljs token classes fail WCAG 4.5:1 contrast on session pages. "
-    "Remove this marker once the contrast issue lands.",
-    strict=False,
-)
 def test_session_page_has_no_critical_a11y_violations(page: Page, base_url: str) -> None:
     """Session pages have the most user content (rendered Markdown,
     code blocks, breadcrumbs) and are the highest-risk surface for
@@ -139,11 +134,6 @@ def test_graph_page_has_no_critical_a11y_violations(page: Page, base_url: str) -
     _scan(page, base_url, "/graph.html")
 
 
-@pytest.mark.xfail(
-    reason="Tracks issue #385 (S3): .nav-links a.active fails WCAG 4.5:1 contrast in dark mode. "
-    "Remove this marker once the dark-mode accent color is bumped.",
-    strict=False,
-)
 def test_dark_mode_passes_color_contrast_audit(page: Page, base_url: str) -> None:
     """Dark mode is a frequent source of color-contrast regressions:
     a CSS variable change in light mode breaks contrast in dark mode

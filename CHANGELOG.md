@@ -8,9 +8,12 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
-### Added
+### Fixed
 
-- **Playwright + visual + a11y E2E suite** (#384) — 8 new pytest-playwright modules under `tests/e2e/` covering CLI smoke for every subcommand, build-artifact integrity (`search-index.json`, `sitemap.xml`, `llms.txt`, `manifest.json`, `robots.txt`, `rss.xml`, `graph.jsonld`), automated WCAG scan via axe-core, multi-step user journey, 404 handling, dark-mode persistence (incl. `prefers-color-scheme`), search-palette result ranking, and UX/microcopy guards. Visual regression switched from capture-only to PIL `ImageChops` compare-mode with a per-channel threshold (16/255) and 5% pixel tolerance — 12 PNG baselines committed (~400 KB). Surfaced 3 real bugs (issues #385 a11y contrast, #386 JS null `addEventListener`) and 9 UI/UX critique items (#387). Adds `Pillow>=10.0` to `[e2e]` extras.
+- **JS pageerror in graph.html** (#386) — `Cannot read properties of null (reading 'addEventListener')` fired during cross-page navigation when the graph viewer's chrome controls (`#theme-toggle`, `#ctx-menu`, `#search-input`, `#cluster-toggle`) were missing or rendered in a minimal layout. Added defensive null-guards on every `getElementById` → `addEventListener` chain in `llmwiki/graph.py`. The `test_full_navigation_journey` E2E test now passes (xfail marker removed).
+- **WCAG color-contrast violations on session pages and dark-mode chrome** (#385) — axe-core flagged 7 hljs token classes (`hljs-built_in`, `hljs-number`, `hljs-literal`, `hljs-attr`, `hljs-title`, `hljs-symbol`, `hljs-bullet`) for failing 4.5:1 contrast against `--bg-code` in light mode, plus the dark-mode active nav link + breadcrumb on the dark navbar at 4.63:1. Fix: explicit darker overrides for the offending hljs tokens in `llmwiki/render/css.py` (light mode), bumped `--accent` from `#7C3AED` to `#a78bfa` (8.5:1 on `#0c0a1d`) in dark mode, and added `text-decoration: underline` on `.nav-links a.active` so the active state doesn't rely on color alone (WCAG 1.4.1).
+
+### Added
 - **Graphify integration** (#364) — `pip install llmwiki[graph]` adds `graphifyy` as optional dependency. New `graphify_bridge.py` module provides AI-powered knowledge graph building via tree-sitter AST extraction, Leiden community detection, and confidence-scored edges. Run with `llmwiki graph --engine graphify`.
 
 ### Changed
