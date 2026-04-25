@@ -1,8 +1,8 @@
 # Cursor adapter
 
 **Status:** Production (v0.5)
-**Module:** `llmwiki.adapters.cursor`
-**Source:** [`llmwiki/adapters/cursor.py`](../../llmwiki/adapters/cursor.py)
+**Module:** `llmwiki.adapters.contrib.cursor`
+**Source:** [`llmwiki/adapters/contrib/cursor.py`](../../llmwiki/adapters/contrib/cursor.py)
 **Tracking issue:** #37
 
 ## What it reads
@@ -66,6 +66,6 @@ A minimal synthetic fixture is provided at `tests/fixtures/cursor/minimal.jsonl`
 
 ## Reference
 
-- [`llmwiki/adapters/cursor.py`](../../llmwiki/adapters/cursor.py) -- the adapter source
+- [`llmwiki/adapters/contrib/cursor.py`](../../llmwiki/adapters/contrib/cursor.py) -- the adapter source
 - [`llmwiki/convert.py`](../../llmwiki/convert.py) -- the shared converter
 - [README](../../README.md) -- project overview

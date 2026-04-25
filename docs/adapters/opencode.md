@@ -60,7 +60,7 @@ Standard `raw/sessions/<YYYY-MM-DDTHH-MM>-<project>-<slug>.md`.
 
 ## Code
 
-- `llmwiki/adapters/opencode.py`
+- `llmwiki/adapters/contrib/opencode.py`
 - Tests: `tests/test_opencode_adapter.py` (23 cases)
 - Issue history: #43 (initial)
 
