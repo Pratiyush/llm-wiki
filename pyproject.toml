@@ -69,7 +69,7 @@ dev = [
 e2e = [
     "pytest>=7.0",
     "pytest-playwright>=0.4",
-    "pytest-bdd>=7.0",
+    "pytest-bdd>=8.1.0",
     "pytest-html>=4.2.0",
 ]
 all = [
