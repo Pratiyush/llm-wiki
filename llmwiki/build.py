@@ -81,30 +81,15 @@ PROJECTS_META_DIR = REPO_ROOT / "wiki" / "projects"
 
 # ─── frontmatter ───────────────────────────────────────────────────────────
 
-_FRONTMATTER_RE = re.compile(r"^---\n(.*?)\n---\n(.*)$", re.DOTALL)
-
-
-def parse_frontmatter(text: str) -> tuple[dict[str, Any], str]:
-    m = _FRONTMATTER_RE.match(text)
-    if not m:
-        return {}, text
-    raw, body = m.group(1), m.group(2)
-    meta: dict[str, Any] = {}
-    for line in raw.splitlines():
-        if ":" not in line:
-            continue
-        k, _, v = line.partition(":")
-        v = v.strip()
-        if len(v) >= 2 and v[0] == v[-1] and v[0] in ("'", '"'):
-            v = v[1:-1]
-        if v.startswith("[") and v.endswith("]"):
-            inner = v[1:-1].strip()
-            meta[k.strip()] = (
-                [x.strip() for x in inner.split(",") if x.strip()] if inner else []
-            )
-        else:
-            meta[k.strip()] = v
-    return meta, body
+# #409 / #423: build.py used to ship a divergent regex (LF-only, no BOM
+# handling, simpler list parser) which silently dropped frontmatter on
+# Windows-authored files. Unified to the canonical parser in
+# `_frontmatter.py`. Re-exported under the historical name so external
+# consumers (and `tests/test_render_split.py`) keep working.
+from llmwiki._frontmatter import (  # noqa: E402
+    _FRONTMATTER_RE,
+    parse_frontmatter,
+)
 
 
 # ─── discovery ─────────────────────────────────────────────────────────────

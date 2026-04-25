@@ -8,13 +8,34 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
-## [1.2.11] — 2026-04-26
+## [1.2.14] — 2026-04-26
 
 Patch release fixing the `ToolsConsistency` lint rule's silent `TypeError` on list-typed `tools_used` flagged by the Opus 4.7 code review (#403). Pure correctness fix — no API change; the rule now actually runs on every page instead of aborting after the first list-typed value.
 
 ### Fixed
 
 - **`ToolsConsistency` raised `TypeError` on list-typed `tools_used`** (#410) — `lint/rules.py:754` did `re.search(_TOOLS_USED_RE, tools_used_raw)` directly. Frontmatter parsed by `_frontmatter.py`'s inline-list path returns `tools_used` as a real Python `list`, not a string, so `re.search(regex, list)` raised `TypeError` and silently aborted the whole rule (16 → 15 effective rules). One source page with parsed-list `tools_used` was enough to take the rule out. Fix: new `_normalise_tools_used(value)` and `_normalise_tool_counts_keys(value)` helpers coerce list / str / dict / None / number / bool into a consistent `set[str]` before the comparison runs. Adds 7 regression tests covering the type matrix (list, quoted-list, empty list, str, missing, dict tool_counts, hostile types).
+
+## [1.2.12] — 2026-04-26
+
+Patch release fixing the `IndexSync` lint rule's false-positive flood on relative href prefixes flagged by the Opus 4.7 code review (#403). No API change; the rule now correctly resolves `./`, `..`, `#anchor`, and `?query` instead of treating each as a dead link.
+
+### Fixed
+
+- **`IndexSync` false positives on relative href prefixes** (#411) — `lint/rules.py` did `if href not in pages and not href.lstrip("./") in pages`, which is an operator-precedence quirk that *happens* to handle bare `./` and false-positive'd on every other shape: `../entities/Foo.md`, `entities/Foo.md#section`, `entities/Foo.md?v=2`, `entities/Foo.md?v=2#section`. The first time someone built a wiki with realistic links to anchors or query-versioned pages, the rule reported a wave of dead links that weren't dead. Fix: new `_resolve_index_href(href)` helper strips `#anchor` and `?query`, drops `./` prefixes, and collapses `..` segments via `PurePosixPath`. Hrefs that escape the wiki root (more `..` than parent dirs) return `""` and are silently dropped — the missing-page check still catches them via the inverse direction. External links (`http://`, `https://`, `mailto:`) skip the resolver entirely. Adds 9 regression tests covering the full href shape matrix plus a direct unit test for the resolver.
+
+## [1.2.8] — 2026-04-26
+
+Patch release unifying the frontmatter parsers and fixing two correctness bugs surfaced by the Opus 4.7 code review (#403). Windows-authored files (CRLF, BOM-prefixed) now parse identically to LF input. No user-visible behaviour change beyond formerly-dropped frontmatter now landing.
+
+### Fixed
+
+- **Two divergent frontmatter parsers unified** (#409) — `build.py` shipped its own regex (`^---\n(.*?)\n---\n`) and a simpler list parser that disagreed with `_frontmatter.py` on CRLF input and quoted list elements. A Windows-authored `wiki/projects/<slug>.md` silently produced an empty meta dict on the build path while every other consumer saw the populated dict. Fix: delete the duplicate parser; `build.py` re-exports `parse_frontmatter` from `_frontmatter.py`. The canonical regex now accepts LF, CRLF, and CR after each fence.
+- **UTF-8 BOM dropped frontmatter silently** (#423) — files saved by Notepad on Windows ship with `\ufeff` at offset 0; the `^---` regex never matched, so the page was treated as headerless. Fix: `_strip_bom()` runs before the regex in every public entry point (`parse_frontmatter`, `parse_frontmatter_dict`, `parse_frontmatter_or_none`).
+
+### Added
+
+- **14 new tests** covering CRLF, CR-only, mixed line-endings, UTF-8 BOM, BOM+CRLF combination, and end-to-end `discover_sources` paths for Windows-authored files. `tests/test_frontmatter_shared.py` is now 43 cases.
 
 ## [1.2.7] — 2026-04-26
 
