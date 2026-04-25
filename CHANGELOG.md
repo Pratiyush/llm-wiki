@@ -8,13 +8,21 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
-## [1.2.3] — 2026-04-26
+## [1.2.5] — 2026-04-26
 
 Patch release fixing the `is_subagent` mis-classification flagged by the Opus 4.7 code review (#403). Pure correctness fix — no API change.
 
 ### Fixed
 
 - **`is_subagent` heuristic mis-tagged top-level sessions whose path contains 'subagent'** (#406) — `BaseAdapter.is_subagent` returned True for any path with `"subagent"` in any segment. Combined with the renderer renaming the slug to `<slug>-subagent-<id>`, every session in any user project named e.g. `subagent-runner` was demoted to sub-agent on the project page and excluded from main-session counts. Fix: `BaseAdapter.is_subagent` now returns False (no adapter has the concept by default); `ClaudeCodeAdapter` overrides with a strict canonical-path check (parent directory must be literally named `subagents` AND filename must start with `agent-`). Same conservative fix applied to `CodexCliAdapter`. Adds `tests/test_is_subagent.py` (18 cases including a cross-product matrix of project-name × path × adapter) closing test-gap #430.
+
+## [1.2.2] — 2026-04-26
+
+Patch release closing the path-traversal vector flagged by the Opus 4.7 code review (#403). No user-visible behaviour change beyond rejecting poisoned slugs.
+
+### Fixed
+
+- **Path-traversal via attacker-controlled `project:` / `slug:` frontmatter** (#405) — `project_slug = str(meta.get("project") or path.parent.name)` was used verbatim in `out_dir / "sessions" / project_slug / ...`. A hand-crafted `raw/sessions/*.md` with `project: ../../../etc/passwd` would have written under `out_dir/../../...`. Fix: new `_safe_slug()` helper at `llmwiki/build.py` rejects non-`[A-Za-z0-9._-]` values, traversal segments, absolute paths, and null bytes — falling back to a clearly abnormal slug rather than escaping `out_dir`. Sanitization happens at the discovery boundary so every downstream consumer (project page, session page, search index, exporters) sees a safe value. Adds `tests/test_path_traversal.py` (35 cases) closing test-gap #428.
 
 ## [1.2.0] — 2026-04-25
 
