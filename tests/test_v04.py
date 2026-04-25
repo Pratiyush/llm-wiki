@@ -73,7 +73,10 @@ def test_plain_text_strips_markdown():
     text = _plain_text(md)
     assert "**" not in text
     assert "```" not in text
-    assert "print('x')" not in text
+    # Fenced code blocks have their fences stripped but the inner source is
+    # preserved — otherwise AI-consumable exports lose the most valuable
+    # content in coding transcripts (regression test for exporters.py).
+    assert "print('x')" in text
     assert "Heading" in text
     assert "wikilink" in text
 

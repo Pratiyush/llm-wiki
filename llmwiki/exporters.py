@@ -31,9 +31,20 @@ from llmwiki import REPO_ROOT, __version__
 
 
 def _plain_text(markdown_body: str) -> str:
-    """Strip markdown to plain text (for llms-full and per-page .txt)."""
+    """Strip markdown to plain text (for llms-full and per-page .txt).
+
+    Fenced code blocks are unwrapped (fences removed, body preserved) so that
+    code in transcripts survives into AI-consumable exports. Previously this
+    replaced the entire block with a single space, which destroyed the most
+    valuable content in coding session transcripts.
+    """
     text = markdown_body
-    text = re.sub(r"```.*?```", " ", text, flags=re.DOTALL)
+    text = re.sub(
+        r"```[a-zA-Z0-9_+\-.]*\n?(.*?)```",
+        lambda m: m.group(1).rstrip() + "\n",
+        text,
+        flags=re.DOTALL,
+    )
     text = re.sub(r"`([^`]*)`", r"\1", text)
     text = re.sub(r"\[([^\]]*)\]\([^\)]*\)", r"\1", text)
     text = re.sub(r"\[\[([^\]]*)\]\]", r"\1", text)
@@ -55,6 +66,41 @@ def _page_id(project: str, slug: str) -> str:
     """Stable content-addressable ID for a page. Used in JSON-LD @id and
     cross-reference tables."""
     return f"{project}/{slug}"
+
+
+def _as_int(value: Any) -> Any:
+    """Coerce frontmatter scalars to int where possible; leave other types alone."""
+    if value is None or isinstance(value, bool):
+        return value
+    if isinstance(value, int):
+        return value
+    if isinstance(value, str):
+        s = value.strip()
+        if s.lstrip("-").isdigit():
+            try:
+                return int(s)
+            except ValueError:
+                return value
+    return value
+
+
+def _as_bool(value: Any) -> Any:
+    """Coerce frontmatter scalars to bool. Strings like 'false'/'0' map to False.
+
+    Critical because raw YAML-loaded strings like ``"false"`` are truthy in both
+    Python and JavaScript, which silently flips downstream boolean checks.
+    """
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        s = value.strip().lower()
+        if s in ("true", "1", "yes"):
+            return True
+        if s in ("false", "0", "no", ""):
+            return False
+    return bool(value)
 
 
 # ─── per-page sibling files (A3 + A4) ────────────────────────────────────
@@ -87,10 +133,10 @@ def write_page_json(
         "cwd": meta.get("cwd"),
         "git_branch": meta.get("gitBranch"),
         "permission_mode": meta.get("permissionMode"),
-        "user_messages": meta.get("user_messages"),
-        "tool_calls": meta.get("tool_calls"),
+        "user_messages": _as_int(meta.get("user_messages")),
+        "tool_calls": _as_int(meta.get("tool_calls")),
         "tools_used": meta.get("tools_used"),
-        "is_subagent": meta.get("is_subagent"),
+        "is_subagent": _as_bool(meta.get("is_subagent")),
         "wikilinks_out": sorted(set(wikilinks_out)),
         "body_text": _plain_text(markdown_body),
         "sha256": _sha256_16(markdown_body),

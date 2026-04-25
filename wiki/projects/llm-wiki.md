@@ -19,7 +19,7 @@ static site → browse.
 
 ## Connections
 
-- [[AndrejKarpathy]]
-- [[ClaudeCode]]
-- [[StaticSiteGeneration]]
-- [[LLMWiki]]
+- Andrej Karpathy
+- Claude Code
+- Static site generation
+- llmwiki
