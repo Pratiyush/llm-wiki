@@ -8,6 +8,15 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
+### Added
+
+- **Branded 404 page** (#387 U8) — `llmwiki build` now emits `site/404.html` with the standard nav + footer + a "try one of these" panel linking back to home / projects / sessions / changelog. `llmwiki serve` overrides `SimpleHTTPRequestHandler.send_error` to use the branded body for any 404 response (status code stays 404 — this is the response body, not a redirect). Dead wikilinks now land users on something they can navigate from instead of the stdlib's plain-text default.
+
+### Changed
+
+- **`llmwiki adapters` column names** (#387 U2) — renamed `default` → `present`, `configured` → `enabled`, `will_fire` → `active`. The new names are immediately legible without consulting the legend below the table. The legend itself was tightened. No behavioural change.
+- **Hero-subtitle plural inflection** (#387 U7) — count strings on the homepage, projects index, and sessions index use the new `_pluralize(n, singular)` helper so users no longer see `"1 sessions"` / `"1 projects"`. Examples: `"1 main session · 0 sub-agent runs · 1 project"`, `"1 session total"`.
+
 ### Fixed
 
 - **JS pageerror in graph.html** (#386) — `Cannot read properties of null (reading 'addEventListener')` fired during cross-page navigation when the graph viewer's chrome controls (`#theme-toggle`, `#ctx-menu`, `#search-input`, `#cluster-toggle`) were missing or rendered in a minimal layout. Added defensive null-guards on every `getElementById` → `addEventListener` chain in `llmwiki/graph.py`. The `test_full_navigation_journey` E2E test now passes (xfail marker removed).
