@@ -13,12 +13,12 @@ cwd: /Users/demo/code/demo-todo-api
 gitBranch: feat/oauth
 permissionMode: default
 model: claude-sonnet-4-6
-user_messages: 8
-tool_calls: 22
-tools_used: [Read, Write, Edit, Bash, WebFetch, Grep]
-tool_counts: {"Edit": 8, "Read": 6, "Write": 3, "Bash": 3, "WebFetch": 1, "Grep": 1}
+user_messages: 2
+tool_calls: 5
+tools_used: [Bash, Edit, Write]
+tool_counts: {"Edit": 2, "Bash": 2, "Write": 1}
 token_totals: {"input": 12000, "cache_creation": 18000, "cache_read": 45000, "output": 5600}
-turn_count: 8
+turn_count: 2
 hour_buckets: {"2026-02-15T13": 8, "2026-02-15T14": 10, "2026-02-15T15": 4}
 duration_seconds: 9600
 is_subagent: false
