@@ -66,7 +66,14 @@ def test_cache_clear_resets_state():
     md_to_html("# A")
     md_to_html_cache_clear()
     stats = md_to_html_cache_stats()
-    assert stats == {"hits": 0, "misses": 0, "size": 0}
+    # #417: stats now also expose plain_* fields for the
+    # md_to_plain_text cache. All hit/miss/size counters reset.
+    assert stats["hits"] == 0
+    assert stats["misses"] == 0
+    assert stats["size"] == 0
+    assert stats["plain_hits"] == 0
+    assert stats["plain_misses"] == 0
+    assert stats["plain_size"] == 0
 
 
 def test_cached_output_matches_uncached_semantics():
@@ -135,3 +142,92 @@ def test_normalize_markdown_runs_inside_uncached():
     the expected <p> wrapper."""
     out = _md_to_html_uncached("Plain text.\n")
     assert "<p>Plain text.</p>" in out
+
+
+# ─── #417 — md_to_plain_text caching + perf ──────────────────────────
+
+
+def test_plain_cache_returns_identical_output():
+    from llmwiki.build import md_to_plain_text
+    body = "# Title\n\nA paragraph with [a link](url) and **bold**.\n"
+    first = md_to_plain_text(body)
+    second = md_to_plain_text(body)
+    assert first == second
+
+
+def test_plain_cache_hits_counted():
+    from llmwiki.build import md_to_plain_text
+    body = "# Hi"
+    md_to_plain_text(body)
+    md_to_plain_text(body)
+    md_to_plain_text(body)
+    stats = md_to_html_cache_stats()
+    assert stats["plain_hits"] == 2
+    assert stats["plain_misses"] == 1
+
+
+def test_plain_cache_independent_from_html_cache():
+    """Calling md_to_html doesn't populate plain cache (different output)."""
+    from llmwiki.build import md_to_plain_text
+    md_to_html("# A")
+    stats = md_to_html_cache_stats()
+    assert stats["plain_size"] == 0
+    md_to_plain_text("# A")
+    stats = md_to_html_cache_stats()
+    assert stats["plain_size"] == 1
+
+
+def test_plain_cache_is_content_keyed():
+    """Identical bodies → same cache key (per #417 unified _content_key)."""
+    from llmwiki.build import md_to_plain_text
+    md_to_plain_text("# A\n\nbody")
+    md_to_plain_text("# A" + "\n\n" + "body")
+    stats = md_to_html_cache_stats()
+    assert stats["plain_hits"] == 1
+
+
+def test_plain_cache_handles_empty_body():
+    from llmwiki.build import md_to_plain_text
+    out = md_to_plain_text("")
+    # Empty body is cacheable too — just produces empty string after strip.
+    assert md_to_plain_text("") == out
+    assert md_to_html_cache_stats()["plain_hits"] == 1
+
+
+def test_blake2b_cache_keys_distinct_for_one_byte_diff():
+    """Regression for #417: 8-byte blake2b digest still distinguishes
+    bodies that differ by a single byte. (Birthday-collision bound at
+    ~4×10^9 entries; the 4096-entry cap keeps us safe.)"""
+    from llmwiki.build import _content_key
+    assert _content_key("hello") != _content_key("hellp")
+    assert _content_key("# A") != _content_key("# B")
+    assert _content_key("") != _content_key(" ")
+
+
+def test_blake2b_key_is_8_bytes():
+    """Pin the digest size — anything larger wastes memory, anything
+    smaller is collision-prone at scale."""
+    from llmwiki.build import _content_key
+    assert len(_content_key("any body")) == 8
+
+
+def test_plain_cache_eviction_at_max():
+    """FIFO eviction works for the plain cache too (#417)."""
+    from llmwiki.build import md_to_plain_text, _MD_CACHE_MAX
+    # Fill the cache one over the cap.
+    for i in range(_MD_CACHE_MAX + 5):
+        md_to_plain_text(f"body {i}")
+    # Size should be capped, not unbounded.
+    stats = md_to_html_cache_stats()
+    assert stats["plain_size"] <= _MD_CACHE_MAX
+
+
+def test_md_html_and_plain_share_lifecycle():
+    """Clearing the cache resets both html + plain counters (#417)."""
+    from llmwiki.build import md_to_plain_text
+    md_to_html("# A")
+    md_to_plain_text("# A")
+    md_to_html_cache_clear()
+    stats = md_to_html_cache_stats()
+    assert stats["size"] == 0
+    assert stats["plain_size"] == 0
