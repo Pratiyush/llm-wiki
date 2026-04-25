@@ -328,41 +328,44 @@ def cmd_adapters(args: argparse.Namespace) -> int:
 
     # Description column width: 40 by default, full line with --wide,
     # or auto-fit to terminal (minus the four fixed columns + gutters).
+    # #387 U2: column names renamed from default/configured/will_fire to
+    # present/enabled/active — they read at a glance without needing the
+    # legend below.
     wide = bool(getattr(args, "wide", False))
     if wide:
         desc_width: Optional[int] = None  # no cap
     else:
         term_cols = _shutil.get_terminal_size(fallback=(80, 24)).columns
-        # Layout: "  name(16)  default(8)  configured(10)  will_fire(9)  desc" — fixed overhead ~55.
-        desc_width = max(30, term_cols - 57)
+        # Layout: "  name(16)  present(8)  enabled(10)  active(7)  desc"
+        desc_width = max(30, term_cols - 55)
 
     print("Registered adapters:")
     dash = "-"
     header = (
-        f"  {'name':<16}  {'default':<8}  {'configured':<10}  "
-        f"{'will_fire':<9}  description"
+        f"  {'name':<16}  {'present':<8}  {'enabled':<10}  "
+        f"{'active':<7}  description"
     )
     print(header)
     sep_desc = "-" * (desc_width if desc_width is not None else len("description"))
     print(
-        f"  {dash * 16}  {dash * 8}  {dash * 10}  {dash * 9}  {sep_desc}"
+        f"  {dash * 16}  {dash * 8}  {dash * 10}  {dash * 7}  {sep_desc}"
     )
     for name, adapter_cls in sorted(REGISTRY.items()):
-        default_avail = "yes" if adapter_cls.is_available() else "no"
-        configured, will_fire = _adapter_status(name, adapter_cls, config)
+        present = "yes" if adapter_cls.is_available() else "no"
+        enabled, active = _adapter_status(name, adapter_cls, config)
         desc = adapter_cls.description()
         if desc_width is not None and len(desc) > desc_width:
             desc = desc[: max(desc_width - 3, 1)] + "..."
         print(
-            f"  {name:<16}  {default_avail:<8}  {configured:<10}  "
-            f"{will_fire:<9}  {desc}"
+            f"  {name:<16}  {present:<8}  {enabled:<10}  "
+            f"{active:<7}  {desc}"
         )
 
     print()
     print("Columns:")
-    print("  default    — is the adapter's session store present on disk?")
-    print("  configured — auto (default), explicit (enabled:true in config), off (enabled:false)")
-    print("  will_fire  — will `sync` pick this adapter up on its next run?")
+    print("  present  — is the adapter's session store visible on disk?")
+    print("  enabled  — auto (default), explicit (enabled:true in config), off (enabled:false)")
+    print("  active   — yes/no — will `sync` pick this adapter up on its next run?")
     if not wide:
         print()
         print("Pass --wide to see untruncated descriptions.")

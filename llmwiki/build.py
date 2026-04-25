@@ -685,6 +685,16 @@ def page_foot(js_prefix: str = "") -> str:
 
 # ─── page renderers ────────────────────────────────────────────────────────
 
+def _pluralize(n: int, singular: str, plural: str | None = None) -> str:
+    """Return ``"1 session"`` for n=1, ``"3 sessions"`` for n=3.
+
+    Closes #387 U7. The hero subtitle and any other count-bearing
+    user-facing string should never read as ``"1 sessions"``."""
+    if plural is None:
+        plural = singular + "s"
+    return f"{n} {singular if n == 1 else plural}"
+
+
 def calc_reading_time(body: str, wpm: int = 225) -> int:
     """Estimate reading time in minutes from a markdown body."""
     words = len(re.findall(r"\w+", body))
@@ -1030,7 +1040,7 @@ def render_projects_index(
     page = (
         page_head("Projects — LLM Wiki", "All projects with Claude Code session history", css_prefix="../")
         + nav_bar("projects", link_prefix="../")
-        + hero("Projects", f"{len(groups)} projects")
+        + hero("Projects", _pluralize(len(groups), "project"))
         + body
         + page_foot(js_prefix="../")
     )
@@ -1138,7 +1148,7 @@ def render_sessions_index(
     page = (
         page_head("Sessions — LLM Wiki", "All Claude Code sessions, newest first", css_prefix="../")
         + nav_bar("sessions", link_prefix="../")
-        + hero("All sessions", f"{len(sources)} sessions total")
+        + hero("All sessions", _pluralize(len(sources), "session") + " total")
         + body
         + page_foot(js_prefix="../")
     )
@@ -1244,7 +1254,7 @@ def render_index(
         + nav_bar("home", link_prefix="")
         + hero(
             "LLM Wiki",
-            f"{mains} main sessions · {subs} sub-agent runs · {len(groups)} projects",
+            f"{_pluralize(mains, 'main session')} · {_pluralize(subs, 'sub-agent run')} · {_pluralize(len(groups), 'project')}",
         )
         + synth_block
         + body
@@ -1311,6 +1321,46 @@ def _render_root_md_page(
         + page_foot(js_prefix="")
     )
     out_path = out_dir / out_name
+    out_path.write_text(page, encoding="utf-8")
+    return out_path
+
+
+def render_404(out_dir: Path) -> Path:
+    """Emit ``site/404.html`` with the standard site chrome and a "Page not
+    found" panel. Closes #387 U8 — without this, ``llmwiki serve`` falls
+    back to the stdlib ``http.server`` default 404 (an unstyled error string
+    with no nav). The page itself is not linked from the index, but
+    ``serve.py`` injects it as the body of every 404 response.
+    """
+    head = page_head(
+        title="Page not found · llmwiki",
+        description="The page you tried to open doesn't exist on this site.",
+    )
+    nav = nav_bar(active="")
+    foot = page_foot()
+    body = """<main id="main-content">
+<section class="hero">
+  <div class="container">
+    <h1>Page not found</h1>
+    <p class="hero-sub">The page you tried to open doesn't exist on this site. The link may be stale, the page may have been removed, or the URL may have a typo.</p>
+  </div>
+</section>
+<section class="section">
+  <div class="container">
+    <p>Try one of these:</p>
+    <ul style="list-style: disc; padding-left: 24px; margin: 12px 0;">
+      <li><a href="index.html">Home</a> — overview and recent activity</li>
+      <li><a href="projects/index.html">Projects</a> — every project with sessions</li>
+      <li><a href="sessions/index.html">Sessions</a> — every session, sortable + filterable</li>
+      <li><a href="changelog.html">Changelog</a> — what's shipped recently</li>
+    </ul>
+    <p class="muted">Or press <kbd>⌘K</kbd> / <kbd>Ctrl+K</kbd> to open the command palette and search.</p>
+  </div>
+</section>
+</main>
+"""
+    page = head + nav + body + foot
+    out_path = out_dir / "404.html"
     out_path.write_text(page, encoding="utf-8")
     return out_path
 
@@ -1894,13 +1944,16 @@ def build_site(
     render_sessions_index(sources, groups, out_dir)
     render_index(groups, sources, out_dir, synthesis=synthesis)
     cl_path = render_changelog(out_dir)
+    # #387 U8: branded 404 page that serve.py returns as the body of any
+    # 404 response, instead of the stdlib http.server default.
+    not_found_path = render_404(out_dir)
     # #284: compile README + CONTRIBUTING as standalone site pages so
     # they don't bounce visitors out to GitHub for content we're already
     # shipping as HTML.
     readme_path = render_readme_page(out_dir)
     contributing_path = render_contributing_page(out_dir)
     print(
-        "  wrote index.html, projects/index.html, sessions/index.html"
+        "  wrote index.html, projects/index.html, sessions/index.html, 404.html"
         + (", changelog.html" if cl_path else "")
     )
 

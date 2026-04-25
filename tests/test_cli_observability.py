@@ -98,12 +98,15 @@ def test_adapter_status_invalid_config_entry_defaults_to_auto():
 def test_adapters_cli_shows_new_columns():
     cp = _run_cli("adapters")
     assert cp.returncode == 0
-    # Header names present
-    for header in ("name", "default", "configured", "will_fire", "description"):
-        assert header in cp.stdout
-    # Legacy labels no longer present in data rows
-    assert "enabled" not in cp.stdout or "Pass --wide" in cp.stdout
-    # Human-readable column legend at the bottom
+    # #387 U2: column names renamed to present / enabled / active.
+    for header in ("name", "present", "enabled", "active", "description"):
+        assert header in cp.stdout, (
+            f"adapters table missing the {header!r} column header"
+        )
+    # Old column names should be gone — they're confusing without the legend.
+    assert "configured" not in cp.stdout, "old 'configured' column header still rendered"
+    assert "will_fire" not in cp.stdout, "old 'will_fire' column header still rendered"
+    # Human-readable column legend at the bottom describes the new names.
     assert "auto (default)" in cp.stdout
     assert "explicit (enabled:true" in cp.stdout
 

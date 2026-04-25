@@ -185,9 +185,10 @@ def test_adapters_lists_at_least_one_adapter() -> None:
     assert result.returncode == 0, result.stderr
     # Header row + at least one data row.
     assert "Registered adapters:" in result.stdout
-    # The columns contract (G-01 #287): name, default, configured, will_fire.
-    assert "configured" in result.stdout
-    assert "will_fire" in result.stdout
+    # #387 U2: columns are now name / present / enabled / active / description.
+    assert "present" in result.stdout
+    assert "enabled" in result.stdout
+    assert "active" in result.stdout
 
 
 def test_adapters_wide_disables_truncation() -> None:
