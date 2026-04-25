@@ -160,22 +160,27 @@ Output a report to the chat. Ask the user if they want it saved to `wiki/lint-re
 
 ## Index Format
 
+Every section heading carries a `(count)` of pages in that section. Update the count when adding/removing a page so the index stays scannable past ~50 pages (#387 U6).
+
 ```markdown
 # Wiki Index
 
-## Overview
+## Overview (1)
 - [Overview](overview.md)
 
-## Sources
+## Sources (N)
 - [Source Title](sources/slug.md) — one-line summary
 
-## Entities
+## Entities (N)
 - [Entity Name](entities/EntityName.md) — one-line description
 
-## Concepts
+## Projects (N)
+- [project-slug](projects/project-slug.md) — one-line description
+
+## Concepts (N)
 - [Concept Name](concepts/ConceptName.md) — one-line description
 
-## Syntheses
+## Syntheses (N)
 - [Analysis Title](syntheses/slug.md) — what question it answers
 ```
 
