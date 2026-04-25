@@ -1183,6 +1183,18 @@ def convert_all(
                     disambiguator=_source_hash8(path),
                 )
                 out_path = out_dir / out_name
+                # #404: rewrite the source_file: frontmatter line so it
+                # matches the disambiguated filename. Without this the
+                # rendered markdown still pointed at the canonical name,
+                # breaking graph viewer links and any consumer that
+                # resolved source_file → site URL.
+                md = re.sub(
+                    r"^source_file: raw/sessions/[^\n]+$",
+                    f"source_file: raw/sessions/{out_name}",
+                    md,
+                    count=1,
+                    flags=re.MULTILINE,
+                )
             if not dry_run:
                 names_written_this_run.add(out_name)
             if dry_run:

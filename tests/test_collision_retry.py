@@ -292,3 +292,51 @@ def test_disambiguated_names_stable_across_incremental_sync(tmp_path, monkeypatc
         assert name in after_second, (
             f"sync-2 renamed or removed {name!r}: {after_second}"
         )
+
+
+def test_disambiguated_source_file_matches_disk(tmp_path, monkeypatch):
+    """#404 + #427: the ``source_file:`` frontmatter field must point at
+    the actual on-disk filename — including the ``--<hash>`` suffix on
+    disambiguated files. Before the fix, ``render_session_markdown``
+    hard-coded the canonical filename in the frontmatter, so disambiguated
+    files all carried a ``source_file:`` that resolved to a sibling file
+    (or a 404 in the graph viewer).
+    """
+    home, proj, out_dir, state = _seed_env(tmp_path)
+    ts = "2026-04-16T10:00:00Z"
+
+    # Two colliding sources → one canonical, one hashed.
+    _write_jsonl(proj / "alpha.jsonl", "sess-a", ts, slug="dup-check")
+    _write_jsonl(proj / "beta.jsonl", "sess-b", ts, slug="dup-check")
+
+    _patch(monkeypatch, home, out_dir, state)
+    c.discover_adapters()
+    c.convert_all(adapters=["claude_code"], out_dir=out_dir,
+                  state_file=state, include_current=True)
+
+    outs = sorted(out_dir.rglob("*.md"))
+    assert len(outs) == 2, [p.name for p in outs]
+
+    # For every output file, the source_file: frontmatter line must name
+    # that exact file (matching disambiguated suffix where present).
+    for p in outs:
+        body = p.read_text(encoding="utf-8")
+        # Pull out the source_file: line from the frontmatter
+        sf_line = next(
+            (line for line in body.splitlines() if line.startswith("source_file:")),
+            None,
+        )
+        assert sf_line is not None, f"no source_file: line in {p.name}"
+        # Frontmatter says raw/sessions/<filename>; check the trailing path matches
+        recorded_filename = sf_line.split("/")[-1]
+        assert recorded_filename == p.name, (
+            f"frontmatter source_file mismatch in {p.name}: "
+            f"frontmatter says {recorded_filename!r}, file is {p.name!r}"
+        )
+
+    # Stronger check: at least one of the two files must be disambiguated
+    # (carry --<hash>) — otherwise the test isn't exercising the fix.
+    disambig_files = [p for p in outs if "--" in p.name]
+    assert disambig_files, (
+        f"test setup failed to produce disambiguation: {[p.name for p in outs]}"
+    )
