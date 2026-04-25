@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "llm-notebook"
-version = "1.2.2"
+version = "1.2.6"
 description = "Karpathy-style LLM wiki from your Claude Code, Codex CLI, Cursor, and Obsidian sessions"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -124,3 +124,8 @@ python_functions = ["test_*"]
 # of the Playwright + pytest-bdd harness. Run E2E explicitly:
 #   pytest tests/e2e/ --no-header -p no:cacheprovider
 addopts = "-q --ignore=tests/e2e"
+# #429: register custom markers so pytest doesn't warn on @pytest.mark.slow.
+# `slow` flags wall-clock perf-budget tests in test_lint_perf.py.
+markers = [
+    "slow: marks tests as slow (perf-budget, deselect with '-m \"not slow\"')",
+]
