@@ -8,6 +8,10 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
+### Changed
+
+- **Claude Code CI actions now use Opus 4.7** (#401) — both `claude-code-review.yml` (auto-fires on every PR) and `claude.yml` (`@claude` mention) now pass `--model claude-opus-4-7` via `claude_args`. Was the action's default Sonnet. Catches more subtle bugs and handles multi-file refactor requests better, at ~3-5× the per-review cost (still well within Anthropic Pro/Max plan quota).
+
 ## [1.2.0] — 2026-04-25
 
 First stable release on the 1.x line. Promotes the eight rc1-rc8 prereleases into one stable tag and bundles the post-rc8 audit fixes, the new `wiki-all` one-shot pipeline runner, the Playwright/axe-core E2E suite, and ten UX-critique items into a single shippable cut.
