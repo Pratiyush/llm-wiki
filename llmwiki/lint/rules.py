@@ -349,6 +349,40 @@ class DuplicateDetection(LintRule):
         return issues
 
 
+def _resolve_index_href(href: str) -> str:
+    """Normalise an index.md markdown link href to a repo-relative path.
+
+    Strips ``#anchor`` and ``?query`` fragments, drops the leading
+    ``./`` prefix, and collapses ``..`` segments using ``PurePosixPath``
+    (POSIX-only — every wiki path is forward-slash). Returns ``""``
+    when the href is empty or escapes the wiki root.
+
+    Closes #411 — the previous one-liner ``href.lstrip("./")`` only
+    handled bare ``./`` and false-positive'd on ``../path``,
+    ``path#anchor``, and ``path?query``.
+    """
+    from pathlib import PurePosixPath
+
+    href = href.split("#", 1)[0].split("?", 1)[0].strip()
+    if not href:
+        return ""
+    # PurePosixPath collapses `.` segments but preserves `..`. We need
+    # to evaluate the result against the wiki root explicitly, and
+    # reject any href that escapes the root (negative steps go to "..").
+    parts: list[str] = []
+    for seg in PurePosixPath(href).parts:
+        if seg in ("", "."):
+            continue
+        if seg == "..":
+            if not parts:
+                # href escapes the wiki root — treat as unresolvable.
+                return ""
+            parts.pop()
+            continue
+        parts.append(seg)
+    return "/".join(parts)
+
+
 @register
 class IndexSync(LintRule):
     """wiki/index.md must list every page, and listed pages must exist."""
@@ -365,26 +399,30 @@ class IndexSync(LintRule):
         issues = []
         listed_slugs: set[str] = set()
 
+        # #411: index.md lives at the wiki root, so the resolver works
+        # against PurePosixPath("") as the base. We collapse `..`,
+        # drop `#anchor` and `?query`, and look the resulting
+        # repo-relative path up in `pages`. The old `href.lstrip("./")`
+        # only handled bare `./` and false-positive'd on every other
+        # form (`../`, `#anchor`, `?query`).
         # Parse markdown links in index.md (simple regex)
         link_re = re.compile(r"\[([^\]]+)\]\(([^)]+)\)")
         for match in link_re.finditer(index["body"]):
             href = match.group(2)
-            if href.startswith("http"):
+            if href.startswith(("http://", "https://", "mailto:")):
                 continue
-            # Strip #anchor
-            href = href.split("#")[0]
-            if not href:
+            resolved = _resolve_index_href(href)
+            if not resolved:
                 continue
-            # Check target exists
-            if href not in pages and not href.lstrip("./") in pages:
+            if resolved in pages:
+                listed_slugs.add(resolved.rsplit("/", 1)[-1].removesuffix(".md"))
+            else:
                 issues.append({
                     "rule": self.name,
                     "severity": "error",
                     "page": "index.md",
                     "message": f"dead index link → {href}",
                 })
-            else:
-                listed_slugs.add(href.rsplit("/", 1)[-1].removesuffix(".md"))
 
         # Check that every content page is listed (skip nav files and _context.md)
         nav_pages = {"index.md", "overview.md", "log.md", "hints.md", "hot.md",

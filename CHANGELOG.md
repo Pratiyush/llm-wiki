@@ -8,13 +8,21 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
-## [1.2.13] — 2026-04-26
+## [1.2.15] — 2026-04-26
 
 Patch release fixing the `build` CI-surprise commit issue flagged by the Opus 4.7 code review (#403). `llmwiki build` is now read-only on `wiki/` by default — stub seeding moves to opt-in.
 
 ### Fixed
 
 - **`build` mutated `wiki/projects/` (CI surprise)** (#414) — `build_site` is documented as "regenerate the static HTML site" and was supposed to be read-only on `wiki/`. As a side effect of #378, `ensure_project_stubs` was wired into the build path and wrote `wiki/projects/<slug>.md` for any newly-discovered project. Users running `llmwiki build` from CI on a curated checkout discovered surprise files in their working tree (and committed-by-CI changes if the workflow auto-pushed). Fix: `build_site()` now takes `seed_project_stubs: bool = False`; the `build` CLI subcommand exposes `--seed-project-stubs` for explicit opt-in. `cmd_sync` (which the user has already opted into mutation for) passes `seed_project_stubs=True` so routine `sync` keeps seeding. Default `build` is now pure. Adds 4 regression tests covering the read-only default, the explicit flag, hand-authored stub preservation, and the CLI flag round-trip.
+
+## [1.2.12] — 2026-04-26
+
+Patch release fixing the `IndexSync` lint rule's false-positive flood on relative href prefixes flagged by the Opus 4.7 code review (#403). No API change; the rule now correctly resolves `./`, `..`, `#anchor`, and `?query` instead of treating each as a dead link.
+
+### Fixed
+
+- **`IndexSync` false positives on relative href prefixes** (#411) — `lint/rules.py` did `if href not in pages and not href.lstrip("./") in pages`, which is an operator-precedence quirk that *happens* to handle bare `./` and false-positive'd on every other shape: `../entities/Foo.md`, `entities/Foo.md#section`, `entities/Foo.md?v=2`, `entities/Foo.md?v=2#section`. The first time someone built a wiki with realistic links to anchors or query-versioned pages, the rule reported a wave of dead links that weren't dead. Fix: new `_resolve_index_href(href)` helper strips `#anchor` and `?query`, drops `./` prefixes, and collapses `..` segments via `PurePosixPath`. Hrefs that escape the wiki root (more `..` than parent dirs) return `""` and are silently dropped — the missing-page check still catches them via the inverse direction. External links (`http://`, `https://`, `mailto:`) skip the resolver entirely. Adds 9 regression tests covering the full href shape matrix plus a direct unit test for the resolver.
 
 ## [1.2.8] — 2026-04-26
 

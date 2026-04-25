@@ -399,6 +399,126 @@ def test_index_missing_page():
     assert any("not listed in index" in i["message"] for i in issues)
 
 
+# ─── #411 — IndexSync href resolution edge cases ─────────────────────
+
+
+def test_index_dot_slash_prefix_resolves():
+    """Regression for #411: `./entities/Foo.md` happened to work via
+    `lstrip('./')`. Keep the test so the new resolver still handles it."""
+    pages = {
+        "index.md": _mk_page({"title": "Index"},
+                             "- [Foo](./entities/Foo.md)"),
+        "entities/Foo.md": _mk_page({"title": "Foo"}, ""),
+    }
+    issues = IndexSync().run(pages)
+    assert all("dead index link" not in i["message"] for i in issues)
+
+
+def test_index_anchor_resolves():
+    """Regression for #411: `entities/Foo.md#section` was treated as a
+    dead link because anchor wasn't stripped before the lookup."""
+    pages = {
+        "index.md": _mk_page({"title": "Index"},
+                             "- [Foo](entities/Foo.md#section)"),
+        "entities/Foo.md": _mk_page({"title": "Foo"}, ""),
+    }
+    issues = IndexSync().run(pages)
+    assert all("dead index link" not in i["message"] for i in issues)
+
+
+def test_index_query_string_resolves():
+    """Regression for #411: `entities/Foo.md?v=2` was a false positive."""
+    pages = {
+        "index.md": _mk_page({"title": "Index"},
+                             "- [Foo](entities/Foo.md?v=2)"),
+        "entities/Foo.md": _mk_page({"title": "Foo"}, ""),
+    }
+    issues = IndexSync().run(pages)
+    assert all("dead index link" not in i["message"] for i in issues)
+
+
+def test_index_anchor_and_query_combined():
+    """Both `#anchor` and `?query` together — both must be stripped."""
+    pages = {
+        "index.md": _mk_page({"title": "Index"},
+                             "- [Foo](entities/Foo.md?v=2#section)"),
+        "entities/Foo.md": _mk_page({"title": "Foo"}, ""),
+    }
+    issues = IndexSync().run(pages)
+    assert all("dead index link" not in i["message"] for i in issues)
+
+
+def test_index_dotdot_collapse():
+    """`../entities/Foo.md` from a hypothetical sub-index normalises by
+    collapsing the `..`. Index.md is at root so leading `..` escapes
+    and the resolver returns "" → href is silently dropped (treated
+    as unresolvable, but the missing-page check would catch it)."""
+    pages = {
+        "index.md": _mk_page({"title": "Index"},
+                             "- [Foo](../entities/Foo.md)"),
+        "entities/Foo.md": _mk_page({"title": "Foo"}, ""),
+    }
+    issues = IndexSync().run(pages)
+    # The `..` escapes the wiki root so the resolver returns "" and
+    # we don't even try to validate. The missing-page check still
+    # surfaces "not listed" for entities/Foo.md, which is the correct
+    # signal — the index author needs to fix the malformed href.
+    assert any("not listed in index" in i["message"] for i in issues)
+
+
+def test_index_external_links_still_skipped():
+    """https://, http://, and mailto: URLs must not be resolved at all."""
+    pages = {
+        "index.md": _mk_page({"title": "Index"}, """
+- [Anthropic](https://anthropic.com)
+- [HTTP](http://example.com/foo)
+- [Email](mailto:hi@example.com)
+- [Foo](entities/Foo.md)
+"""),
+        "entities/Foo.md": _mk_page({"title": "Foo"}, ""),
+    }
+    issues = IndexSync().run(pages)
+    # Only entities/Foo.md is a real link and it resolves.
+    assert all("dead index link" not in i["message"] for i in issues)
+
+
+def test_index_dead_link_still_flagged_after_resolver():
+    """Sanity: real dead links (target doesn't exist) still flag."""
+    pages = {
+        "index.md": _mk_page({"title": "Index"},
+                             "- [Nope](entities/DoesNotExist.md)"),
+    }
+    issues = IndexSync().run(pages)
+    assert any("dead index link" in i["message"] for i in issues)
+
+
+def test_index_dead_link_with_anchor_still_flagged():
+    """Anchors don't help a non-existent page resolve."""
+    pages = {
+        "index.md": _mk_page({"title": "Index"},
+                             "- [Nope](entities/DoesNotExist.md#section)"),
+    }
+    issues = IndexSync().run(pages)
+    assert any("dead index link" in i["message"] for i in issues)
+
+
+def test_resolve_index_href_unit():
+    """Direct unit test for the href resolver covering the matrix."""
+    from llmwiki.lint.rules import _resolve_index_href
+    assert _resolve_index_href("entities/Foo.md") == "entities/Foo.md"
+    assert _resolve_index_href("./entities/Foo.md") == "entities/Foo.md"
+    assert _resolve_index_href("entities/Foo.md#section") == "entities/Foo.md"
+    assert _resolve_index_href("entities/Foo.md?v=2") == "entities/Foo.md"
+    assert _resolve_index_href("entities/Foo.md?v=2#section") == "entities/Foo.md"
+    assert _resolve_index_href("a/b/../c.md") == "a/c.md"
+    assert _resolve_index_href("../escapes.md") == ""  # escapes root
+    assert _resolve_index_href("") == ""
+    assert _resolve_index_href("#anchor-only") == ""
+    assert _resolve_index_href("./") == ""
+    # Nested current-dir references collapse.
+    assert _resolve_index_href("./a/./b.md") == "a/b.md"
+
+
 # ─── 9-11. LLM-powered rules (stubs) ────────────────────────────────
 
 
