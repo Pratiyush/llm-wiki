@@ -38,4 +38,4 @@ input but comparable on output.
 
 - [[OpenAI]] — the provider
 - [[MultimodalModels]] — primary category
-- [[ARC-AGI 2]] — novel benchmark
+- [[ARC-AGI-2]] — novel benchmark
