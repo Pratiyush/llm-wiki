@@ -378,6 +378,25 @@ DOCS_SHELL_CSS = """
   text-decoration: underline;
 }
 
+/* #387 U9: on the docs hub specifically, make the TOC sticky on desktop
+   so a user scrolling through 80+ enumerated editorial pages always has
+   in-page navigation in view. Falls back to the inline TOC at narrow
+   viewports. */
+@media (min-width: 1024px) {
+  .docs-shell.docs-hub .tutorial-toc {
+    position: sticky;
+    top: 80px;
+    max-height: calc(100vh - 100px);
+    overflow-y: auto;
+    margin: 0 0 24px 0;
+  }
+  .docs-shell.docs-hub .tutorial-toc summary {
+    /* On the hub, the TOC is the primary nav — surface it open by default
+       (the <details open> already does this) and use a clearer label. */
+    color: var(--accent);
+  }
+}
+
 .docs-shell .tutorial-footer-rule {
   margin-top: 48px;
   border: 0;

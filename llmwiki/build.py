@@ -791,7 +791,7 @@ def render_session(
     html_stem = path.stem
     raw_md_path = f"../../sources/{project_slug}/{path.name}"
     actions_html = f"""<div class="session-actions">
-  <button class="btn btn-primary" onclick="copyMarkdown(this)">Copy as markdown</button>
+  <button class="btn btn-primary" type="button" aria-label="Copy session content as markdown" title="Copy as markdown" onclick="copyMarkdown(this)">Copy as markdown</button>
   <a class="btn" href="../../projects/{html.escape(project_slug)}.html">← {html.escape(project_slug)}</a>
   <a class="btn" href="{html.escape(raw_md_path)}" download>Download .md</a>
   <a class="btn" href="{html.escape(html_stem + '.txt')}" title="plain-text sibling for AI agents">.txt</a>
