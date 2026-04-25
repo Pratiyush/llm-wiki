@@ -71,6 +71,10 @@ e2e = [
     "pytest-playwright>=0.7.1",
     "pytest-bdd>=8.1.0",
     "pytest-html>=4.2.0",
+    # Pillow powers the image-diff used by tests/e2e/test_visual_regression.py.
+    # Without it the visual regression scenario falls back to capture-only mode
+    # (a warning, not a failure) so the suite still works on minimal installs.
+    "Pillow>=10.0",
 ]
 all = [
     "pypdf>=6.10.2",

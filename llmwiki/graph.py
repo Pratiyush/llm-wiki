@@ -434,11 +434,16 @@ const GRAPH = __GRAPH_JSON__;
 const root = document.documentElement;
 const savedTheme = (typeof localStorage !== 'undefined' && localStorage.getItem('theme')) || 'dark';
 root.setAttribute('data-theme', savedTheme);
-document.getElementById('theme-label').textContent = savedTheme;
-document.getElementById('theme-toggle').addEventListener('click', () => {
+// Null-guard the chrome controls — when the graph viewer is rendered as a
+// minimal placeholder (e.g. seeded corpus with zero edges) the toolbar may
+// be omitted but this script still runs. Closes #386.
+const themeLabel = document.getElementById('theme-label');
+if (themeLabel) themeLabel.textContent = savedTheme;
+const themeToggle = document.getElementById('theme-toggle');
+if (themeToggle) themeToggle.addEventListener('click', () => {
   const next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
   root.setAttribute('data-theme', next);
-  document.getElementById('theme-label').textContent = next;
+  if (themeLabel) themeLabel.textContent = next;
   try { localStorage.setItem('theme', next); } catch (_) { /* private mode */ }
 });
 
@@ -562,6 +567,9 @@ function main() {
   }
 
   // ─── G-19 (#305): node context menu ──────────────────────────────────
+  // The context menu is wired up only when its DOM nodes are present.
+  // Closes #386 — a minimal graph render without these elements would
+  // throw on the addEventListener calls below.
   const ctxMenu = document.getElementById('ctx-menu');
   const ctxTarget = document.getElementById('ctx-target');
   let ctxNode = null;
@@ -647,7 +655,7 @@ function main() {
     }
   }
 
-  ctxMenu.addEventListener('click', async e => {
+  if (ctxMenu) ctxMenu.addEventListener('click', async e => {
     const btn = e.target.closest('button[data-action]');
     if (!btn || btn.disabled || !ctxNode) return;
     const action = btn.dataset.action;
@@ -687,7 +695,7 @@ function main() {
   });
 
   // Keyboard shortcuts while menu is visible.
-  ctxMenu.addEventListener('keydown', e => {
+  if (ctxMenu) ctxMenu.addEventListener('keydown', e => {
     if (!ctxNode) return;
     const map = { 'n': 'neighbours', 'c': 'copy-slug', 'Enter': 'open' };
     const action = map[e.key];
@@ -716,12 +724,12 @@ function main() {
     });
     nodes.update(update);
   }
-  searchInput.addEventListener('input', e => applyFilter(e.target.value));
+  if (searchInput) searchInput.addEventListener('input', e => applyFilter(e.target.value));
 
   // ─── Cluster toggle ──────────────────────────────────────────────────
   let clusterMode = 'off';
   const clusterBtn = document.getElementById('cluster-toggle');
-  clusterBtn.addEventListener('click', () => {
+  if (clusterBtn) clusterBtn.addEventListener('click', () => {
     clusterMode = clusterMode === 'off' ? 'type' : 'off';
     document.getElementById('cluster-mode').textContent = clusterMode;
     if (clusterMode === 'type') {

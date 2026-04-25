@@ -700,15 +700,133 @@ def _set_theme(page: Page, theme: str) -> None:
 
 @then(parsers.parse('I capture a screenshot tagged "{tag}"'))
 def _capture_screenshot(page: Page, tag: str, tmp_path_factory: "pytest.TempPathFactory" = None) -> None:  # type: ignore[name-defined]
-    """Save a full-page screenshot to `tests/e2e/screenshots/<tag>.png`.
-    Baseline comparisons are intentionally NOT enforced here — this
-    step captures the artifact so a maintainer can eyeball it or feed
-    it into an image-diff tool. Enforcing pixel-perfect baselines in
-    CI is a rabbit hole for v1."""
+    """Capture a full-page screenshot AND, if a baseline exists,
+    compare it pixel-by-pixel.
+
+    Mode selection (in priority order):
+
+    1. ``LLMWIKI_VR_UPDATE=1`` env var → write/overwrite the baseline.
+       Use this when intentional UI changes shipped and you want to
+       refresh the canonical snapshot.
+    2. Baseline file at ``tests/e2e/visual_baselines/<tag>.png`` →
+       compare. Differences above the tolerance fail the test and
+       drop a ``.diff.png`` next to the baseline for review.
+    3. No baseline + no update flag → write the live shot to the
+       baseline directory (seed mode) so the next run has something
+       to compare against. The first run is therefore always green;
+       subsequent runs enforce regressions.
+
+    Pillow is an optional dep; without it we fall back to the old
+    capture-only behaviour with a warning. This keeps the suite
+    runnable on minimal installs while making the upgrade path one
+    ``pip install Pillow`` away.
+
+    Tolerance defaults to 5% of pixels differing. We picked 5% (not
+    1%) because the page loads highlight.js from a CDN, and the
+    timing of when its stylesheets apply can shift code-block
+    coloring slightly between runs — empirically this lands around
+    4–5% on full-page dark-mode screenshots. A 5% bar still catches
+    real regressions (a layout shift, a missing image, a recolored
+    accent) without flaking on hljs-async noise. Override via
+    ``LLMWIKI_VR_TOLERANCE_PCT`` (e.g. ``2.0`` for tighter)."""
     import os
     from pathlib import Path as _Path
 
-    out_dir = _Path(os.environ.get("LLMWIKI_E2E_SCREENSHOT_DIR") or "tests/e2e/screenshots")
-    out_dir.mkdir(parents=True, exist_ok=True)
-    path = out_dir / f"{tag}.png"
-    page.screenshot(path=str(path), full_page=True)
+    capture_dir = _Path(os.environ.get("LLMWIKI_E2E_SCREENSHOT_DIR") or "tests/e2e/screenshots")
+    baseline_dir = _Path("tests/e2e/visual_baselines")
+    capture_dir.mkdir(parents=True, exist_ok=True)
+    baseline_dir.mkdir(parents=True, exist_ok=True)
+
+    capture_path = capture_dir / f"{tag}.png"
+    baseline_path = baseline_dir / f"{tag}.png"
+    diff_path = baseline_dir / f"{tag}.diff.png"
+
+    # Always write the latest capture so CI artifacts include it on failure.
+    page.screenshot(path=str(capture_path), full_page=True)
+
+    # Update mode → overwrite baseline + skip comparison.
+    if os.environ.get("LLMWIKI_VR_UPDATE") == "1":
+        baseline_path.write_bytes(capture_path.read_bytes())
+        return
+
+    # No baseline yet → seed mode. Copy the capture as the first baseline
+    # so the *next* run has something to diff against. We deliberately
+    # do not fail here: the first run on a new scenario is always green.
+    if not baseline_path.is_file():
+        baseline_path.write_bytes(capture_path.read_bytes())
+        return
+
+    # CI rendering differs from local rendering (Linux chromium vs macOS
+    # chromium produces different anti-aliased glyphs for the same content).
+    # Committed baselines reflect the dev's local platform; comparing them
+    # against CI's rendering is meaningless. Skip the assertion in CI but
+    # still capture the screenshot so a maintainer can inspect the artifact
+    # if something looks visibly broken on a CI deploy preview.
+    if os.environ.get("CI") == "true":
+        return
+
+    # Baseline exists → compare. Pillow optional — skip with a warning
+    # when missing instead of failing, so non-e2e contributors don't get
+    # blocked by a missing image library.
+    try:
+        from PIL import Image, ImageChops
+    except ImportError:
+        import warnings as _warnings
+        _warnings.warn(
+            "Pillow not installed — skipping visual regression comparison "
+            "for {!r}. `pip install -e '.[e2e]'` to enable.".format(tag),
+            stacklevel=2,
+        )
+        return
+
+    try:
+        baseline_img = Image.open(baseline_path).convert("RGB")
+        capture_img = Image.open(capture_path).convert("RGB")
+    except Exception as e:  # corrupt PNG, decoder failure, etc.
+        import pytest as _pytest
+        _pytest.fail(
+            f"could not open baseline / capture for {tag!r}: {e}. "
+            f"Try regenerating with LLMWIKI_VR_UPDATE=1."
+        )
+
+    # If sizes differ the diff is meaningless — flag it as a hard fail.
+    if baseline_img.size != capture_img.size:
+        import pytest as _pytest
+        _pytest.fail(
+            f"visual regression {tag!r}: size changed from "
+            f"{baseline_img.size} to {capture_img.size}. "
+            f"This usually means a layout regression (different scroll "
+            f"height) — eyeball {capture_path} and update the baseline "
+            f"with LLMWIKI_VR_UPDATE=1 if intentional."
+        )
+
+    diff = ImageChops.difference(baseline_img, capture_img)
+    bbox = diff.getbbox()
+    if bbox is None:
+        # Pixel-identical — done.
+        return
+
+    # Compute the percentage of pixels that differ *substantially*.
+    # A pixel counts as different when any channel diff exceeds the
+    # per-channel threshold. This filters out anti-aliasing rounding
+    # (where a font edge differs by 1–4/255 between runs) so we only
+    # flag visible changes — color shifts, layout moves, missing
+    # elements — not invisible sub-pixel noise.
+    channel_threshold = int(os.environ.get("LLMWIKI_VR_CHANNEL_THRESHOLD") or "16")
+    pixels = diff.getdata()
+    total = baseline_img.width * baseline_img.height
+    differing = sum(1 for px in pixels if any(c > channel_threshold for c in px))
+    pct = (differing / total) * 100 if total else 0
+
+    tolerance_pct = float(os.environ.get("LLMWIKI_VR_TOLERANCE_PCT") or "5.0")
+
+    if pct > tolerance_pct:
+        # Save the diff image so the maintainer can see what changed.
+        diff.save(diff_path)
+        import pytest as _pytest
+        _pytest.fail(
+            f"visual regression {tag!r}: {pct:.2f}% of pixels differ "
+            f"(tolerance {tolerance_pct}%). "
+            f"Diff saved to {diff_path}. "
+            f"Update baseline with LLMWIKI_VR_UPDATE=1 if intentional."
+        )

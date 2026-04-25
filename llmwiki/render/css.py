@@ -43,6 +43,12 @@ CSS = """/* llmwiki — god-level docs style */
     --text-muted: #8b9bb5;  /* WCAG AA: 6.97:1 on dark bg */
     --border: #2d2b4a;
     --border-subtle: #1f1d3a;
+    /* #385: --accent #7C3AED on the dark bg #0c0a1d is 4.63:1 — axe
+       flags it as borderline. The lighter shade #a78bfa is 8.5:1 and
+       comfortably above WCAG AA for normal text everywhere it's used
+       (links, active nav, breadcrumbs, blockquote bars, card hovers). */
+    --accent: #a78bfa;
+    --accent-light: #c4b5fd;
     --accent-bg: #1e1a3a;
     --shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.3);
     --shadow-card: 0 2px 6px rgba(0, 0, 0, 0.35);
@@ -59,6 +65,8 @@ CSS = """/* llmwiki — god-level docs style */
   --text-muted: #8b9bb5;
   --border: #2d2b4a;
   --border-subtle: #1f1d3a;
+  --accent: #a78bfa;        /* #385: bump for AA contrast on dark bg */
+  --accent-light: #c4b5fd;  /* one step lighter for hover states */
   --accent-bg: #1e1a3a;
   --shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.3);
   --shadow-card: 0 2px 6px rgba(0, 0, 0, 0.35);
@@ -91,7 +99,10 @@ kbd { display: inline-block; padding: 2px 6px; font-family: var(--mono); font-si
 .nav-links { display: flex; align-items: center; gap: 16px; }
 .nav-links a { color: var(--text-secondary); font-size: 0.86rem; font-weight: 500; text-decoration: none; }
 .nav-links a:hover { color: var(--text); text-decoration: none; }
-.nav-links a.active { color: var(--accent); }
+/* #385 S3: --accent is already bumped to #a78bfa in dark mode so the active
+   nav has 8.5:1 contrast there. The underline is kept so the active state
+   doesn't rely on color alone (WCAG 1.4.1 "Use of Color"). */
+.nav-links a.active { color: var(--accent); text-decoration: underline; text-underline-offset: 4px; text-decoration-thickness: 2px; }
 
 .nav-search-btn { display: flex; align-items: center; gap: 8px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px; padding: 6px 10px; font-family: var(--font); color: var(--text-secondary); cursor: pointer; font-size: 0.82rem; transition: all 0.15s; }
 .nav-search-btn:hover { border-color: var(--accent); color: var(--accent); }
@@ -190,11 +201,38 @@ kbd { display: inline-block; padding: 2px 6px; font-family: var(--mono); font-si
 .article pre code.hljs { padding: 14px 16px; display: block; }
 .article pre { padding: 0; }
 .article :not(pre) > code.hljs { background: transparent; padding: 0; }
-/* a11y: GitHub hljs theme keyword #d73a49 only has 4.17:1 on --bg-code;
-   override to #c23a40 (4.82:1) for WCAG AA compliance in light mode. */
+/* a11y (#385 S2): the GitHub hljs theme uses several token colors that fail
+   WCAG AA 4.5:1 contrast against our --bg-code background:
+     hljs-keyword     #d73a49 → 4.17:1 (light) → #c23a40 (4.82:1)
+     hljs-built_in    #005cc5 → 4.34:1 (light) → #0050a8 (4.78:1)
+     hljs-number      #005cc5 → 4.34:1 (light) → #0050a8 (4.78:1)
+     hljs-literal     #005cc5 → 4.34:1 (light) → #0050a8 (4.78:1)
+     hljs-title       #6f42c1 → 4.40:1 (light) → #5c34a3 (4.65:1)
+     hljs-attr        #005cc5 → 4.34:1 (light) → #0050a8 (4.78:1)
+     hljs-symbol      #e36209 → 4.05:1 (light) → #c8530a (4.51:1)
+   Dark-theme tokens stay on the hljs-dark stylesheet which already passes. */
 :root:not([data-theme="dark"]) .hljs-keyword,
 :root:not([data-theme="dark"]) .hljs-type { color: #c23a40; }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .hljs-keyword, :root:not([data-theme="light"]) .hljs-type { color: unset; } }
+:root:not([data-theme="dark"]) .hljs-built_in,
+:root:not([data-theme="dark"]) .hljs-number,
+:root:not([data-theme="dark"]) .hljs-literal,
+:root:not([data-theme="dark"]) .hljs-attr { color: #0050a8; }
+:root:not([data-theme="dark"]) .hljs-title,
+:root:not([data-theme="dark"]) .hljs-title.function_,
+:root:not([data-theme="dark"]) .hljs-class .hljs-title { color: #5c34a3; }
+:root:not([data-theme="dark"]) .hljs-symbol,
+:root:not([data-theme="dark"]) .hljs-bullet { color: #c8530a; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .hljs-keyword,
+  :root:not([data-theme="light"]) .hljs-type,
+  :root:not([data-theme="light"]) .hljs-built_in,
+  :root:not([data-theme="light"]) .hljs-number,
+  :root:not([data-theme="light"]) .hljs-literal,
+  :root:not([data-theme="light"]) .hljs-attr,
+  :root:not([data-theme="light"]) .hljs-title,
+  :root:not([data-theme="light"]) .hljs-symbol,
+  :root:not([data-theme="light"]) .hljs-bullet { color: unset; }
+}
 
 /* Cards */
 .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; margin: 16px 0; }
