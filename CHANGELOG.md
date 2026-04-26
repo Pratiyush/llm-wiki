@@ -8,6 +8,14 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
+## [1.3.7] — 2026-04-26
+
+Hotfix release routing `parse_jsonl` I/O errors through the quarantine instead of silently swallowing them (#487).
+
+### Fixed
+
+- **`parse_jsonl` swallowed OSError silently** (#487) — `convert.py:parse_jsonl` previously had a top-level `try: … except OSError: pass` returning an empty list. A permission error or read failure on a single jsonl produced zero records → downstream `convert_all` classified the file as 'filtered' (legitimate empty session) instead of 'errored' (something wrong, look at it). The file became invisible to `llmwiki sync --status` and the quarantine. Fix: `parse_jsonl` now re-raises OSError; `convert_all` wraps the call in `try/except OSError` that routes the failure through `_quarantine_add` + the 'errored' counter, matching every other I/O write path. Per-line `json.JSONDecodeError` is still skipped (JSONL allows partial writes; one bad line shouldn't abandon the whole file). Adds `tests/test_parse_jsonl_oserror.py` (5 cases) covering the OSError re-raise, JSONDecodeError still tolerated, partial line tolerance, file-level fail bubbles up, and an end-to-end `convert_all` integration check that a permission-denied file appears in the quarantine + 'errored' counter.
+
 ## [1.3.6] — 2026-04-26
 
 Hotfix release closing the renderer-side half of the `is_subagent` regression that #406 fixed at the adapter level (#492). Sub-agent classification was correct in the frontmatter but wrong in the rendered UI for any project with "subagent" in a session filename.
