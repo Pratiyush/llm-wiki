@@ -1055,6 +1055,36 @@ def cmd_candidates(args: argparse.Namespace) -> int:
     return 2
 
 
+def _add_vault_arg(parser: argparse.ArgumentParser, *, role: str) -> None:
+    """#arch-m8 (#620): single source of truth for the ``--vault`` flag.
+
+    All three subcommands that accept ``--vault`` (sync, build, synthesize)
+    used to declare it independently with subtly different help text and
+    behaviour. The semantics differ legitimately by subcommand (sync
+    WRITES into the vault; build READS from it; synthesize isolates the
+    state file under it), so we keep the role-specific help string per
+    site, but the flag spelling, type, default, and metavar are unified
+    here so a future refactor changes them in one place.
+    """
+    parser.add_argument(
+        "--vault", type=Path, default=None, metavar="PATH",
+        help={
+            "sync": "Vault-overlay mode (#54): write new pages inside an "
+                    "existing Obsidian / Logseq vault instead of the "
+                    "repo's wiki/ directory.",
+            "build": "Vault-overlay mode (#54): build from an existing "
+                     "Obsidian / Logseq vault. Still writes site output to "
+                     "--out.",
+            "synthesize": "(#420) Vault-overlay mode: read raw/ + write "
+                          "wiki/sources/ under the vault root, and isolate "
+                          "the synth state file to the vault. Without this "
+                          "flag the state file lives at the repo root, so "
+                          "two vaults synthesised against the same repo "
+                          "silently share idempotency state.",
+        }[role],
+    )
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="llmwiki",
@@ -1085,11 +1115,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="After sync, run lint when sessions_config.json's "
              "schedule.lint is 'on-sync' (default: on; pass --no-auto-lint to skip)",
     )
-    sync.add_argument(
-        "--vault", type=Path, default=None,
-        help="Vault-overlay mode (#54): write new pages inside an existing "
-             "Obsidian / Logseq vault instead of the repo's wiki/ directory",
-    )
+    _add_vault_arg(sync, role="sync")
     sync.add_argument(
         "--allow-overwrite", action="store_true",
         help="With --vault: allow clobbering existing vault pages "
@@ -1119,11 +1145,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--search-mode", choices=["auto", "tree", "flat"], default="auto",
         help="Search index mode (#53): auto picks tree vs flat from heading depth",
     )
-    build.add_argument(
-        "--vault", type=Path, default=None,
-        help="Vault-overlay mode (#54): build from an existing Obsidian / "
-             "Logseq vault. Still writes site output to --out.",
-    )
+    _add_vault_arg(build, role="build")
     build.add_argument(
         "--seed-project-stubs", action="store_true", dest="seed_project_stubs",
         help="(#414) Auto-create wiki/projects/<slug>.md stubs for any "
@@ -1264,14 +1286,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--body", metavar="PATH", default=None,
         help="Read synthesized body from this file for --complete (default: stdin)",
     )
-    syn.add_argument(
-        "--vault", type=Path, default=None,
-        help="(#420) Vault-overlay mode: read raw/ + write wiki/sources/ "
-             "under the vault root, and isolate the synth state file to the "
-             "vault. Without this flag the state file lives at the repo "
-             "root, so two vaults synthesised against the same repo silently "
-             "share idempotency state.",
-    )
+    _add_vault_arg(syn, role="synthesize")
     syn.set_defaults(func=cmd_synthesize)
 
     # query — natural-language graph query

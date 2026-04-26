@@ -46,7 +46,8 @@ def _build_default_roots() -> list[Path]:
 class CopilotChatAdapter(BaseAdapter):
     """GitHub Copilot Chat — reads VS Code workspaceStorage chatSessions"""
 
-    SUPPORTED_SCHEMA_VERSIONS = ["v1"]
+    # #arch-m9 (#621): SUPPORTED_SCHEMA_VERSIONS = ["v1"] is the
+    # BaseAdapter default — declaration removed here.
 
     DEFAULT_ROOTS: list[Path] = _build_default_roots()
 

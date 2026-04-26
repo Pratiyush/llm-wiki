@@ -53,6 +53,13 @@ class BaseAdapter:
     #: See #326.
     is_ai_session: bool = True
 
+    #: #arch-m9 (#621): canonical declaration on BaseAdapter so subclasses
+    #: don't redeclare with format drift (`["v1"]` vs `["v1.0"]` vs
+    #: `["1.x"]`). Default is ``["v1"]`` — the schema version the
+    #: built-in adapters target. Subclasses that consume a different
+    #: agent-native format override (or extend) this list.
+    SUPPORTED_SCHEMA_VERSIONS: list[str] = ["v1"]
+
     def __init__(self, config: dict[str, Any] | None = None):
         self.config = config or {}
 
