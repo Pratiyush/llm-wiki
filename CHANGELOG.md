@@ -8,6 +8,14 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
+## [1.3.31] — 2026-04-26
+
+Maintenance release adding keyboard-only navigation coverage to the e2e harness (#635, parent #468).
+
+### Added
+
+- **`tests/e2e/test_keyboard_coverage.py`** (#635) — Playwright tests pinning four contracts: every page exposes ≥1 tabbable element, Tab from `<body>` reaches focus within 5 presses (catches keyboard traps), the focused element renders a visible focus style (WCAG 2.4.7 — outline OR box-shadow non-`none`), and ESC from an open palette restores focus to the `#open-palette` trigger (closes the loop on #479's focus-restoration contract from a keyboard-only path).
+
 ## [1.3.30] — 2026-04-26
 
 Maintenance release adding direct search-index validation to the e2e harness (#634, parent #468).
