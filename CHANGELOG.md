@@ -8,6 +8,14 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
+## [1.3.27] — 2026-04-26
+
+Hotfix release fixing four light-theme agent badges that fell below WCAG 2.1 AA contrast (#459).
+
+### Fixed
+
+- **Agent badge text colors meet WCAG 2.1 AA in light theme** (#459) — auditing the `.agent-*` selectors against their 10%-alpha-blended backgrounds (rendered effective bg, not the literal rgba) revealed four real fails: `agent-cursor` 2.86:1, `agent-codex` 3.33:1, `agent-gemini` 4.13:1, `agent-copilot` 4.49:1 — all below the 4.5:1 small-text threshold for an 0.7rem badge that doesn't qualify for the large-text exemption. Darkened to: cursor `#92400E` (6.36:1), codex `#047857` (4.85:1), gemini `#991B1B` (7.11:1), copilot `#1E40AF` (7.57:1). Dark-theme variants already passed (range 5.86–8.93:1) so untouched. Border tints stayed at `rgba(color, 0.3)` (decorative, not text). Adds `tests/test_wcag_contrast.py` (28 cases) — palette pairs, agent badges in both themes, freshness chips in both themes — computed via a pure-Python WCAG 2.1 AA calculator so any future CSS edit that drops a pair below 4.5:1 is caught at unit-test time.
+
 ## [1.3.26] — 2026-04-26
 
 Hotfix release ending the flash-of-wrong-theme that made the theme look like it reverted on every navigation (#458).
