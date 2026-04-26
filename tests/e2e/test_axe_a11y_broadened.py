@@ -93,8 +93,8 @@ def test_focus_management_subset(page: Page, base_url: str) -> None:
         """async () => await axe.run({
             runOnly: [
                 'focus-order-semantics',
-                'interactive-supports-focus',
                 'tabindex',
+                'aria-hidden-focus',
             ]
         })"""
     )
