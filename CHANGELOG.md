@@ -8,6 +8,14 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
+## [1.3.8] — 2026-04-26
+
+Hotfix release fixing the auto-detected `real_username` falsely matching `root` / short paths in containers and Windows (#489).
+
+### Fixed
+
+- **Auto-detected `real_username` over-matched on Windows + stripped containers** (#489) — `convert.py:load_config` previously fell back to `os.environ["USER"] or Path.home().name`. Two failure modes hit users in the wild: (a) **Windows** uses `USERNAME` not `USER` → env lookup empty → fallback to `Path.home().name` returns the actual short name, which the redactor then substring-matched into unrelated path tokens; (b) **stripped Docker / CI images** have `USER` unset and `Path.home()` = `/root` → fallback returns `"root"` → every `/Users/root/`, `/home/root/` path got mass-rewritten to `/Users/USER/` even when the actual transcript author had a totally different username. Fix: prefer `USER` → `USERNAME` → `Path.home().name`, but only trust the home-dir name when it's ≥3 chars AND not in the generic-container set (`root`, `user`, `users`, `home`, `ubuntu`). Otherwise leave the field empty so the redactor stays a no-op until the user opts in via config. Adds `tests/test_username_autodetect.py` (8 cases) covering Unix USER, Windows USERNAME, generic-container blocklist, short-name floor, explicit config wins, all-empty graceful fallback, and a regression vs the bug pattern.
+
 ## [1.3.7] — 2026-04-26
 
 Hotfix release routing `parse_jsonl` I/O errors through the quarantine instead of silently swallowing them (#487).
