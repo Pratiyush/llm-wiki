@@ -312,6 +312,14 @@ class DuplicateDetection(LintRule):
     # boilerplate files that are otherwise unrelated.
     BODY_THRESHOLD = 0.80
     BODY_SAMPLE_BYTES = 4096
+    # #sec-9 (#553): even after the bucket-restriction perf fix in
+    # #412, a single bucket with thousands of pages (e.g. an entity
+    # bucket on a 50k-page corpus) still does O(n²) body compares.
+    # Bail out of the SequenceMatcher pass when a bucket exceeds this
+    # threshold — fingerprint matches still flag exact duplicates,
+    # we just stop the expensive near-duplicate search to keep lint
+    # under a reasonable wall clock on large wikis.
+    BUCKET_BAILOUT_SIZE = 500
 
     def _bucket_key(self, page: dict) -> tuple[str, str]:
         """Return the comparison-bucket key for a page.
@@ -393,6 +401,12 @@ class DuplicateDetection(LintRule):
                             ),
                         })
 
+            # #sec-9 (#553): bail out of the O(n²) body-compare pass
+            # when the bucket is too large. Exact duplicates are still
+            # caught by the fingerprint pass above; we just stop the
+            # expensive near-duplicate search.
+            if len(items) > self.BUCKET_BAILOUT_SIZE:
+                continue
             # Fingerprints differed — fall back to SequenceMatcher only
             # for pairs whose titles already match. Body comparisons
             # over the bucket-restricted slice cap the cost.

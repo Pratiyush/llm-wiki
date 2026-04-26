@@ -8,6 +8,15 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
+## [1.3.51] — 2026-04-26
+
+#472 Bundle C — MCP write-safety + lint perf bail-out (2 issues; the third sub-issue #563 was closed-as-obsolete in v1.3.50 since the PDF adapter is gone).
+
+### Fixed
+
+- **`wiki_sync` MCP tool defaults to dry-run + requires explicit `confirm: true`** (#556, #sec-12) — an MCP client could previously trigger a real write to `raw/` on a hallucinated tool call. Schema now defaults `dry_run: true` and adds a separate `confirm: false` parameter; the handler downgrades to dry-run unless the caller passes BOTH `dry_run: false` AND `confirm: true`. Belt-and-braces guard against MCP clients that get confused about the boolean default.
+- **`DuplicateDetection` bails out of the body-compare pass on huge buckets** (#553, #sec-9) — even after the #412 bucket-restriction perf fix, a single bucket with thousands of pages still ran O(n²) body comparisons. Added `BUCKET_BAILOUT_SIZE = 500`: bigger buckets keep the cheap fingerprint duplicate-detection but skip the expensive near-duplicate `SequenceMatcher` pass. Lint stays bounded under a reasonable wall clock on 50k-page corpora.
+
 ## [1.3.50] — 2026-04-26
 
 #475 Bundle 3 (public API) + PDF leftover cleanup. Two parallel scopes shipped together because the public-API change is small and the user flagged "remove PDF leftovers" mid-PR.
