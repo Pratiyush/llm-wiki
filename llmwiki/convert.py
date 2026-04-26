@@ -827,12 +827,41 @@ def render_user_prompt(record: dict[str, Any], redact: Redactor, max_chars: int)
 
 # ─── full markdown renderer ────────────────────────────────────────────────
 
+_UUID_LIKE = re.compile(
+    r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",
+    re.IGNORECASE,
+)
+
+
 def derive_session_slug(records: list[dict[str, Any]], jsonl_path: Path) -> str:
+    """Derive a slug from session records or fall back to the filename.
+
+    #424: when no ``slug`` field is in any record, the old fallback was
+    ``jsonl_path.stem[:12]``. UUID-named transcripts (Claude Code emits
+    these — ``b7f0e3c4-2189-4f8e-9e4f-...jsonl``) all collapsed onto
+    the *same* 12-char prefix per project (``b7f0e3c4-21``), so two
+    sessions in the same minute with that prefix produced the same
+    canonical filename. Correctness was coupled to the disambig pass
+    (#339); if the renderer ever moved first, this regressed silently.
+
+    Fix: detect UUID-shaped stems and fall back to the same stable
+    8-char source hash the disambig pass uses (``_source_hash8``).
+    Two distinct UUIDs always produce distinct hashes, so the canonical
+    slug is unique without leaning on disambig. Non-UUID stems keep
+    the historical 12-char prefix to preserve human-readable slugs
+    for projects that name their JSONLs deliberately.
+    """
     for r in records:
         slug = r.get("slug")
         if slug:
             return str(slug)
-    return jsonl_path.stem[:12]
+    stem = jsonl_path.stem
+    if _UUID_LIKE.match(stem):
+        return _source_hash8(jsonl_path)
+    if not stem:
+        # Empty stem (rare — would require a literal ``.jsonl`` filename).
+        return _source_hash8(jsonl_path)
+    return stem[:12]
 
 
 def flat_output_name(
