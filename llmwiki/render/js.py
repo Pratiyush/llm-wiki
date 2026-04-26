@@ -64,6 +64,45 @@ JS = r"""// llmwiki viewer — theme + copy + search palette + keyboard shortcut
   window.__llmwikiSyncHljsTheme = syncHljsTheme;
 })();
 
+// ─── #460: Mobile/tablet hamburger nav drawer ─────────────────────────────
+// Wires the hamburger button to toggle the drawer with proper aria state.
+// ESC closes and returns focus to the hamburger. Click-outside closes.
+// Drawer items are real <a>; tabbing flows naturally. No focus trap needed
+// because the drawer is non-modal — the rest of the page is still
+// interactive when it's open.
+(function () {
+  document.addEventListener("DOMContentLoaded", function () {
+    const btn = document.getElementById("nav-hamburger");
+    const drawer = document.getElementById("nav-drawer");
+    if (!btn || !drawer) return;
+    function setOpen(open) {
+      btn.setAttribute("aria-expanded", open ? "true" : "false");
+      if (open) drawer.removeAttribute("hidden");
+      else drawer.setAttribute("hidden", "");
+    }
+    btn.addEventListener("click", function () {
+      setOpen(btn.getAttribute("aria-expanded") !== "true");
+    });
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && btn.getAttribute("aria-expanded") === "true") {
+        setOpen(false);
+        btn.focus();
+      }
+    });
+    // Click outside the drawer closes it.
+    document.addEventListener("click", function (e) {
+      if (btn.getAttribute("aria-expanded") !== "true") return;
+      if (drawer.contains(e.target) || btn.contains(e.target)) return;
+      setOpen(false);
+    });
+    // Close after navigating to one of the drawer items so the next page
+    // doesn't briefly render with the drawer still open above the fold.
+    drawer.querySelectorAll("a").forEach(function (a) {
+      a.addEventListener("click", function () { setOpen(false); });
+    });
+  });
+})();
+
 // ─── Reading progress bar ────────────────────────────────────────────────
 (function () {
   const bar = document.getElementById("progress-bar");

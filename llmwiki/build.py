@@ -753,12 +753,36 @@ def nav_bar(active: str, link_prefix: str = "") -> str:
         cls = ' class="active"' if key == active else ""
         return f'<a href="{link_prefix}{href}"{cls}>{label}</a>'
 
+    # #460: hamburger pattern for tablet/mobile (≤1023px). The desktop
+    # nav-links row is hidden below 1024 (CSS rule), so without this
+    # button the Graph / Docs / Changelog entries would be unreachable
+    # on mobile (the bottom nav only carries Home / Projects / Sessions).
+    # The drawer below mirrors the same 6 links vertically. JS in
+    # render/js.py wires aria-expanded, ESC-to-close, and focus return.
+    drawer_link = lambda href, label, key: (
+        f'  <a href="{link_prefix}{href}" class="nav-drawer-link'
+        + (' active' if key == active else '') + '">'
+        + label + '</a>'
+    )
+    nav_drawer_html = f"""<div id="nav-drawer" class="nav-drawer" hidden role="menu" aria-labelledby="nav-hamburger">
+{drawer_link("index.html", "Home", "home")}
+{drawer_link("projects/index.html", "Projects", "projects")}
+{drawer_link("sessions/index.html", "Sessions", "sessions")}
+{drawer_link("graph.html", "Graph", "graph")}
+{drawer_link("docs/index.html", "Docs", "docs")}
+{drawer_link("changelog.html", "Changelog", "changelog")}
+</div>"""
     return f"""<header class="nav">
   <div class="nav-inner">
     <a href="{link_prefix}index.html" class="nav-brand">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
       LLM Wiki
     </a>
+    <button type="button" class="nav-hamburger" id="nav-hamburger"
+            aria-expanded="false" aria-controls="nav-drawer"
+            aria-label="Open navigation menu">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+    </button>
     <nav class="nav-links">
       {link("index.html", "Home", "home")}
       {link("projects/index.html", "Projects", "projects")}
@@ -777,6 +801,7 @@ def nav_bar(active: str, link_prefix: str = "") -> str:
       </button>
     </nav>
   </div>
+  {nav_drawer_html}
 </header>
 """
 
