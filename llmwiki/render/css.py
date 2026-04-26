@@ -255,6 +255,11 @@ kbd { display: inline-block; padding: 2px 6px; font-family: var(--mono); font-si
 .card-meta { font-size: 0.82rem; color: var(--text-secondary); }
 /* #455: small muted activity date range under the meta line. */
 .card-date-range { font-size: 0.72rem; color: var(--text-muted); margin-top: 2px; font-variant-numeric: tabular-nums; }
+/* #471: human-readable session description rendered as a subtitle on
+   session detail pages and as a small line beneath the slug in the
+   sessions index table. */
+.session-description { font-size: 0.95rem; color: var(--text-secondary); margin: -8px 0 16px; line-height: 1.5; }
+.session-cell-desc { font-size: 0.78rem; color: var(--text-muted); margin-top: 2px; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .card-stats { font-size: 0.78rem; margin-top: 6px; }
 .card-badge { margin-top: 8px; }
 
