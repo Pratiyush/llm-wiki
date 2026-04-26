@@ -9,6 +9,7 @@ mtime, so re-running on unchanged files is a fast no-op.
 
 from __future__ import annotations
 
+import fnmatch as _fnmatch  # #py-m11 (#597): module-level alias
 import json
 import re
 import sys
@@ -330,8 +331,14 @@ class IgnoreMatcher:
         We emulate gitignore-ish behaviour with stdlib fnmatch, extended to
         handle `**` by translating it to `*` and also matching the pattern
         against any path suffix.
+
+        #py-m11 (#597): fnmatch was imported per-call. The module is in
+        the stdlib (no actual disk hit), but the resolution still costs
+        a few microseconds × thousands of calls during a sync. Hoisted
+        to a module-level alias.
         """
-        import fnmatch
+        # Use the module-level _fnmatch alias hoisted below.
+        fnmatch = _fnmatch
 
         # Normalize path separators
         target = target.replace("\\", "/")
@@ -624,6 +631,15 @@ class Redactor:
 
         Username can contain hyphens, underscores, and unicode.
         """
+        # #py-h8 (#586): cache the compiled username pattern on the
+        # instance so a long sync doesn't recompile the same regex
+        # thousands of times. Key on the real_user string so a config
+        # change between calls (rare) still rebuilds the pattern.
+        cached = getattr(self, "_username_pattern_cache", None)
+        if cached and cached[0] == self.real_user:
+            return cached[1].sub(
+                lambda m: m.group("prefix") + self.repl_user, text
+            )
         u = re.escape(self.real_user)
         repl_user = self.repl_user
         # Single regex with prefix alternation; word-style boundary
@@ -658,6 +674,8 @@ class Redactor:
             + r"(?P<user>" + u + r")"
             + r"(?=$|[/\\])"
         )
+        # Cache for next call.
+        self._username_pattern_cache = (self.real_user, pattern)
         return pattern.sub(lambda m: m.group("prefix") + repl_user, text)
 
 
@@ -675,6 +693,13 @@ def _close_open_fence(text: str) -> str:
     Counts only lines whose first non-whitespace characters are triple
     backticks or triple tildes (real fences, not inline code).
     """
+    # #py-m9 (#595): short-circuit on prose with no fences. The full
+    # splitlines + lstrip walk is O(n) on every page; pages without any
+    # fence at all (lots of them — quotes, summaries, frontmatter-only
+    # snippets) get the fast `in` check instead. Both `\`\`\`` and `~~~`
+    # must be absent for the early-out to be safe.
+    if "```" not in text and "~~~" not in text:
+        return text
     backtick_count = 0
     tilde_count = 0
     for line in text.splitlines():
