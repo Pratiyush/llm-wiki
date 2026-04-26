@@ -8,6 +8,14 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
+## [1.3.34] — 2026-04-26
+
+Maintenance release broadening axe-core a11y coverage in the e2e harness (#631, parent #468).
+
+### Added
+
+- **`tests/e2e/test_axe_a11y_broadened.py`** (#631) — five additional axe-core scans on top of the seed module: sessions index / changelog / docs hub long-tail pages, light-mode contrast (paired with the existing dark-mode scan so theme regressions in either direction are caught), mobile-viewport pass at 390×844, and a focus-management rule subset (`focus-order-semantics`, `focusable-content`, `interactive-supports-focus`, `tabindex`) so #460 / #479-style regressions surface independently of the generic scan. Re-uses the existing `_scan` / `_inject_and_run_axe` helpers from `test_axe_a11y.py` to ship one axe loader.
+
 ## [1.3.33] — 2026-04-26
 
 Maintenance release adding i18n smoke tests to the e2e harness (#639, parent #468).
