@@ -67,8 +67,11 @@ class FrontmatterCompleteness(LintRule):
     def run(self, pages, *, llm_callback=None):
         issues = []
         for rel, page in pages.items():
-            # Skip system nav files and _context.md stubs
-            basename = rel.rsplit("/", 1)[-1]
+            # Skip system nav files and _context.md stubs.
+            # #490: use the separator-agnostic basename helper so
+            # exemptions still fire on Windows-built page paths
+            # (`wiki\\index.md` etc.).
+            basename = _basename(rel)
             if basename in self.EXEMPT_FILES or basename == "_context.md":
                 continue
             meta = page["meta"]
@@ -147,9 +150,23 @@ class FrontmatterValidity(LintRule):
         return issues
 
 
+def _basename(rel: str) -> str:
+    """Return the last path component, normalising both `/` and `\\\\`.
+
+    #490: lint pages built on Windows have keys like
+    ``wiki\\\\entities\\\\Foo.md`` (native ``Path.parts`` separators),
+    so a ``rel.rsplit('/', 1)[-1]`` returns the *whole* string. This
+    silently broke every exemption + slug-derivation site that
+    assumed POSIX separators — every Windows install showed spurious
+    lint errors against navigation files. Use this helper everywhere.
+    """
+    # Normalise both separators, then split on the canonical one.
+    return rel.replace("\\", "/").rsplit("/", 1)[-1]
+
+
 def _page_slug(rel: str) -> str:
     """Convert path like 'entities/Foo.md' → 'Foo'."""
-    return rel.rsplit("/", 1)[-1].removesuffix(".md")
+    return _basename(rel).removesuffix(".md")
 
 
 @register
@@ -480,7 +497,7 @@ class IndexSync(LintRule):
             if not resolved:
                 continue
             if resolved in pages:
-                listed_slugs.add(resolved.rsplit("/", 1)[-1].removesuffix(".md"))
+                listed_slugs.add(_basename(resolved).removesuffix(".md"))
             else:
                 issues.append({
                     "rule": self.name,
