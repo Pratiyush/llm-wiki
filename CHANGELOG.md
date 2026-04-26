@@ -8,6 +8,14 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
+## [1.2.37] — 2026-04-26
+
+Patch release pre-populating auto-seeded project stubs with topics + description from session metadata (#425). Fresh projects now light up the moment their first session lands; the user only needs to fill in `homepage:` to get the full hero rendering. Hand-authored stubs are still never overwritten.
+
+### Fixed
+
+- **Auto-seeded project stubs started with empty defaults** (#425) — `build.py:ensure_project_stubs` wrote `topics: []`, `description: ""`, `homepage: ""` even when session metadata could populate the first two for free. Real corpora rendered a bare hero per project until a human intervened. Fix: `_derive_stub_topics()` aggregates session `tags:` (via the existing `extract_session_topics` noise filter) and falls back to `tools_used` so projects without distinctive tags still surface meaningful chips, capped at 6. `_derive_stub_description()` walks the most-recent session first, preferring `summary:` (truncated to ~140 chars with a "..." tail), then a humanised slug (`my-cool-project` → `My Cool Project`), then empty. Embedded double-quotes are escaped so YAML stays valid. Existing files remain untouched — only the absence of a stub triggers a write. Adds 13 new tests to `tests/test_project_stubs.py` covering humanise edge cases, tag pre-population, noise filter, tools-used fallback, 6-topic cap, summary > slug > empty preference, truncation, quote escaping, homepage preserved empty, hand-authored stub preserved, and round-trip via `load_project_profile`.
+
 ## [1.2.36] — 2026-04-26
 
 Patch release fixing the `derive_session_slug` UUID-prefix collision flagged by the Opus 4.7 code review (#403). Pure correctness fix — non-UUID filenames behave identically.

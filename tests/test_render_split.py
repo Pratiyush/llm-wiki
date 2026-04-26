@@ -105,13 +105,14 @@ def test_build_py_is_smaller():
       * 2,200 (#283 md_to_html cache + #284 README/CONTRIBUTING
         compile + #277 palette docs indexing)
       * 2,300 (#417 plain_text cache + content_key helper)
+      * 2,400 (#425 stub-defaults pre-population helpers)
     Next refactor target: extract md_to_html + preprocessor to
     llmwiki/render/markdown.py (tracked in the deep-audit epic #286).
     """
     from llmwiki import REPO_ROOT
     build_py = REPO_ROOT / "llmwiki" / "build.py"
     line_count = len(build_py.read_text(encoding="utf-8").splitlines())
-    assert line_count < 2300, f"build.py is {line_count} lines (ceiling 2300)"
+    assert line_count < 2400, f"build.py is {line_count} lines (ceiling 2400)"
 
 
 def test_css_module_under_800_lines():

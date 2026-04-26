@@ -54,6 +54,7 @@ from llmwiki.log_reader import recent_events as _recent_log_events
 from llmwiki.context_md import is_context_file
 from llmwiki.freshness import freshness_badge, load_freshness_config
 from llmwiki.project_topics import (
+    extract_session_topics,
     get_project_topics,
     load_project_profile,
     render_topic_chips,
@@ -166,6 +167,88 @@ def group_by_project(
     return g
 
 
+_SLUG_SPLIT_RE = re.compile(r"[-_]+")
+
+
+def _humanize_slug(slug: str) -> str:
+    """Turn a kebab/snake-case slug into a human-readable title.
+
+    `my-cool-project` → `My Cool Project`. Single-letter parts are
+    upper-cased the same way as multi-letter parts. Empty / whitespace
+    input returns the original (callers handle the empty case).
+    """
+    parts = [p for p in _SLUG_SPLIT_RE.split(slug.strip()) if p]
+    if not parts:
+        return slug.strip()
+    return " ".join(p[:1].upper() + p[1:] for p in parts)
+
+
+def _derive_stub_description(
+    sessions: list[tuple[Path, dict[str, Any], str]],
+) -> str:
+    """Pick a sensible description from the most-recent session.
+
+    Prefers an explicit `summary` (truncated to ~140 chars), then the
+    humanised session slug, then empty. `sessions` arrives sorted oldest
+    → newest by `discover_sources`/grouping, so we walk the tail.
+    """
+    for _path, meta, _body in reversed(sessions):
+        summary = meta.get("summary")
+        if isinstance(summary, str) and summary.strip():
+            text = summary.strip().splitlines()[0].strip()
+            if len(text) > 140:
+                text = text[:137].rstrip() + "..."
+            return text
+        raw_slug = meta.get("slug")
+        if isinstance(raw_slug, str) and raw_slug.strip():
+            humanised = _humanize_slug(raw_slug)
+            if humanised:
+                return humanised
+    return ""
+
+
+def _derive_stub_topics(
+    sessions: list[tuple[Path, dict[str, Any], str]],
+    max_topics: int = 6,
+) -> list[str]:
+    """Aggregate topics from session frontmatter, then `tools_used` as a
+    secondary source. Uses `extract_session_topics` for the tags path so
+    the noise filter stays in sync with `project_topics.py`. Falls back
+    to `min_count=1` because most projects have only a few sessions and
+    the `min_count=2` default in `extract_session_topics` would suppress
+    nearly everything at seed time. Returns at most `max_topics` topics.
+    """
+    metas = [meta for _path, meta, _body in sessions]
+    topics = extract_session_topics(metas, max_topics=max_topics, min_count=1)
+    if topics:
+        return topics
+    # Fallback: tools_used aggregation (filtered by the same noise set).
+    from llmwiki.project_topics import _NOISE_TAGS
+    counts: dict[str, int] = {}
+    for meta in metas:
+        raw = meta.get("tools_used")
+        if isinstance(raw, list):
+            items = raw
+        elif isinstance(raw, dict):
+            items = list(raw.keys())
+        else:
+            items = []
+        for item in items:
+            tag = str(item).strip().lower()
+            if tag and tag not in _NOISE_TAGS:
+                counts[tag] = counts.get(tag, 0) + 1
+    ordered = sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))
+    return [tag for tag, _ in ordered[:max_topics]]
+
+
+def _format_topics_yaml(topics: list[str]) -> str:
+    """Inline-list YAML serialisation that matches the parser in
+    `project_topics._parse_topics_frontmatter`."""
+    if not topics:
+        return "[]"
+    return "[" + ", ".join(topics) + "]"
+
+
 def ensure_project_stubs(
     groups: dict[str, list[tuple[Path, dict[str, Any], str]]],
     meta_dir: Path,
@@ -175,9 +258,12 @@ def ensure_project_stubs(
 
     Without this, real projects render a bare hero — no description, no
     topic chips, no homepage — because those fields come from a hand-
-    authored file that never gets created on sync. Seeding an empty stub
-    gets every real project to demo-parity the moment the user fills in
-    two or three fields. Existing files are never overwritten.
+    authored file that never gets created on sync. Seeding pre-populates
+    `topics:` from session tags/tools and `description:` from the most-
+    recent session's summary or slug, so every real project lights up the
+    moment its first session lands (closes #425). Existing hand-authored
+    files are never overwritten — only the absence of a file triggers a
+    write, so the user's edits always win.
 
     Returns the list of stub paths actually written (empty if all project
     metadata files already existed).
@@ -188,20 +274,28 @@ def ensure_project_stubs(
         target = meta_dir / f"{slug}.md"
         if target.exists():
             continue
+        sessions = groups[slug]
+        topics = _derive_stub_topics(sessions)
+        description = _derive_stub_description(sessions)
+        # Escape embedded double-quotes in description so the YAML stays
+        # valid — slugs/summaries from real sessions occasionally contain
+        # quotes (`"why didn't this work"`).
+        description_safe = description.replace("\\", "\\\\").replace('"', '\\"')
         stub = (
             f"---\n"
             f'title: "{slug}"\n'
             f"type: entity\n"
             f"entity_type: project\n"
             f"project: {slug}\n"
-            f"topics: []\n"
-            f'description: ""\n'
+            f"topics: {_format_topics_yaml(topics)}\n"
+            f'description: "{description_safe}"\n'
             f'homepage: ""\n'
             f"---\n\n"
             f"# {slug}\n\n"
-            f"*Auto-generated project stub. Fill in `description`, "
-            f"`topics`, and `homepage` in the frontmatter above to "
-            f"enable the rich hero rendering on this project's page.*\n"
+            f"*Auto-generated project stub. `topics` and `description` are "
+            f"pre-filled from session metadata — edit any field above and "
+            f"the build will pick it up. Fill in `homepage` to add a link "
+            f"chip to the project hero.*\n"
         )
         target.write_text(stub, encoding="utf-8")
         written.append(target)
