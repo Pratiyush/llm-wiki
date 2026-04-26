@@ -8,6 +8,14 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
+## [1.2.36] — 2026-04-26
+
+Patch release fixing the `derive_session_slug` UUID-prefix collision flagged by the Opus 4.7 code review (#403). Pure correctness fix — non-UUID filenames behave identically.
+
+### Fixed
+
+- **`derive_session_slug` 12-char filename fallback collided per-project on UUID stems** (#424) — when no `slug` field was present in any record, the fallback was `jsonl_path.stem[:12]`. Claude Code emits UUID-named transcripts (`b7f0e3c4-2189-4f8e-9e4f-...jsonl`); two distinct UUIDs in the same project + same minute both collapsed to `b7f0e3c4-21` (the same 12-char prefix), so the canonical filename collided and we leaned on the disambig pass (#339) to save us. Correctness was coupled to the disambig pass — if the renderer ever moved first, this regressed silently. Fix: detect UUID-shaped stems with `_UUID_LIKE` regex and fall back to the same stable 8-char source-path hash that disambig already uses (`_source_hash8`). Two distinct UUIDs always produce distinct hashes, so the canonical slug is unique without leaning on disambig. Non-UUID stems keep the historical 12-char prefix to preserve human-readable slugs. Adds `tests/test_slug_fallback.py` (14 cases) covering explicit slug field, multiple records, normal stem prefix, UUID hash fallback, two-UUID distinct slugs, uppercase UUIDs, UUID with extra suffix, short stems, special chars, partial-UUID stems (NOT detected as UUID), record-slug-takes-precedence, end-to-end no-disambig-needed via `flat_output_name`, and hash stability across calls.
+
 ## [1.2.35] — 2026-04-26
 
 Patch release fixing `cmd_all` rebuilding the argparse tree once per step flagged by the Opus 4.7 code review (#403). Pure perf + decoupling fix — same external behaviour, just one parser construction per `llmwiki all` instead of four.
