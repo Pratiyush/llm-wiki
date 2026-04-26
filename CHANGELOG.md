@@ -8,6 +8,14 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
+## [1.2.34] — 2026-04-26
+
+Patch release tightening the claude-CLI subprocess hygiene flagged by the Opus 4.7 code review (#403). No functional change for users with claude on PATH; users who relied on the hardcoded `/usr/local/bin/claude` fallback now get `shutil.which("claude")` instead, which works on Linux package installs, NixOS, Windows, brew, asdf, nvm, and pyenv.
+
+### Fixed
+
+- **Subprocess `claude_path` hardcoded to `/usr/local/bin/claude`** (#421) — `build.py:synthesize_overview` defaulted the path to a fixed string, accepted any `--claude` value, and shelled out without sanitisation. Two hygiene gaps: (a) the default doesn't exist outside macOS-with-brew installs, so users on every other platform had to pass `--claude` explicitly even though `shutil.which("claude")` would Just Work; (b) accepting arbitrary `--claude` values isn't a security boundary today (argv is list-form, never shell-interpreted), but the same path ends up in user-facing logs and could leak into future code paths that *do* interpolate. Fix: new `_resolve_claude_path()` helper. Empty value → falls back to `shutil.which("claude")`. Explicit value → checked for shell metacharacters (`;`, `&`, `|`, `$`, backtick, `<`, `>`, newline) and rejected loudly when present. The CLI default changes from `/usr/local/bin/claude` to `""` so the resolver always wins. Adds `tests/test_subprocess_paths.py` (18 cases) covering PATH lookup, all 7 metacharacter classes, valid Unix/Windows/spaces paths, the synthesize_overview wrapper, and the CLI default round-trip.
+
 ## [1.2.33] — 2026-04-26
 
 Patch release fixing the `is_subagent` mis-classification flagged by the Opus 4.7 code review (#403). Pure correctness fix — no API change.

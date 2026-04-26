@@ -1883,13 +1883,60 @@ from llmwiki.render.js import JS  # noqa: F401 (re-exported)
 
 # ─── claude synthesis (optional) ───────────────────────────────────────────
 
+# #421: shell metacharacters that have no business in a path-to-an-
+# executable. We refuse paths containing any of these rather than
+# trying to escape them — the CLI argv is never shell-interpreted
+# (we use list-form subprocess.run), but the same path may end up in
+# user-facing logs, scripts, or future code paths that *do* interpolate.
+# Reject loudly to keep hygiene tight.
+_PATH_SHELL_METACHARS = re.compile(r"[;&|`$<>\n\r]")
+
+
+def _resolve_claude_path(claude_path: Optional[str]) -> Optional[Path]:
+    """Resolve and validate the ``--claude`` path (#421).
+
+    Returns ``None`` when:
+      - The path is empty or contains shell metacharacters (rejected loudly).
+      - ``shutil.which`` can't find the binary on PATH (when no path passed).
+      - The resolved path doesn't exist on disk.
+
+    Returns a ``Path`` when the binary is found and looks safe. Callers
+    should treat ``None`` as "skip synthesis" — the synth step is best-
+    effort and never fatal.
+    """
+    if claude_path:
+        # Reject explicit paths containing shell metacharacters even
+        # though argv is list-form — this keeps the path safe to log.
+        if _PATH_SHELL_METACHARS.search(claude_path):
+            print(
+                f"  warning: refusing claude path with shell metacharacters: "
+                f"{claude_path!r}",
+                file=sys.stderr,
+            )
+            return None
+        candidate = Path(claude_path)
+    else:
+        # No explicit path: use shutil.which so PATH-based lookups
+        # (homebrew, asdf, npm-global, Windows %PATH%) all just work.
+        import shutil as _shutil
+        found = _shutil.which("claude")
+        if not found:
+            return None
+        candidate = Path(found)
+    if not candidate.exists():
+        print(f"  warning: claude CLI not found at {candidate}", file=sys.stderr)
+        return None
+    return candidate
+
+
 def synthesize_overview(
     groups: dict[str, list[tuple[Path, dict[str, Any], str]]],
     claude_path: str,
 ) -> Optional[str]:
-    if not Path(claude_path).exists():
-        print(f"  warning: claude CLI not found at {claude_path}", file=sys.stderr)
+    resolved = _resolve_claude_path(claude_path)
+    if resolved is None:
         return None
+    claude_path = str(resolved)
 
     lines: list[str] = [
         "You are writing a short (200-300 word) overview for a personal knowledge-base",
@@ -1937,7 +1984,7 @@ def synthesize_overview(
 def build_site(
     out_dir: Path = DEFAULT_OUT_DIR,
     synthesize: bool = False,
-    claude_path: str = "/usr/local/bin/claude",
+    claude_path: str = "",
     search_mode: str = "auto",
     seed_project_stubs: bool = False,
 ) -> int:
@@ -2132,7 +2179,7 @@ def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--out", type=Path, default=DEFAULT_OUT_DIR)
     p.add_argument("--synthesize", action="store_true")
-    p.add_argument("--claude", type=str, default="/usr/local/bin/claude")
+    p.add_argument("--claude", type=str, default="")
     return p.parse_args()
 
 
