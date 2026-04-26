@@ -1296,7 +1296,15 @@ def convert_all(
             if not dry_run:
                 names_written_this_run.add(out_name)
             if dry_run:
-                print(f"  [dry-run] {out_path.relative_to(REPO_ROOT)} ({len(md)} bytes)")
+                # #426 sister fix: mirror the defensive `is_relative_to` check
+                # the verbatim-text branch above already had so dry-run on
+                # out_dir paths outside REPO_ROOT (e.g. test fixtures, vault
+                # overlays) doesn't crash on `relative_to`.
+                shown = (
+                    out_path.relative_to(REPO_ROOT)
+                    if out_path.is_relative_to(REPO_ROOT) else out_path
+                )
+                print(f"  [dry-run] {shown} ({len(md)} bytes)")
             else:
                 out_path.parent.mkdir(parents=True, exist_ok=True)
                 try:
@@ -1312,12 +1320,20 @@ def convert_all(
             converted += 1
             _bump(cls.name, "converted")
 
-    if not dry_run and not force:
+    if not dry_run:
         # G-03 (#289): stamp _meta.last_sync + _counters onto the state
         # file so `llmwiki sync --status` has a canonical place to read
         # observability data. Keys are namespaced with `_` so they can't
         # collide with portable adapter::path keys (which never start
         # with `_` because adapter names are lowercase identifiers).
+        # #426: persist under --force too. `--force` is meant to ignore
+        # *prior* state (re-process files even when their mtime says
+        # they're unchanged), not to skip recording the new run. The
+        # original `not force` guard discarded every per-key state
+        # update from this run plus the observability data, so
+        # `sync --status` after a `--force` re-sync would silently show
+        # the *previous* run's `last_sync` timestamp, and the next
+        # non-force sync would re-process every file all over again.
         state["_meta"] = {
             "last_sync": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
             "version": 1,

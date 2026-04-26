@@ -8,6 +8,14 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
+## [1.2.38] — 2026-04-26
+
+Patch release fixing the `--force` sync silently discarding observability metadata + per-key state flagged by the Opus 4.7 code review (#403). Pure correctness fix — default behaviour unchanged; users who run `sync --force` no longer lose their `last_sync` audit trail or get every file re-processed on the next plain sync.
+
+### Fixed
+
+- **`sync --force` discarded `_meta` / `_counters` / per-key state** (#426) — `convert.py:convert_all`'s state-write block was guarded by `if not dry_run and not force`. With `--force`, every per-key `state[key] = mtime` update made during the loop *and* the observability snapshot (`_meta.last_sync`, `_counters`) were thrown away. Two user-visible consequences: (a) `llmwiki sync --status` after a `sync --force` showed the *previous* run's `last_sync` timestamp, silently losing the audit trail; (b) the next plain `sync` re-processed every file from scratch because no state was recorded for the just-completed forced run, defeating the idempotency guarantee. Fix: lift the `not force` half of the guard. `--force` is meant to ignore *prior* state on read (re-process even unchanged files), not to skip recording the *new* run on write. Sister fix at the dry-run print path: mirror the existing defensive `is_relative_to(REPO_ROOT)` check from the verbatim-text branch so dry-run on out-of-repo `out_dir` (vault overlays, test fixtures) doesn't crash on `relative_to`. Adds `tests/test_force_counters.py` (12 cases) covering default writes meta/counters/per-key, `--force` writes meta/counters/per-key (the regression), `--force` followed by plain sync correctly identifies unchanged, dry-run never writes (with or without `--force`), corrupt state file recovers cleanly, first-ever sync populates from scratch, all 7 counter buckets present, and prior `_meta` overwritten not appended.
+
 ## [1.2.37] — 2026-04-26
 
 Patch release pre-populating auto-seeded project stubs with topics + description from session metadata (#425). Fresh projects now light up the moment their first session lands; the user only needs to fill in `homepage:` to get the full hero rendering. Hand-authored stubs are still never overwritten.
