@@ -8,6 +8,20 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
+## [1.3.49] — 2026-04-26
+
+#474 perf hot-path — 3 of 5 issues from epic-research bundle 3.
+
+### Fixed
+
+- **`Redactor._redact_username` caches the compiled regex** (#586, #py-h8) — was recompiling the same alternation regex on every call. On a 500-session sync that's thousands of needless `re.compile()` invocations. Now keyed on `self.real_user`; rebuild only when the username changes.
+- **`_close_open_fence` short-circuits on fence-free prose** (#595, #py-m9) — full `splitlines()` walk was running on every page even when the prose had no fences at all (frontmatter-only snippets, summaries, quotes). Quick `"```" not in text and "~~~" not in text` check returns immediately when both are absent.
+- **`fnmatch` hoisted to module-level** (#597, #py-m11) — was imported inside `IgnoreMatcher._match_one` on every call. Moved to a module-level `import fnmatch as _fnmatch` so the import resolution doesn't repeat thousands of times during a sync.
+
+### Deferred to follow-ups
+
+- #596 (synthesize_estimate_report double-walk) and #585 (OllamaSynthesizer re-renders prompt) — bigger refactors than the hot-path bundle absorbed; will land in a synth-perf bundle.
+
 ## [1.3.48] — 2026-04-26
 
 #472 input-validation hardening — 6 security guards from epic-research bundle A.
