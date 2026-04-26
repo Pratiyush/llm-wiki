@@ -644,6 +644,26 @@ def _hljs_head_tags() -> str:
     )
 
 
+_PRE_PAINT_THEME_SCRIPT = """  <script>
+    /* #458: read localStorage.llmwiki-theme BEFORE first paint so users
+       never see a flash of the wrong theme when navigating between pages.
+       Falls back to prefers-color-scheme, then dark. Mirrors the same
+       pre-paint pattern graph.html already uses (#477). */
+    (function () {
+      try {
+        var t = localStorage.getItem('llmwiki-theme');
+        if (t !== 'dark' && t !== 'light') {
+          t = (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) ? 'light' : 'dark';
+        }
+        document.documentElement.setAttribute('data-theme', t);
+      } catch (e) {
+        document.documentElement.setAttribute('data-theme', 'dark');
+      }
+    })();
+  </script>
+"""
+
+
 def page_head(title: str, description: str, css_prefix: str = "") -> str:
     return f"""<!DOCTYPE html>
 <html lang="en">
@@ -652,7 +672,7 @@ def page_head(title: str, description: str, css_prefix: str = "") -> str:
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>{html.escape(title)}</title>
   <meta name="description" content="{html.escape(description)}">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
+{_PRE_PAINT_THEME_SCRIPT}  <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 {_hljs_head_tags()}  <link rel="stylesheet" href="{css_prefix}style.css">
@@ -689,7 +709,7 @@ def page_head_article(
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>{html.escape(title)}</title>
   <meta name="description" content="{html.escape(description)}">
-{canonical_tag}{og_tags}  <link rel="preconnect" href="https://fonts.googleapis.com">
+{_PRE_PAINT_THEME_SCRIPT}{canonical_tag}{og_tags}  <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 {_hljs_head_tags()}  <link rel="stylesheet" href="{css_prefix}style.css">
