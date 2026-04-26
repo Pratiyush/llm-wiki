@@ -20,9 +20,12 @@ PY_VER=$(python3 -c 'import sys; print(".".join(map(str, sys.version_info[:2])))
 echo "    python: $PY_VER"
 
 # 2. Check for markdown package
+# #sec-18 (#562): pin to the same version floor as pyproject.toml so a
+# fresh setup never installs a markdown wheel older than llmwiki's
+# tested baseline. Bump both files together when the floor moves.
 if ! python3 -c "import markdown" 2>/dev/null; then
   echo "==> installing python 'markdown' (required)"
-  python3 -m pip install --user --quiet markdown 2>&1 | tail -2 || true
+  python3 -m pip install --user --quiet 'markdown>=3.9' 2>&1 | tail -2 || true
 fi
 
 # 3. Syntax highlighting (v0.5): highlight.js loads from CDN at view time,
@@ -53,4 +56,9 @@ echo
 echo "Optional SessionStart hook — auto-sync on every Claude Code launch:"
 echo "  Add this to ~/.claude/settings.json under 'hooks':"
 echo '    "SessionStart": [ { "hooks": [ { "type": "command",'
-echo "      \"command\": \"(python3 $SCRIPT_DIR/llmwiki/convert.py > /tmp/llmwiki-sync.log 2>&1 &) ; exit 0\" } ] } ]"
+# #sec-11 (#555): wrap the path in JSON-string-escaped quotes so a user
+# whose checkout sits under "/Users/some path/llmwiki" still gets a
+# valid hook entry. Without quotes the shell splits on the space, the
+# python invocation runs against `/Users/some` and the trailing
+# `path/...` becomes a separate argv. Paste-friendly + correct.
+echo "      \"command\": \"(python3 \\\"$SCRIPT_DIR/llmwiki/convert.py\\\" > /tmp/llmwiki-sync.log 2>&1 &) ; exit 0\" } ] } ]"

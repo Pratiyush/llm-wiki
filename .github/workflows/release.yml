@@ -68,7 +68,10 @@ jobs:
           path: dist/
 
       - name: Publish to PyPI via OIDC
-        uses: pypa/gh-action-pypi-publish@release/v1
+        # #sec-17 (#561): SHA-pin so the publish step can't be hijacked
+        # by a moved release/v1 branch. Bump deliberately after auditing
+        # upstream changelog.
+        uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b  # release/v1
 
   sign:
     name: Sign with Sigstore

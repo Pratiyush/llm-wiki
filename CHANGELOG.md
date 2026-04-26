@@ -8,6 +8,18 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
+## [1.3.46] — 2026-04-26
+
+#472 CI hardening — 5 supply-chain fixes from epic-research bundle B.
+
+### Fixed
+
+- **`anthropics/claude-code-action` SHA-pinned in claude-code-review.yml + claude.yml** (#558, #sec-14) — was `@v1` (mutable tag). Now `@567fe954a4527e81f132d87d1bdbcc94f7737434  # v1` so a moved upstream tag can't ship code into our CI without an explicit bump.
+- **`pypa/gh-action-pypi-publish` SHA-pinned in release.yml** (#561, #sec-17) — was `@release/v1` (mutable branch). Now `@cef221092ed1bacb1cc03d23a2d87d1d172e277b  # release/v1`. Pin tightens after auditing the upstream changelog.
+- **`TAP_TOKEN` masked via `::add-mask::` in homebrew-bump.yml** (#559, #sec-15) — secrets in `env:` are auto-scrubbed when referenced via `${{ secrets.X }}`, but once they land in a plain shell variable a stray `set -x` could leak them. Belt-and-braces masking added.
+- **`setup.sh` pins `markdown>=3.9`** (#562, #sec-18) — was unpinned (`pip install markdown`). Now matches the `pyproject.toml` floor so a fresh checkout never installs a wheel older than the tested baseline.
+- **`setup.sh` SessionStart hook quotes `$SCRIPT_DIR`** (#555, #sec-11) — a user whose checkout sits under a path containing spaces would have the rendered hook command split on the space (e.g. `/Users/some` + `path/llmwiki/...`). Now JSON-escape-quoted so the paste-friendly snippet works for everyone.
+
 ## [1.3.45] — 2026-04-26
 
 #475 docs/CLI sweep — 4 documentation fixes from epic-research bundle 1. Stops llmwiki from claiming features it doesn't have.
