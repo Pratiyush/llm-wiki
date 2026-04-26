@@ -8,6 +8,14 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
+## [1.3.9] — 2026-04-26
+
+Hotfix release fixing Windows lint exemptions broken by POSIX-only path splitting (#490).
+
+### Fixed
+
+- **Lint exemptions broke on Windows backslash paths** (#490) — `lint/rules.py:FrontmatterCompleteness`, `_page_slug`, and `IndexSync` all derived basenames via `rel.rsplit('/', 1)[-1]`. On Windows the page-key paths use native `\\` separators (from `Path.parts`), so the split produced the *whole* string, every navigation file (`wiki\\index.md`, `wiki\\overview.md`, etc.) failed exemption matching, and every Windows install lit up with spurious lint errors. Fix: new `_basename(rel)` helper that normalises both separators before splitting; all 3 sites route through it. Adds `tests/test_lint_windows_paths.py` (5 cases) covering the helper directly + each fixed callsite, with parametrised POSIX vs Windows path inputs.
+
 ## [1.3.8] — 2026-04-26
 
 Hotfix release fixing the auto-detected `real_username` falsely matching `root` / short paths in containers and Windows (#489).
