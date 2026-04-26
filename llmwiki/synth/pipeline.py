@@ -114,18 +114,33 @@ def _load_prompt_template() -> str:
     return PROMPT_TEMPLATE_PATH.read_text(encoding="utf-8")
 
 
-def _load_state() -> dict[str, float]:
+def _resolve_state_file(state_file: Optional[Path] = None) -> Path:
+    """Return the synth state-file path.
+
+    #420: when running in vault-overlay mode, the state file must live
+    *under the vault root*, not the repo root — otherwise two different
+    vaults synthesised against the same repo silently share idempotency
+    state and one vault's run marks the other vault's files unchanged.
+    Callers pass ``state_file`` explicitly when in vault mode; default
+    falls back to the repo-root location for the no-vault case.
+    """
+    return state_file if state_file is not None else STATE_FILE
+
+
+def _load_state(state_file: Optional[Path] = None) -> dict[str, float]:
     """Load the mtime state file. Returns {relative_path: mtime}."""
-    if not STATE_FILE.is_file():
+    target = _resolve_state_file(state_file)
+    if not target.is_file():
         return {}
     try:
-        return json.loads(STATE_FILE.read_text(encoding="utf-8"))
+        return json.loads(target.read_text(encoding="utf-8"))
     except (ValueError, json.JSONDecodeError):
         return {}
 
 
-def _save_state(state: dict[str, float]) -> None:
-    STATE_FILE.write_text(
+def _save_state(state: dict[str, float], state_file: Optional[Path] = None) -> None:
+    target = _resolve_state_file(state_file)
+    target.write_text(
         json.dumps(state, indent=2, sort_keys=True), encoding="utf-8"
     )
 
@@ -549,6 +564,7 @@ def synthesize_new_sessions(
     dry_run: bool = False,
     force: bool = False,
     log_path: Optional[Path] = None,
+    state_file: Optional[Path] = None,
 ) -> dict[str, Any]:
     """Main entry point. Returns a summary dict:
 
@@ -576,7 +592,7 @@ def synthesize_new_sessions(
 
     sources_out = wiki_sources_dir or WIKI_SOURCES
     prompt_template = _load_prompt_template()
-    state = {} if force else _load_state()
+    state = {} if force else _load_state(state_file)
     sessions = _discover_raw_sessions(raw_dir)
 
     new_files: list[tuple[Path, dict[str, Any], str]] = []
@@ -679,7 +695,7 @@ def synthesize_new_sessions(
             },
         )
 
-    _save_state(state)
+    _save_state(state, state_file)
 
     # G-09 (#295): rebuild wiki/index.md so lint's index_sync rule
     # passes on fresh synthesized corpora. Synthesize is authoritative

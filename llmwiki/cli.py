@@ -670,9 +670,26 @@ def cmd_synthesize(args: argparse.Namespace) -> int:
         )
         return 1
 
+    # #420: vault-overlay mode isolates raw/wiki/state to the vault root.
+    vault_path = getattr(args, "vault", None)
+    raw_dir = wiki_sources_dir = state_file = None
+    if vault_path:
+        from llmwiki.vault import resolve_vault
+        try:
+            vault = resolve_vault(vault_path)
+        except (FileNotFoundError, NotADirectoryError) as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 2
+        raw_dir = vault / "raw" / "sessions"
+        wiki_sources_dir = vault / "wiki" / "sources"
+        state_file = vault / ".llmwiki-synth-state.json"
+
     summary = synthesize_new_sessions(
         backend=backend,
         force=args.force,
+        raw_dir=raw_dir,
+        wiki_sources_dir=wiki_sources_dir,
+        state_file=state_file,
     )
     print(
         f"Scanned {summary['total_scanned']}, new {summary['new_files']}, "
@@ -1177,6 +1194,14 @@ def build_parser() -> argparse.ArgumentParser:
     syn.add_argument(
         "--body", metavar="PATH", default=None,
         help="Read synthesized body from this file for --complete (default: stdin)",
+    )
+    syn.add_argument(
+        "--vault", type=Path, default=None,
+        help="(#420) Vault-overlay mode: read raw/ + write wiki/sources/ "
+             "under the vault root, and isolate the synth state file to the "
+             "vault. Without this flag the state file lives at the repo "
+             "root, so two vaults synthesised against the same repo silently "
+             "share idempotency state.",
     )
     syn.set_defaults(func=cmd_synthesize)
 
