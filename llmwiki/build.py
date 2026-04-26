@@ -2053,6 +2053,42 @@ def _resolve_claude_path(claude_path: Optional[str]) -> Optional[Path]:
     return candidate
 
 
+# #486: validate slug shape before it lands in the synthesize_overview
+# prompt. Anything that doesn't match this is replaced by `_invalid_`.
+# - Length cap 80 chars (real slugs are far shorter)
+# - Charset: alphanumerics + `.`, `_`, `-` (no whitespace, no shell
+#   metachars, no NUL bytes, no unicode-confusable categories)
+_SAFE_SLUG_RE = re.compile(r"^[A-Za-z0-9._-]{1,80}$")
+
+# #486: cap the total prompt size sent to the claude CLI. 32 KB is well
+# inside any LLM's context, well inside macOS's ~256 KB argv limit, and
+# small enough that a malicious large slug list can't push the prompt
+# past the OS argv limit. (We also pass via stdin below so this is
+# defence-in-depth.)
+_MAX_OVERVIEW_PROMPT_BYTES = 32_000
+
+
+def _validate_overview_slug(s: Any) -> str:
+    """Return ``s`` if it's a safe slug, ``"_invalid_"`` otherwise.
+
+    #486: a malicious .jsonl could land arbitrary content in the
+    `slug` field of a session's frontmatter. That string then ends
+    up inside the prompt sent to the claude CLI for overview
+    synthesis. Without validation, an attacker-controlled slug could:
+    - inject prompt text ("ignore previous instructions, …")
+    - contain `\\x00` and crash subprocess.run with a ValueError
+    - balloon argv past the OS limit (~256 KB on macOS)
+    Replace anything sketchy with the literal `_invalid_` so the
+    prompt stays well-formed and the synthesis output stays
+    trustworthy.
+    """
+    if not isinstance(s, str):
+        return "_invalid_"
+    if not _SAFE_SLUG_RE.match(s):
+        return "_invalid_"
+    return s
+
+
 def synthesize_overview(
     groups: dict[str, list[tuple[Path, dict[str, Any], str]]],
     claude_path: str,
@@ -2081,14 +2117,30 @@ def synthesize_overview(
             "main_sessions": sum(1 for p, m, _ in sessions if not _is_subagent(m, p)),
             "dates": sorted({str(m.get("date", "")) for _, m, _ in sessions if m.get("date")}),
             "models": sorted({str(m.get("model", "")) for _, m, _ in sessions if m.get("model")}),
-            "slugs": [str(m.get("slug", p.stem)) for p, m, _ in sessions[:8]],
+            # #486: every slug filtered through the safe-slug regex so
+            # malicious .jsonl content can't prompt-inject or crash
+            # subprocess.run via embedded NUL bytes.
+            "slugs": [_validate_overview_slug(m.get("slug", p.stem)) for p, m, _ in sessions[:8]],
         }
     prompt = "\n".join(lines) + json.dumps(brief, indent=2)
 
+    # #486: cap total prompt size so a malicious large slug list can't
+    # push the prompt past the OS argv limit. Truncation is fine here —
+    # the LLM gets the head of the JSON and produces a partial overview;
+    # better than a build that silently fails.
+    if len(prompt.encode("utf-8")) > _MAX_OVERVIEW_PROMPT_BYTES:
+        prompt = prompt.encode("utf-8")[:_MAX_OVERVIEW_PROMPT_BYTES].decode(
+            "utf-8", errors="ignore"
+        )
+
     print("  calling claude CLI for overview synthesis…")
     try:
+        # #486: pass the prompt via stdin (`-p -`) instead of argv so we
+        # dodge the OS argv-length limit entirely. The byte cap above is
+        # defence-in-depth — argv-length DoS path closed regardless.
         result = subprocess.run(
-            [claude_path, "-p", prompt, "--model", "claude-haiku-4-5-20251001"],
+            [claude_path, "-p", "-", "--model", "claude-haiku-4-5-20251001"],
+            input=prompt,
             capture_output=True, text=True, timeout=120,
         )
     except subprocess.TimeoutExpired:
