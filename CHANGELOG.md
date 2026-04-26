@@ -8,6 +8,15 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
+## [1.3.25] — 2026-04-26
+
+Maintenance release bundling three small chores: ship the `examples/scripts/tree_from_graph.py` recipe that the README links to, document the `examples/scripts/` folder, and stop the link-check workflow from spawning duplicate tracking issues.
+
+### Fixed
+
+- **README link to `examples/scripts/tree_from_graph.py` now resolves** (#544 + 23 stale link-check noise issues #498–#542) — the script existed locally but was never committed, so every fresh checkout (including CI) saw the link as broken. The single ERROR in lychee's report was driving the auto-opened tracking issues. Adds the script to git plus an `examples/scripts/README.md` so the folder has context for new contributors.
+- **Link-check workflow no longer spawns a fresh issue every run** — `peter-evans/create-issue-from-file@v6` defaults to creating duplicates when a same-titled issue already exists. Set `update_existing: true` so the same `Broken external links detected` issue gets the latest report appended instead. Closes the noise root-cause behind 24+ duplicate issues filed since #498.
+
 ## [1.3.24] — 2026-04-26
 
 Hotfix release ending the navigation dead-end on `/graph.html` — the page now ships with the same site nav, command palette, and keyboard shortcuts as every other page (#456).

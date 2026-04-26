@@ -61,3 +61,8 @@ jobs:
           title: "Broken external links detected"
           content-filepath: lychee-report.md
           labels: docs, chore
+          # #544+: without update_existing every weekly cron + every push
+          # filed a fresh issue with the same title. Use the action's
+          # built-in update path so a single tracking issue gets the
+          # latest report appended instead of spawning duplicates.
+          update_existing: true
