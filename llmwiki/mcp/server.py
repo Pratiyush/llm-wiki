@@ -272,6 +272,22 @@ TOOLS = [
 # ─── Tool implementations ─────────────────────────────────────────────────
 
 
+# #482: top-level directories the MCP read-page tool is allowed to
+# return content from. Anything outside this set is rejected even
+# though it lives under REPO_ROOT — e.g. .git/, .env, .venv/, the
+# state files (.llmwiki-state.json contains absolute paths to every
+# Claude session file → host directory listing leak), and dotfiles
+# in general. README, CHANGELOG, CONTRIBUTING are allowed by name
+# because they're the documentation surface every consumer expects.
+_READ_PAGE_ALLOWED_DIRS: tuple[str, ...] = (
+    "wiki", "raw", "docs", "examples", "site",
+)
+_READ_PAGE_ALLOWED_ROOT_FILES: frozenset[str] = frozenset({
+    "README.md", "CHANGELOG.md", "CONTRIBUTING.md",
+    "LICENSE", "LICENSE.md",
+})
+
+
 def _safe_path(rel: str) -> Path | None:
     """Resolve a user-supplied path relative to REPO_ROOT and refuse if it
     escapes the repo (path traversal guard)."""
@@ -283,6 +299,31 @@ def _safe_path(rel: str) -> Path | None:
     except ValueError:
         return None
     return p
+
+
+def _is_read_page_allowed(p: Path) -> bool:
+    """#482: restrict `tool_wiki_read_page` to a documented surface.
+
+    The path-traversal guard in `_safe_path` only checks the file is
+    *under* REPO_ROOT. That still leaks every dotfile, the .git
+    directory, the state files, and node_modules. Apply an explicit
+    allowlist on top — the docs surface, plus the user's wiki/raw
+    content. Anything else is silently a "not found".
+    """
+    try:
+        rel_parts = p.resolve().relative_to(REPO_ROOT.resolve()).parts
+    except ValueError:
+        return False
+    if not rel_parts:
+        return False
+    head = rel_parts[0]
+    # Top-level allowlisted directory?
+    if head in _READ_PAGE_ALLOWED_DIRS:
+        return True
+    # Single allowlisted file at the root?
+    if len(rel_parts) == 1 and head in _READ_PAGE_ALLOWED_ROOT_FILES:
+        return True
+    return False
 
 
 def tool_wiki_query(args: dict[str, Any]) -> dict[str, Any]:
@@ -462,6 +503,16 @@ def tool_wiki_read_page(args: dict[str, Any]) -> dict[str, Any]:
     p = _safe_path(rel)
     if p is None:
         return _err(f"path escapes repo root: {rel!r}")
+    # #482: restrict to documented allowlist (wiki/, raw/, docs/,
+    # examples/, site/, plus README/CHANGELOG/etc. at the root).
+    # Reject .git/, .env, .llmwiki-state.json, node_modules, etc.
+    # even though they live under REPO_ROOT.
+    if not _is_read_page_allowed(p):
+        return _err(
+            f"path is outside the readable surface: {rel!r}. "
+            f"Allowed: {', '.join(_READ_PAGE_ALLOWED_DIRS)}/, "
+            f"plus {', '.join(sorted(_READ_PAGE_ALLOWED_ROOT_FILES))} at the root."
+        )
     if not p.exists():
         return _err(f"path does not exist: {rel}")
     if not p.is_file():

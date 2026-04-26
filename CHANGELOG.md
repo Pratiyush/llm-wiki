@@ -8,6 +8,14 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
+## [1.3.13] — 2026-04-26
+
+Hotfix release adding an allowlist to the MCP `wiki_read_page` tool so it can't leak `.git/`, `.env`, or `.llmwiki-state.json` (#482).
+
+### Fixed
+
+- **MCP `tool_wiki_read_page` could read any file under REPO_ROOT** (#482) — `_safe_path` correctly rejected symlinks pointing outside the repo, but READ any file *under* REPO_ROOT. That included `.env`, `.git/config`, `.llmwiki-state.json` (which contains absolute paths to every Claude session file = host directory listing leak), and any other dotfile or nested config. Anyone with MCP access (typically the user's own agent, but also any third-party MCP client they enable in Claude Desktop) could list / exfiltrate those. Fix: new `_is_read_page_allowed(p)` allowlist that restricts the tool to `wiki/`, `raw/`, `docs/`, `examples/`, `site/` directories plus `README.md`, `CHANGELOG.md`, `CONTRIBUTING.md`, `LICENSE` at the repo root. Anything else returns an error explaining the readable surface. Adds `tests/test_mcp_read_page_allowlist.py` (10 cases) covering each allowlisted path type, every blocked sensitive file (`.env`, `.git/config`, `.llmwiki-state.json`, `.venv/anything`, `node_modules/anything`, `tests/test_*.py`), and explicit error-message clarity.
+
 ## [1.3.12] — 2026-04-26
 
 Hotfix release consolidating 3 divergent frontmatter parsers onto the canonical `_frontmatter.py` (#495).
