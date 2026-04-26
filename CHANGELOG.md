@@ -8,6 +8,14 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
+## [1.3.14] — 2026-04-26
+
+Hotfix release adding per-file + aggregate byte caps to MCP `wiki_search` and `wiki_query` so a single large file or huge corpus can't OOM the server (#483).
+
+### Fixed
+
+- **MCP `wiki_search` / `wiki_query` had no per-file or aggregate byte cap** (#483) — both tools called `p.read_text()` on every `.md` file under the search roots with no `stat().st_size` guard. `_SEARCH_HIT_CAP=200` (#413) capped *output* but the loop still read every byte of every file. A vault-overlay user with a 100MB Obsidian transcript (embedded video, huge meeting transcript) thrashed the MCP server on every call. Fix: new `_read_capped(p, remaining_budget)` helper that reads up to a 4 MiB per-file cap. `wiki_query` and `wiki_search` track a 50 MiB aggregate budget across all files and bail when it hits zero. Files exceeding the per-file cap are skipped entirely (no partial-read — would slice query tokens across the boundary). `wiki_search` response now includes a `skipped_oversize_files` count so callers know what was bypassed. Adds `tests/test_mcp_byte_cap.py` (8 cases) covering: per-file cap honored, aggregate budget exhaustion, oversize file fully skipped (not partial-read), counters surfaced in response, normal-corpus behaviour unchanged.
+
 ## [1.3.13] — 2026-04-26
 
 Hotfix release adding an allowlist to the MCP `wiki_read_page` tool so it can't leak `.git/`, `.env`, or `.llmwiki-state.json` (#482).

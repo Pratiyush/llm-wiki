@@ -352,11 +352,22 @@ def tool_wiki_query(args: dict[str, Any]) -> dict[str, Any]:
     query_lower = question.lower()
     tokens = [t for t in re.split(r"\W+", query_lower) if t]
     matches: list[tuple[float, Path, str]] = []
+    # #483: bound input bytes so a single large file or a giant corpus
+    # can't OOM the MCP server.
+    budget = _MCP_SCAN_AGGREGATE_BYTES
+    skipped_oversize = 0
     for page in wiki.rglob("*.md"):
-        try:
-            content = page.read_text(encoding="utf-8")
-        except OSError:
+        if budget <= 0:
+            break
+        content, consumed = _read_capped(page, remaining_budget=budget)
+        if consumed == 0:
+            try:
+                if page.stat().st_size > _MCP_SCAN_PER_FILE_BYTES:
+                    skipped_oversize += 1
+            except OSError:
+                pass
             continue
+        budget -= consumed
         content_lower = content.lower()
         body_score = 0
         if query_lower in content_lower:
@@ -423,6 +434,50 @@ def _extract_snippet(content: str, tokens: list[str], max_chars: int = 400) -> s
 
 _SEARCH_HIT_CAP = 200
 
+# #483: per-file + aggregate byte caps for wiki_search / wiki_query.
+# Without these, a single large file (e.g. a 100MB Obsidian transcript
+# with embedded video, or a malicious user-supplied .md) gets fully
+# read into memory by every MCP call. _SEARCH_HIT_CAP capped output
+# only — the loop still read every byte of every file. Cap inputs
+# explicitly so the worst-case is bounded regardless of corpus shape.
+_MCP_SCAN_PER_FILE_BYTES = 4 * 1024 * 1024   # 4 MiB / file
+_MCP_SCAN_AGGREGATE_BYTES = 50 * 1024 * 1024  # 50 MiB / call
+
+
+def _read_capped(p: Path, *, remaining_budget: int) -> tuple[str, int]:
+    """Read up to min(per-file cap, remaining_budget) bytes of `p`.
+
+    Returns (text, bytes_consumed). ``bytes_consumed == 0`` signals
+    the file was skipped entirely (over-budget or unreadable). Caller
+    decrements the aggregate budget by ``bytes_consumed`` and bails
+    when it hits zero.
+    """
+    try:
+        size = p.stat().st_size
+    except OSError:
+        return "", 0
+    cap = min(_MCP_SCAN_PER_FILE_BYTES, max(0, remaining_budget))
+    if size > _MCP_SCAN_PER_FILE_BYTES:
+        # Skip the file entirely — do not partial-read. The truncation
+        # would slice query tokens across the boundary and produce
+        # confusing partial hits.
+        return "", 0
+    if cap <= 0:
+        return "", 0
+    try:
+        with p.open("rb") as f:
+            raw = f.read(cap + 1)
+    except OSError:
+        return "", 0
+    # If we read more than cap, the file grew between stat and read.
+    # Trust the stat-based skip above; truncate defensively here.
+    if len(raw) > cap:
+        return "", 0
+    try:
+        return raw.decode("utf-8", errors="replace"), len(raw)
+    except Exception:
+        return "", 0
+
 
 def tool_wiki_search(args: dict[str, Any]) -> dict[str, Any]:
     # #413: the old loop had three nested terminators (`for line`,
@@ -444,18 +499,27 @@ def tool_wiki_search(args: dict[str, Any]) -> dict[str, Any]:
     term_lower = term.lower()
     hits: list[dict[str, Any]] = []
     truncated = False
+    # #483: aggregate byte budget across all roots, plus per-file cap
+    # via _read_capped. Output cap (_SEARCH_HIT_CAP) is unchanged.
+    budget = _MCP_SCAN_AGGREGATE_BYTES
+    skipped_oversize = 0
     for root in roots:
-        if truncated:
+        if truncated or budget <= 0:
             break
         if not root.exists():
             continue
         for p in root.rglob("*.md"):
-            if truncated:
+            if truncated or budget <= 0:
                 break
-            try:
-                text = p.read_text(encoding="utf-8")
-            except OSError:
+            text, consumed = _read_capped(p, remaining_budget=budget)
+            if consumed == 0:
+                try:
+                    if p.stat().st_size > _MCP_SCAN_PER_FILE_BYTES:
+                        skipped_oversize += 1
+                except OSError:
+                    pass
                 continue
+            budget -= consumed
             for i, line in enumerate(text.splitlines(), start=1):
                 if term_lower in line.lower():
                     hits.append(
@@ -468,7 +532,14 @@ def tool_wiki_search(args: dict[str, Any]) -> dict[str, Any]:
                     if len(hits) >= _SEARCH_HIT_CAP:
                         truncated = True
                         break
-    return _ok(json.dumps({"term": term, "matches": hits, "truncated": truncated}, indent=2))
+    # #483: surface skipped-oversize count so callers know we didn't
+    # silently miss content from huge files.
+    return _ok(json.dumps({
+        "term": term,
+        "matches": hits,
+        "truncated": truncated,
+        "skipped_oversize_files": skipped_oversize,
+    }, indent=2))
 
 
 def tool_wiki_list_sources(args: dict[str, Any]) -> dict[str, Any]:
