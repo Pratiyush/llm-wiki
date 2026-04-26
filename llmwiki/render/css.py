@@ -279,14 +279,30 @@ kbd { display: inline-block; padding: 2px 6px; font-family: var(--mono); font-si
 .sub-section summary:hover { color: var(--accent); }
 
 /* Sessions table */
-.table-wrap { max-width: 100%; overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-card); }
+/* #ui-h10 (#569): isolation: isolate creates a stacking context so
+   the sticky thead doesn't lose z-order against the page nav blur on
+   iOS Safari. */
+.table-wrap { max-width: 100%; overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-card); isolation: isolate; }
 /* #452: table-layout: fixed pins column widths from <colgroup> so sticky <thead>
    columns stay aligned with <tbody> as the user scrolls. min-width keeps the
    table horizontally scrollable on narrow viewports rather than crushing cols. */
 .sessions-table { width: 100%; min-width: 880px; border-collapse: collapse; font-size: 0.88rem; table-layout: fixed; }
 .sessions-table td { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sessions-table td a { display: inline-block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; vertical-align: bottom; }
-.sessions-table thead { position: sticky; top: 56px; background: var(--bg-alt); z-index: 1; }
+/* #ui-h10 (#569): iOS Safari needs -webkit-sticky and a stacking
+   context (isolation: isolate) on the table parent so the sticky
+   thead doesn't lose its z-axis ordering against the nav blur. The
+   `transform: translateZ(0)` gives older WebKit a hardware layer so
+   the sticky cells don't get repainted as plain rows during scroll. */
+.sessions-table thead {
+  position: -webkit-sticky;
+  position: sticky;
+  top: 56px;
+  background: var(--bg-alt);
+  z-index: 1;
+  transform: translateZ(0);
+}
+/* (.table-wrap isolation rule moved up to the main definition above) */
 .sessions-table th, .sessions-table td { padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--border); }
 .sessions-table th { background: var(--bg-alt); font-weight: 600; color: var(--text-secondary); font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.05em; }
 .sessions-table tr:last-child td { border-bottom: none; }

@@ -47,7 +47,23 @@ JS = r"""// llmwiki viewer — theme + copy + search palette + keyboard shortcut
   let saved = null;
   try { saved = localStorage.getItem("llmwiki-theme"); } catch (e) { /* private mode */ }
   if (saved === "dark" || saved === "light") root.setAttribute("data-theme", saved);
+  // `system` and the missing-key case both mean "follow OS preference"
+  // — leave data-theme unset so the @media (prefers-color-scheme)
+  // rules in css.py drive the palette.
   syncHljsTheme();
+  // #ui-h6 (#567): keep the page palette in sync if the OS theme
+  // changes WHILE we're on `system` mode. Without this listener, a
+  // user who toggles their OS dark mode mid-session sees the page
+  // stay on whatever it was rendered with.
+  if (window.matchMedia) {
+    try {
+      window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", function () {
+        let s = null;
+        try { s = localStorage.getItem("llmwiki-theme"); } catch (e) {}
+        if (s !== "dark" && s !== "light") syncHljsTheme();
+      });
+    } catch (e) { /* old Safari uses addListener */ }
+  }
   document.addEventListener("DOMContentLoaded", function () {
     syncHljsTheme();
     const btn = document.getElementById("theme-toggle");
@@ -62,15 +78,31 @@ JS = r"""// llmwiki viewer — theme + copy + search palette + keyboard shortcut
     }
     syncAriaPressed();
     btn.addEventListener("click", function () {
-      // When no explicit theme is set, the page follows the OS preference.
-      // Resolve that to a concrete value so the first toggle always flips.
-      let current = root.getAttribute("data-theme");
-      if (!current) {
-        current = (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) ? "dark" : "light";
+      // #ui-h6 (#567): tri-state toggle. The cycle is:
+      //   system → dark → light → system → ...
+      // `system` means: data-theme attribute removed, palette follows
+      // @media (prefers-color-scheme). Pinning a value moves out of
+      // system mode; clicking back to system clears the localStorage
+      // entry so a fresh tab also follows the OS.
+      let stored = null;
+      try { stored = localStorage.getItem("llmwiki-theme"); } catch (e) {}
+      let next;
+      if (stored !== "dark" && stored !== "light") {
+        // Currently following system → pin to dark.
+        next = "dark";
+      } else if (stored === "dark") {
+        next = "light";
+      } else {
+        // stored === "light" → return to system.
+        next = null;
       }
-      const next = current === "dark" ? "light" : "dark";
-      root.setAttribute("data-theme", next);
-      try { localStorage.setItem("llmwiki-theme", next); } catch (e) { /* private mode */ }
+      if (next === null) {
+        root.removeAttribute("data-theme");
+        try { localStorage.removeItem("llmwiki-theme"); } catch (e) {}
+      } else {
+        root.setAttribute("data-theme", next);
+        try { localStorage.setItem("llmwiki-theme", next); } catch (e) {}
+      }
       syncHljsTheme();
       syncAriaPressed();
     });
@@ -901,15 +933,29 @@ document.addEventListener("DOMContentLoaded", function () {
     }
     if (!key) return;
 
-    a.addEventListener("mouseenter", function () {
+    function _show() {
       if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
       loadIndex().then(function () {
         const entry = findEntry(key);
         if (entry) showPreview(a, entry);
       });
-    });
-    a.addEventListener("mouseleave", function () {
+    }
+    function _hide() {
       hideTimer = setTimeout(hidePreview, 200);
+    }
+    // #ui-h13 (#570): keyboard parity for the hover preview. Show on
+    // focus + hide on blur so a Tab-only user gets the same affordance
+    // a mouse user gets. ESC dismisses immediately and returns nothing
+    // to do (focus is already on the link).
+    a.addEventListener("mouseenter", _show);
+    a.addEventListener("mouseleave", _hide);
+    a.addEventListener("focus", _show);
+    a.addEventListener("blur", _hide);
+    a.addEventListener("keydown", function (e) {
+      if (e.key === "Escape") {
+        if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
+        hidePreview();
+      }
     });
   }
 
