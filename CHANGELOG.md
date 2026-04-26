@@ -8,6 +8,16 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
+## [1.3.56] — 2026-04-26
+
+#473 UI MEDIUM cleanup — touch targets, decorative-SVG a11y, copy-code visibility (3 issues).
+
+### Fixed
+
+- **Copy-code button always visible at low opacity** (#574, #ui-m4) — was `opacity: 0` until parent `:hover`, invisible to touch + keyboard users. Now `opacity: 0.6` by default, full on hover/focus-visible. Discoverable on every device.
+- **Touch targets meet WCAG 2.5.5 minimum** (#573, #ui-m3) — `.theme-toggle` bumped from 36×36 → 44×44; `.copy-code-btn` padding increased so the hit area lands at the 44×44 minimum (visual icon size unchanged).
+- **Decorative SVGs marked `aria-hidden="true"`** (#575, #ui-m11) — every `<svg>` in `llmwiki/build.py` that lacked `aria-label` / `role` / `aria-hidden` got `aria-hidden="true"` so screen readers stop announcing them as unlabeled graphics. 10+ icons swept (nav brand, hamburger, palette search, theme toggle, mobile bottom nav, breadcrumb separator).
+
 ## [1.3.55] — 2026-04-26
 
 #475 #arch-h7 — synthesize subcommand argparse mutual exclusion (#610).
