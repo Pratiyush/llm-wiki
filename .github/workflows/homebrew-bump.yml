@@ -70,6 +70,13 @@ jobs:
           TAG: ${{ steps.tag.outputs.tag }}
         run: |
           set -e
+          # #sec-15 (#559): explicit ::add-mask:: of TAP_TOKEN so any
+          # later `set -x` debugging or accidental `echo "$TAP_TOKEN"`
+          # in this step's logs gets redacted by GitHub's log scrubber.
+          # Secrets in `env:` are scrubbed automatically when referenced
+          # via the `${{ secrets.X }}` syntax — but once they land in a
+          # plain shell variable, manual masking is the belt-and-braces.
+          echo "::add-mask::$TAP_TOKEN"
           tmp="$(mktemp -d)"
           git clone --depth 1 \
             "https://x-access-token:${TAP_TOKEN}@github.com/Pratiyush/homebrew-tap.git" \
