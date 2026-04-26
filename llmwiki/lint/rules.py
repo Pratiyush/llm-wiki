@@ -211,14 +211,17 @@ class OrphanDetection(LintRule):
                 t = target.split("#")[0].strip()
                 inbound[t] = inbound.get(t, 0) + 1
 
+        # #py-l5 (#603): pull the skip list from the canonical
+        # SYSTEM_PAGE_SLUGS so dashboard.md can't get lint-flagged as
+        # an orphan in one rule while exempt in another (it WAS being
+        # flagged here even though MetadataValidator's EXEMPT_FILES
+        # already exempted it from the strict title/type check).
+        from llmwiki._system_pages import SYSTEM_PAGE_SLUGS
         issues = []
         for rel in pages:
             slug = _page_slug(rel)
-            # Skip navigation / context / index files
-            if rel.endswith("_context.md") or slug in {"index", "overview", "log",
-                                                        "hints", "hot", "MEMORY",
-                                                        "SOUL", "CRITICAL_FACTS",
-                                                        "dashboard"}:
+            # Skip navigation / context / index files (canonical list).
+            if rel.endswith("_context.md") or slug in SYSTEM_PAGE_SLUGS:
                 continue
             if inbound.get(slug, 0) == 0:
                 issues.append({

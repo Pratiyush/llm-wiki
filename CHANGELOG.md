@@ -8,6 +8,16 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
+## [1.3.58] — 2026-04-26
+
+#474 + #475 small Python cleanups (3 issues).
+
+### Fixed
+
+- **`OrphanDetection` skip list pulled from canonical SYSTEM_PAGE_SLUGS** (#603, #py-l5) — `dashboard.md` was hard-coded in `MetadataValidator.EXEMPT_FILES` (via `_system_pages.py`) but `OrphanDetection` had its own inline skip set that omitted it, so dashboard was being lint-flagged as an orphan even though it's a system nav page. Now pulls from the same `SYSTEM_PAGE_SLUGS` source of truth.
+- **`quarantine` helpers resolve `DEFAULT_QUARANTINE_FILE` at call time** (#593, #py-m7) — default-arg captures of module-level constants broke `monkeypatch.setattr(quarantine, "DEFAULT_QUARANTINE_FILE", tmp)` in tests because the parameter default still pointed at the original constant. Switched the four exported entry points (`load`, `save`, `add_entry`, `clear_entry`) to `path: Optional[Path] = None` with call-time resolution.
+- **`_rebuild_index` gated on at-least-one-synth** (#619, #arch-m7) — synthesize was rebuilding the wiki index unconditionally on every call, even no-ops. On a 5k-page corpus that's seconds of full-frontmatter walking for nothing. Now skips when `summary["synthesized"] == 0`.
+
 ## [1.3.57] — 2026-04-26
 
 #473 print stylesheet + perf + truncation tooltip (4 issues).
