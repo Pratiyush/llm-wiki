@@ -65,12 +65,8 @@ class CopilotChatAdapter(BaseAdapter):
     def session_store_path(self):  # type: ignore[override]
         return self.roots
 
-    @classmethod
-    def is_available(cls) -> bool:
-        for p in cls.DEFAULT_ROOTS:
-            if Path(p).expanduser().exists():
-                return True
-        return False
+    # #496: is_available() inherited from BaseAdapter — temp
+    # instance reads self.session_store_path through the @property.
 
     def discover_sessions(self) -> list[Path]:
         """Find chatSessions/*.jsonl and *.json under each workspace hash dir."""

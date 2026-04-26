@@ -8,6 +8,14 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
+## [1.3.18] — 2026-04-26
+
+Hotfix release unifying the adapter `is_available()` contract so contrib adapters don't need to re-implement it (#496).
+
+### Changed
+
+- **Adapter contract: `is_available()` now flows through `BaseAdapter`** (#496) — `BaseAdapter.is_available()` previously read `cls.session_store_path` directly. That worked for `ClaudeCodeAdapter` (class attribute) but returned the *property descriptor object* for the 8 contrib adapters which override `session_store_path` as a `@property`. Every contrib adapter therefore had to re-implement its own `is_available()` classmethod scanning `cls.DEFAULT_ROOTS`. Fix: `BaseAdapter.is_available()` now instantiates a config-less temp instance and reads `self.session_store_path` through the same code path `discover_sessions()` uses. Both class-attribute and `@property`-overriding patterns now flow through this single method. Removed 7 duplicate `is_available()` overrides (`codex_cli`, `copilot_chat`, `cursor`, `gemini_cli`, `obsidian`, `opencode`, `chatgpt`); kept the 8th (`copilot_cli`) because it has special `COPILOT_HOME` env-var handling. Net: −40 lines of duplication. Adds `tests/test_adapter_is_available_unified.py` (5 cases) covering: ClaudeCodeAdapter (class-attr) still works, contrib adapters via @property still work, broken-`__init__` adapter returns False instead of crashing, contrib `is_available()` now resolves to `BaseAdapter.is_available` (no shadowing), copilot_cli's intentional override preserved.
+
 ## [1.3.17] — 2026-04-26
 
 Hotfix release hardening `synthesize_overview` against prompt-injection via session slugs and argv-length DoS (#486).

@@ -75,12 +75,9 @@ class ObsidianAdapter(BaseAdapter):
     def session_store_path(self):  # type: ignore[override]
         return self.vault_paths
 
-    @classmethod
-    def is_available(cls) -> bool:
-        for p in cls.DEFAULT_VAULT_PATHS:
-            if Path(p).expanduser().exists():
-                return True
-        return False
+    # #496: is_available() inherited from BaseAdapter — temp instance
+    # reads self.session_store_path (the @property above returning
+    # self.vault_paths). Was a duplicate scan over DEFAULT_VAULT_PATHS.
 
     def discover_sessions(self) -> list[Path]:
         """Walk every configured vault and return all .md files, excluding known

@@ -62,9 +62,9 @@ class OpenCodeAdapter(BaseAdapter):
     def session_store_path(self):  # type: ignore[override]
         return self.roots
 
-    @classmethod
-    def is_available(cls) -> bool:
-        return any(Path(p).expanduser().exists() for p in cls.DEFAULT_ROOTS)
+    # #496: is_available() inherited from BaseAdapter — temp instance
+    # reads self.session_store_path (returns self.roots = DEFAULT_ROOTS
+    # when no config override).
 
     def discover_sessions(self) -> list[Path]:
         """Return every .jsonl session file under every configured root."""

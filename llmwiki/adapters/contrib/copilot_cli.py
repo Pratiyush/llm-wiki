@@ -51,6 +51,11 @@ class CopilotCliAdapter(BaseAdapter):
     def session_store_path(self):  # type: ignore[override]
         return self.roots
 
+    # #496: kept as an explicit override because it has special
+    # COPILOT_HOME env-var handling that BaseAdapter.is_available()
+    # (which only checks self.session_store_path) doesn't cover. The
+    # base impl is still reachable via super().is_available() if the
+    # env-var check fails.
     @classmethod
     def is_available(cls) -> bool:
         for p in cls.DEFAULT_ROOTS:
