@@ -67,11 +67,46 @@ def load_config(path: Path) -> dict[str, Any]:
                 cfg[section].update(value)
             else:
                 cfg[section] = value
-    # Auto-detect username if not set
+    # Auto-detect username if not set. #489: be careful here.
+    #
+    # The previous logic was `os.environ["USER"] or Path.home().name`.
+    # Two failure modes that bit users in the wild:
+    #
+    # 1. **Windows.** Windows uses ``USERNAME``, not ``USER``. The env
+    #    var lookup returns empty, the fallback returns
+    #    ``Path.home().name`` — which is the user's actual name, fine
+    #    on a real desktop but the redactor then matches the *short*
+    #    string in path components anywhere in transcripts. On a
+    #    Windows machine where the user's name is short (e.g. "AB")
+    #    this flagged unrelated path tokens.
+    # 2. **Stripped Docker images / CI.** ``USER`` is unset and
+    #    ``Path.home()`` returns ``/`` or ``/root``; ``Path("/").name``
+    #    is empty, but ``Path("/root").name`` is ``"root"`` — every
+    #    ``/Users/root/`` and ``/home/root/`` path got rewritten as
+    #    ``/Users/USER/`` even when the actual transcript author had
+    #    a totally different username.
+    #
+    # Fix: prefer ``USER`` (Unix) → ``USERNAME`` (Windows) →
+    # ``Path.home().name`` *only if it's at least 3 chars long*.
+    # Anything shorter is too risky as a substring rewrite target;
+    # leave the field empty and let the user opt in via config.
     if not cfg["redaction"].get("real_username"):
         try:
             import os
-            cfg["redaction"]["real_username"] = os.environ.get("USER", "") or Path.home().name
+            candidate = (
+                os.environ.get("USER")
+                or os.environ.get("USERNAME")
+                or ""
+            ).strip()
+            if not candidate:
+                home_name = Path.home().name.strip()
+                # Only trust the home-dir name when it's not a generic
+                # container default and is long enough to be specific.
+                if len(home_name) >= 3 and home_name.lower() not in (
+                    "root", "user", "users", "home", "ubuntu",
+                ):
+                    candidate = home_name
+            cfg["redaction"]["real_username"] = candidate
         except Exception:
             pass
     return cfg
