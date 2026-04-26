@@ -15,7 +15,7 @@ Public API:
     - llmwiki.mcp.server.main()       — MCP server (stdio)
 """
 
-__version__ = "1.2.38"
+__version__ = "1.3.0"
 __author__ = "Pratiyush"
 __license__ = "MIT"
 

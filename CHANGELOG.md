@@ -8,6 +8,48 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
+## [1.3.0] — 2026-04-26
+
+Consolidated minor release rolling up every patch since v1.2.0 — 38 in-tree version bumps across the Opus 4.7 deep code-review backlog (#403), perf budgets, observability, and a handful of new features. No breaking API changes; all of v1.2.x is byte-identical with v1.3.0 at the code level. Per-fix detail is preserved under the [1.2.x] entries below for grep-ability.
+
+### Highlights
+
+**Code review (#403, ~26 issues, all closed)** — every finding from the Opus 4.7 deep review of llmwiki/build.py, convert.py, MCP server, lint rules, and adapters got its own one-issue-one-PR fix with edge-case + e2e test checklists. Headliners:
+
+- `is_subagent` heuristic stopped mis-classifying any project whose name contains "subagent" (#406)
+- `derive_session_slug` UUID-prefix collision fixed — two distinct UUIDs in the same project no longer collapse to the same canonical filename (#424)
+- `_close_open_fence` now counts both `\`\`\`` and `~~~` fences independently — Quarto-style transcripts no longer leak past the truncation point (#419)
+- `wiki_query` MCP ranking gained log-length normalisation — 1MB log pages no longer dominate over relevant 1-paragraph entity pages (#418)
+- `wiki_search` MCP cap (`_SEARCH_HIT_CAP`) prevents pathological-query response blow-ups (#413)
+- Synth-pipeline state file now per-vault — multi-vault overlays no longer cross-contaminate idempotency state (#420)
+- `--force` sync now persists `_meta` / `_counters` / per-key state — `sync --status` audit trail no longer silently lost across forced re-syncs (#426)
+- Subprocess `claude_path` resolution moved to `shutil.which("claude")` with shell-metacharacter rejection — works on every platform, not just brew installs (#421)
+
+**Performance**
+
+- `DuplicateDetection` lint rule rewritten with bucket+fingerprint+SequenceMatcher — 500-page corpus now lints in <1s instead of minutes (#412)
+- New perf-budget test suite (`tests/test_lint_perf.py`, opt-in via `-m slow`) pins wall-clock budgets per rule (#429)
+- `md_to_html` cache key + new `md_to_plain_text` cache (#417)
+- `cmd_all` builds the argparse tree once instead of per-step (#422)
+
+**Features**
+
+- `wiki-all` slash command to invoke the full `sync → synth → build → lint` chain
+- Auto-seeded project stubs (`wiki/projects/<slug>.md`) now pre-populated with `topics:` from session tags/tools and `description:` from the latest session — fresh projects light up the moment the first session lands (#387 · #425)
+- 2 new lint rules: `frontmatter_count_consistency` + `tools_consistency` (#378)
+- New `_context.md` folder convention for cheaper deep queries (#60)
+
+**Quality + observability**
+
+- 23 new test files added across the v1.2.x cycle (`test_force_counters.py`, `test_subprocess_paths.py`, `test_slug_fallback.py`, `test_cmd_all_parser.py`, `test_mcp_safety.py`, `test_vault.py`, `test_lint_perf.py`, `test_path_traversal.py`, `test_is_subagent.py`, …)
+- Unified frontmatter parser with BOM strip + CRLF support (#409 · #423)
+- Strict `is_subagent` checks across every adapter (#406)
+- `sync --force` now refuses silent overwrites; failures land in `.llmwiki-quarantine.json` (#326)
+- Demo-data fidelity audit + `wiki-all` command (#378)
+
+### Detailed changelog
+The 1.2.x entries below document each incremental fix in full. Future minor releases will follow the same pattern: ship patches under `1.x.y` as we go, then consolidate under a clean `1.x+1.0` cut.
+
 ## [1.2.38] — 2026-04-26
 
 Patch release fixing the `--force` sync silently discarding observability metadata + per-key state flagged by the Opus 4.7 code review (#403). Pure correctness fix — default behaviour unchanged; users who run `sync --force` no longer lose their `last_sync` audit trail or get every file re-processed on the next plain sync.

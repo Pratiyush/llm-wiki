@@ -9,8 +9,8 @@ Rebuilt on every `master` push from the synthetic sessions in [`examples/demo-se
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/)
-[![Version](https://img.shields.io/badge/version-v1.2.38-10B981.svg)](CHANGELOG.md)
-[![Tests](https://img.shields.io/badge/tests-2068%20passing-10B981.svg)](tests/)
+[![Version](https://img.shields.io/badge/version-v1.3.0-10B981.svg)](CHANGELOG.md)
+[![Tests](https://img.shields.io/badge/tests-2363%20passing-10B981.svg)](tests/)
 [![CI](https://github.com/Pratiyush/llm-wiki/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/Pratiyush/llm-wiki/actions/workflows/ci.yml)
 [![Link check](https://github.com/Pratiyush/llm-wiki/actions/workflows/link-check.yml/badge.svg?branch=master)](https://github.com/Pratiyush/llm-wiki/actions/workflows/link-check.yml)
 [![Wiki checks](https://github.com/Pratiyush/llm-wiki/actions/workflows/wiki-checks.yml/badge.svg?branch=master)](https://github.com/Pratiyush/llm-wiki/actions/workflows/wiki-checks.yml)
@@ -33,7 +33,7 @@ Every Claude Code, Codex CLI, Copilot, Cursor, and Gemini CLI session writes a f
 ./build.sh && ./serve.sh           # build + serve at http://127.0.0.1:8765
 ```
 
-<!-- TODO: re-record demo GIF for v1.2 (#248). Removed broken ref to docs/demo.gif. -->
+<!-- TODO: re-record demo GIF for v1.3 (#248). Removed broken ref to docs/demo.gif. -->
 
 
 **Contributing in one line:** read [`CONTRIBUTING.md`](CONTRIBUTING.md), keep PRs focused (one concern each), use `feat:` / `fix:` / `docs:` / `chore:` / `test:` commit prefixes, never commit real session data (`raw/` is gitignored), no new runtime deps. CI must be green to merge.
