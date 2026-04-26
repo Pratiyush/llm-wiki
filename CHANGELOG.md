@@ -8,6 +8,14 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
+## [1.3.30] — 2026-04-26
+
+Maintenance release adding direct search-index validation to the e2e harness (#634, parent #468).
+
+### Added
+
+- **`tests/e2e/test_search_index_validation.py`** (#634) — Playwright tests that load `/search-index.json` directly and assert (a) top-level schema (every entry carries url + title), (b) coverage across project + session URL buckets, (c) palette returns title-match results for a seeded query within 1.5s. Catches indexer regressions where a new emitter adds pages but the indexer doesn't pick them up, schema drift where a renamed field silently breaks the client search, and ranking regressions where boost weights drift.
+
 ## [1.3.29] — 2026-04-26
 
 Hotfix release fixing two related a11y violations in the command palette + help dialog (#478, #479).
