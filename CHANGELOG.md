@@ -8,6 +8,14 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
+## [1.3.15] — 2026-04-26
+
+Hotfix release extending default redaction to cover the keys that get pasted into LLM sessions most often (#484).
+
+### Fixed
+
+- **Default redaction missed Anthropic / OpenAI / Google / Stripe / JWT / private keys** (#484) — `_DEFAULT_TOKEN_PATTERNS` previously covered GitHub PATs, AWS access key IDs, and Slack tokens only (#416 contract). Developers commonly paste env blocks into Claude sessions ("here's my .env, why is auth failing?") — those got committed to `raw/` and served at the public GitHub Pages URL. Extended defaults to also catch: `sk-ant-api03-...` (Anthropic), `sk-proj-...` / `sk-svcacct-...` / generic `sk-...` (OpenAI), `AIza[35-char]` (Google), `sk_live_...` / `pk_live_...` / `rk_live_...` (Stripe live + restricted; test keys intentionally NOT redacted), `npm_[36-char]` (npm registry), JWT 3-segment structure starting `eyJ.eyJ.sig`, and full PEM `-----BEGIN/END PRIVATE KEY-----` envelopes (multi-line via DOTALL). All run unconditionally per the #416 contract — no config opt-in needed. Adds `tests/test_default_redaction.py` (16 cases) covering positive matches for each new pattern + negative cases (Stripe test keys preserved, lowercase `aiza` not matched, generic dotted strings not JWT-classified).
+
 ## [1.3.14] — 2026-04-26
 
 Hotfix release adding per-file + aggregate byte caps to MCP `wiki_search` and `wiki_query` so a single large file or huge corpus can't OOM the server (#483).
