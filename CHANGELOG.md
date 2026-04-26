@@ -8,13 +8,21 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
-## [1.2.28] — 2026-04-26
+## [1.2.30] — 2026-04-26
 
 Patch release fixing the tilde-fence blind spot in truncate-time fence balancing flagged by the Opus 4.7 code review (#403). Pure correctness fix — markdown allows both ` ``` ` and `~~~` fence styles, and Quarto-flavoured docs use the latter.
 
 ### Fixed
 
 - **`_close_open_fence` only counted backtick fences** (#419) — `convert.py:_close_open_fence` summed lines starting with `\`\`\`` and ignored `~~~` entirely. Truncated tool results that opened a tilde fence (Quarto, some pretty-printers) left the rest of the page consumed by the build's `fenced_code` extension. Fix: count both fence styles independently and append the matching close for each. Mixed-fence inputs (one `\`\`\`` open + one `~~~` open) now get both closes. Added a regression test that exercises the previous bug pattern (one fence type can't accidentally mask the other's odd count). 10 new tests covering tilde-fence opener+autoclose via `truncate_chars` and `truncate_lines`, balanced-fence preservation, mixed-fence handling, indented fences (inside list items), and direct unit tests for the helper.
+
+## [1.2.29] — 2026-04-26
+
+Patch release fixing the `wiki_query` MCP-tool ranking quality regression flagged by the Opus 4.7 code review (#403). Pure ranking fix — no API change beyond floats appearing in the score field.
+
+### Fixed
+
+- **`wiki_query` ranking had no length normalisation** (#418) — the formula was `score = 50·full_match + 10·tokens_in_body + 100·title_match + 20·title_token_match`. A 1-MB log page that contains every query token *anywhere* always beat a perfectly relevant 1-paragraph entity page. As LLM clients lean on `wiki_query`, that quality regression was user-visible. Fix: divide the body component by `log2(max(len(content), 256))` before summing — long pages still rank but no longer dominate, short pages don't get an artificial boost (the 256-byte floor caps it). Title matches are unchanged since titles are already short and high-signal. Empty bodies and frontmatter-only pages now ranked safely (no division-by-zero, no NaN). Adds 8 regression tests covering short-vs-long, title precedence, empty query, no-matches, frontmatter-only, unicode tokenisation, finite-score guarantee, and short-page floor.
 
 ## [1.2.26] — 2026-04-26
 
