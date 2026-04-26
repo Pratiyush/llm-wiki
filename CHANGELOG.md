@@ -8,7 +8,7 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
-## [1.2.30] — 2026-04-26
+## [1.2.31] — 2026-04-26
 
 Patch release fixing the `DuplicateDetection` lint rule's O(n²) blowup flagged by the Opus 4.7 code review (#403). Pure perf fix — no API change. The rule produces the same warnings as before; it just no longer takes minutes on a 500-page corpus.
 
@@ -19,6 +19,14 @@ Patch release fixing the `DuplicateDetection` lint rule's O(n²) blowup flagged 
 ### Added
 
 - **Perf-budget tests for lint rules** (#429) — new `tests/test_lint_perf.py` synthesises a 500-page corpus and pins wall-clock budgets per rule (`DuplicateDetection` < 1 s, `LinkIntegrity` < 500 ms, `OrphanDetection` < 200 ms, full pass < 3 s). Marked `@pytest.mark.slow` so default `pytest` skips them; CI runs them on a separate job. Includes correctness regression tests for the perf rewrite (identical pages still flagged, CRLF vs LF still flagged via whitespace-normalised fingerprint, same-title-different-body still not flagged) plus scaling guards (5× pages → < 40× wall-clock; shared-prefix worst case under 2 s; no leak across 5 sequential runs). Closes #429.
+
+## [1.2.29] — 2026-04-26
+
+Patch release fixing the `wiki_query` MCP-tool ranking quality regression flagged by the Opus 4.7 code review (#403). Pure ranking fix — no API change beyond floats appearing in the score field.
+
+### Fixed
+
+- **`wiki_query` ranking had no length normalisation** (#418) — the formula was `score = 50·full_match + 10·tokens_in_body + 100·title_match + 20·title_token_match`. A 1-MB log page that contains every query token *anywhere* always beat a perfectly relevant 1-paragraph entity page. As LLM clients lean on `wiki_query`, that quality regression was user-visible. Fix: divide the body component by `log2(max(len(content), 256))` before summing — long pages still rank but no longer dominate, short pages don't get an artificial boost (the 256-byte floor caps it). Title matches are unchanged since titles are already short and high-signal. Empty bodies and frontmatter-only pages now ranked safely (no division-by-zero, no NaN). Adds 8 regression tests covering short-vs-long, title precedence, empty query, no-matches, frontmatter-only, unicode tokenisation, finite-score guarantee, and short-page floor.
 
 ## [1.2.26] — 2026-04-26
 
