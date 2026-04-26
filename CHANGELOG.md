@@ -8,6 +8,14 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
+## [1.3.60] — 2026-04-26
+
+#646 — drop Python-Markdown headerlink permalinks (axe `link-in-text-block` violation).
+
+### Fixed
+
+- **`<h2-h3>` no longer get an unstyled `.headerlink` ¶ anchor** (#646) — the Python-Markdown TOC extension's `permalink: True` mode was emitting `<a class="headerlink" href="#anchor" title="Permanent link">¶</a>` next to every heading. The site CSS doesn't style `.headerlink` (only `.deep-link`), so axe-core flagged every ¶ link as a `link-in-text-block` violation (link not visually distinguishable). On `/changelog.html` that meant 99 nodes failing AA. Removed `permalink: True`; the JS-driven `.deep-link` icon next to each heading (in `render/js.py`) remains the canonical deep-link affordance — it has CSS, hover state, and `aria-hidden` treatment. Anchor targets (`<h2 id="...">`) still ship so links to `#section-name` keep working. Re-enabled `/changelog.html` in `tests/e2e/test_axe_a11y_broadened.py::PAGES_TO_AUDIT`.
+
 ## [1.3.59] — 2026-04-26
 
 #473 UI medium tail — filter persistence + lang/dir + inline-style sweep (3 issues).

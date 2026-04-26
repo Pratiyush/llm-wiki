@@ -26,13 +26,12 @@ from tests.e2e.test_axe_a11y import (  # type: ignore[import-not-found]
     _scan,
 )
 
-# Pages that pass axe today. /changelog.html has a known
-# `link-in-text-block` violation on every `.headerlink` permalink (¶
-# anchor on each heading) — filed separately as a follow-up so this
-# test doesn't double up as a hard gate against pre-existing findings.
+# #646: changelog headerlinks fixed by dropping `permalink: True` from
+# the TOC extension config in build.py — re-add /changelog.html.
 PAGES_TO_AUDIT = [
     "/sessions/index.html",
     "/docs/index.html",
+    "/changelog.html",
 ]
 
 
