@@ -188,9 +188,10 @@ def _migrate_legacy_state(
         ("obsidian",     "Obsidian"),
         ("opencode",     "opencode/"),
         ("chatgpt",      "conversations.json"),
-        ("jira",         "/jira/"),
-        ("meeting",      "transcripts"),
-        ("pdf",          ".pdf"),
+        # #493: jira / meeting / pdf hints removed — no concrete
+        # adapters ship for them. If they're added back later, the
+        # adapter author can add their own LEGACY_PATH_HINT. See
+        # docs/UPGRADING.md for the original removal note.
     ]
     known_names = set(adapter_names)
     for k, v in raw.items():
@@ -1239,38 +1240,15 @@ def convert_all(
                 _bump(cls.name, "converted")
                 continue
 
-            # PDF adapter: extract text → frontmatter'd markdown
-            if path.suffix == ".pdf":
-                try:
-                    md, out_name = adapter.convert_pdf(path, redact=redact)
-                except Exception as e:
-                    print(f"  skip: {path.name}: {e}", file=sys.stderr)
-                    errors += 1
-                    _bump(cls.name, "errored")
-                    _quarantine_add(cls.name, str(path), f"pdf convert failed: {e}")
-                    continue
-                if not md:
-                    filtered += 1
-                    _bump(cls.name, "filtered")
-                    continue
-                out_path = out_dir / f"{project_slug}-{out_name}"
-                if dry_run:
-                    print(f"  [dry-run] {out_path.relative_to(REPO_ROOT) if out_path.is_relative_to(REPO_ROOT) else out_path} ({len(md)} bytes)")
-                else:
-                    out_path.parent.mkdir(parents=True, exist_ok=True)
-                    try:
-                        _raw_write_guard(out_path, force=force, source=str(path),
-                                         adapter_name=cls.name)
-                    except FileExistsError as e:
-                        errors += 1
-                        _bump(cls.name, "errored")
-                        _quarantine_add(cls.name, str(path), str(e))
-                        continue
-                    out_path.write_text(md, encoding="utf-8")
-                    state[key] = mtime
-                converted += 1
-                _bump(cls.name, "converted")
-                continue
+            # #493: PDF dispatch removed. There was never a concrete PDF
+            # adapter — `adapter.convert_pdf` raised AttributeError on
+            # every adapter, the exception got swallowed into
+            # `_quarantine_add`, and the user saw a confusing
+            # "'XAdapter' object has no attribute 'convert_pdf'" entry.
+            # README also lied about a "PDF Production v0.5" adapter
+            # that never existed. If a real PDF adapter ships later it
+            # can re-add this branch and declare `convert_pdf` on
+            # `BaseAdapter` properly.
 
             # #487: parse_jsonl now re-raises OSError so we can route I/O
             # failures through the quarantine + 'errored' bucket the same

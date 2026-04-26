@@ -9,7 +9,7 @@ Rebuilt on every `master` push from the synthetic sessions in [`examples/demo-se
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/)
-[![Version](https://img.shields.io/badge/version-v1.3.10-10B981.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-v1.3.11-10B981.svg)](CHANGELOG.md)
 [![Tests](https://img.shields.io/badge/tests-2363%20passing-10B981.svg)](tests/)
 [![CI](https://github.com/Pratiyush/llm-wiki/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/Pratiyush/llm-wiki/actions/workflows/ci.yml)
 [![Link check](https://github.com/Pratiyush/llm-wiki/actions/workflows/link-check.yml/badge.svg?branch=master)](https://github.com/Pratiyush/llm-wiki/actions/workflows/link-check.yml)
@@ -384,7 +384,6 @@ Each subcommand has its own `--help`. All commands are also wrapped in one-click
 | [Codex CLI](https://github.com/openai/codex) | `llmwiki.adapters.codex_cli` | ✅ Production | v0.3 |
 | [Cursor](https://cursor.com) | `llmwiki.adapters.cursor` | ✅ Production | v0.5 |
 | [Gemini CLI](https://ai.google.dev/gemini-api) | `llmwiki.adapters.gemini_cli` | ✅ Production | v0.5 |
-| PDF files | `llmwiki.adapters.pdf` | ✅ Production | v0.5 |
 | [Copilot Chat](https://github.com/features/copilot) | `llmwiki.adapters.copilot_chat` | ✅ Production | v0.9 |
 | [Copilot CLI](https://github.com/features/copilot) | `llmwiki.adapters.copilot_cli` | ✅ Production | v0.9 |
 | OpenCode / OpenClaw | — | ⏸ Deferred | — |

@@ -8,6 +8,14 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
+## [1.3.11] — 2026-04-26
+
+Hotfix release deleting the phantom PDF adapter dispatch + docs (#493).
+
+### Removed
+
+- **PDF adapter dispatch was dead code** (#493) — `convert.py` had a `if path.suffix == ".pdf"` branch calling `adapter.convert_pdf()`. No concrete adapter ever implemented it; every adapter raised `AttributeError`, which got swallowed into `_quarantine_add` showing "'XAdapter' object has no attribute 'convert_pdf'". README + multi-agent-setup docs both lied with "PDF Production v0.5". Removed: the 33-line PDF dispatch branch in `convert_all`, the `pdf` legacy migration hint in `_migrate_legacy_state`, the README "PDF files | ✅ Production" row, and the `pdf available: yes` example output in `docs/multi-agent-setup.md`. The `jira` and `meeting` migration hints went too — same shape (no concrete adapter ships). If a real PDF/jira/meeting adapter lands later, the author can re-add the branch and declare the method on `BaseAdapter` properly. Adds `tests/test_no_phantom_adapters.py` (3 cases) — CI guard that asserts no `.pdf` dispatch in convert_all, no `convert_pdf` method on any registered adapter, and that the `pdf` adapter name doesn't appear in the registry.
+
 ## [1.3.10] — 2026-04-26
 
 Hotfix release ensuring `cmd_graph` always falls back to the builtin engine when the graphify path fails (#488).
