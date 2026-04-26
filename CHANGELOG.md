@@ -8,6 +8,22 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
+## [1.3.64] — 2026-04-26
+
+Phase 2 (c) — richer tool-result collapsible card (#476).
+
+### Changed
+
+- **Tool-result `<details>` summary now shows preview + outcome + line count** (#476) — was a bare "Tool results (544 chars) — click to expand" with no signal about what's inside. The collapsible card now renders as `[ok] preview text · 412 lines · 544 chars` with an outcome badge tinted green for `ok` / red for `ERROR` (parsed from the `(ok)` / `(ERROR)` marker the markdown emit puts in). Preview is the first non-blank line, stripped of the `→ result (...):` prefix and truncated at 80 chars on a word boundary. Same `<details>`/`<summary>` markup so existing CSS + a11y plumbing still work; richer styling via `.tool-result-badge`, `.tool-result-preview`, `.tool-result-meta` classes.
+
+### Added
+
+- **`.collapsible-result.outcome-error` red border** for at-a-glance error scanning across a long session.
+
+### Tests
+
+- `tests/test_render_split.py` ceiling bumped 950→1000 lines for `css.py` to fit the new card styling.
+
 ## [1.3.63] — 2026-04-26
 
 Phase 2 (b) — README "every command in 60 seconds" tutorial (#469).

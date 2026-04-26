@@ -378,24 +378,63 @@ document.addEventListener("DOMContentLoaded", function () {
 });
 
 // ─── Auto-collapse long tool results into <details> ──────────────────────
+// #476: the summary used to read "Tool results (544 chars) — click to
+// expand" — pure char-count, no signal. Now extracts the first non-
+// blank line as a preview, detects ok/error from a leading `(ok)` or
+// `(ERROR)` marker the markdown emit puts in, and counts result lines.
+// Renders as a richer card: `[ok] preview text · 412 lines · click to
+// expand`. Keeps the same <details>/<summary> structure so existing CSS
+// + a11y plumbing continues to work.
 document.addEventListener("DOMContentLoaded", function () {
-  // Wrap long <pre> outputs and long paragraph lists under "Tool results:"
   const markers = document.querySelectorAll(".content p strong");
   markers.forEach(function (s) {
     const text = (s.textContent || "").trim();
     if (text !== "Tool results:") return;
     const p = s.closest("p");
     if (!p) return;
-    // Check if the next sibling has very long text
     let next = p.nextElementSibling;
     if (!next) return;
     const combinedText = (next.innerText || "").trim();
     if (combinedText.length < 500) return;
-    // Wrap next element in a <details>
+
+    // Outcome detection: the markdown emit prepends "→ result (ok):" or
+    // "→ result (ERROR):" to each block. First match wins.
+    const outcome = /\(ERROR\)/.test(combinedText) ? "error" : "ok";
+    // Preview: first non-blank line, stripped of "→ result (ok):" prefix
+    // and arrow indent. Truncate at 80 chars on a word boundary.
+    const lines = combinedText.split(/\r?\n/);
+    let preview = "";
+    for (const raw of lines) {
+      const line = raw.replace(/^\s*→\s*result\s*\((?:ok|ERROR)\):\s*/, "").trim();
+      if (line) { preview = line; break; }
+    }
+    if (preview.length > 80) {
+      const cut = preview.lastIndexOf(" ", 77);
+      preview = (cut > 40 ? preview.slice(0, cut) : preview.slice(0, 77)) + "...";
+    }
+    const lineCount = lines.length;
+
+    // Wrap next element in a <details>.
     const det = document.createElement("details");
-    det.className = "collapsible-result";
+    det.className = "collapsible-result outcome-" + outcome;
     const sum = document.createElement("summary");
-    sum.textContent = "Tool results (" + combinedText.length + " chars) — click to expand";
+    // Build the summary as DOM nodes (not innerHTML) so a malicious
+    // preview can't inject markup.
+    const badge = document.createElement("span");
+    badge.className = "tool-result-badge tool-result-" + outcome;
+    badge.textContent = outcome === "error" ? "ERROR" : "ok";
+    sum.appendChild(badge);
+    if (preview) {
+      const previewEl = document.createElement("span");
+      previewEl.className = "tool-result-preview";
+      previewEl.textContent = " " + preview;
+      sum.appendChild(previewEl);
+    }
+    const meta = document.createElement("span");
+    meta.className = "tool-result-meta muted";
+    meta.textContent = " · " + lineCount + (lineCount === 1 ? " line" : " lines") +
+                       " · " + combinedText.length + " chars";
+    sum.appendChild(meta);
     det.appendChild(sum);
     next.parentNode.insertBefore(det, next);
     det.appendChild(next);
