@@ -330,15 +330,23 @@ def base_url(server: ThreadingHTTPServer) -> str:
 
 
 @pytest.fixture(scope="session")
-def browser_context_args(browser_context_args: dict[str, object]) -> dict[str, object]:
+def browser_context_args(browser_context_args: dict[str, object], browser_name: str) -> dict[str, object]:
     """Override the default pytest-playwright context args so the
     browser permissions include clipboard access (needed for the
-    copy-as-markdown test). Merges with the upstream defaults."""
-    return {
+    copy-as-markdown test). Merges with the upstream defaults.
+
+    #636: clipboard-read / clipboard-write are chromium-only permission
+    names — Firefox + WebKit raise `Unknown permission` if they're
+    granted. Only set the permission list when running on chromium so
+    the cross-browser smoke matrix can run without monkey-patching.
+    """
+    args: dict[str, object] = {
         **browser_context_args,
-        "permissions": ["clipboard-read", "clipboard-write"],
         "viewport": {"width": 1280, "height": 800},
     }
+    if browser_name == "chromium":
+        args["permissions"] = ["clipboard-read", "clipboard-write"]
+    return args
 
 
 @pytest.fixture()

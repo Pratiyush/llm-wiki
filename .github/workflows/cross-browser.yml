@@ -1,0 +1,67 @@
+name: Cross-browser smoke
+
+# #636 (#pw-x8): runs the small cross-browser smoke (homepage, sessions
+# index, graph, theme toggle) against chromium + firefox + webkit on
+# every PR. The full e2e suite stays chromium-only to keep cost down;
+# this job only installs all three engines for the smoke subset.
+
+on:
+  pull_request:
+    paths:
+      - "llmwiki/build.py"
+      - "llmwiki/render/css.py"
+      - "llmwiki/render/js.py"
+      - "llmwiki/graph.py"
+      - "tests/e2e/test_cross_browser_smoke.py"
+      - ".github/workflows/cross-browser.yml"
+  push:
+    branches: ["master"]
+    paths:
+      - "llmwiki/build.py"
+      - "llmwiki/render/css.py"
+      - "llmwiki/render/js.py"
+      - "llmwiki/graph.py"
+      - "tests/e2e/test_cross_browser_smoke.py"
+      - ".github/workflows/cross-browser.yml"
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    name: ${{ matrix.browser }} smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox, webkit]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install llmwiki + e2e extras
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e '.[e2e]'
+
+      - name: Install ${{ matrix.browser }} + OS deps
+        run: python -m playwright install --with-deps ${{ matrix.browser }}
+
+      - name: Run cross-browser smoke
+        run: |
+          python -m pytest tests/e2e/test_cross_browser_smoke.py \
+            --browser=${{ matrix.browser }} \
+            --tracing=retain-on-failure \
+            -v
+
+      - name: Upload trace on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.browser }}-trace
+          path: test-results/
+          if-no-files-found: ignore
+          retention-days: 7
