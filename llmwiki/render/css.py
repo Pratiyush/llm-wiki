@@ -673,6 +673,37 @@ mark { background: var(--accent-bg); color: var(--accent); padding: 0 2px; borde
 .toc-sidebar .toc-link.active { color: var(--accent); border-left-color: var(--accent); background: var(--bg-alt); font-weight: 500; }
 @media (min-width: 1340px) { .toc-sidebar { display: block; } }
 
+/* #460: Hamburger button + slide-down drawer for tablet/mobile.
+   Desktop nav-links row hides at <1024 (existing rule), so without
+   this drawer Graph / Docs / Changelog were unreachable on mobile. */
+.nav-hamburger {
+  display: none;  /* shown only when nav-links row is hidden */
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: 6px; width: 36px; height: 36px;
+  align-items: center; justify-content: center;
+  cursor: pointer; color: var(--text-secondary);
+  padding: 0; margin-left: auto;
+  transition: all 0.15s;
+}
+.nav-hamburger:hover { border-color: var(--accent); color: var(--accent); }
+@media (max-width: 1023px) { .nav-hamburger { display: inline-flex; } }
+.nav-drawer {
+  display: none;
+  position: absolute; left: 0; right: 0; top: 100%;
+  background: var(--bg); border-bottom: 1px solid var(--border);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+  flex-direction: column; padding: 8px 16px 12px;
+  z-index: 99;
+}
+.nav-drawer:not([hidden]) { display: flex; }
+.nav-drawer-link {
+  display: block; padding: 12px 12px;
+  color: var(--text); font-size: 0.95rem; font-weight: 500;
+  text-decoration: none; border-radius: 6px;
+}
+.nav-drawer-link:hover, .nav-drawer-link:focus-visible { background: var(--bg-alt); text-decoration: none; }
+.nav-drawer-link.active { color: var(--accent); }
+
 /* Mobile bottom navigation */
 .mobile-bottom-nav { display: none; }
 /* Mobile bottom nav breakpoint at 767 matches the common 768 tablet cutoff

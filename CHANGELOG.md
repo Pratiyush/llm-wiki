@@ -8,6 +8,14 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
+## [1.3.28] — 2026-04-26
+
+Hotfix release adding a hamburger nav drawer so every top-level link is reachable on mobile (#460).
+
+### Fixed
+
+- **Hamburger drawer surfaces every nav link on tablet + mobile** (#460) — the desktop `.nav-links` row hides at <1024px (existing media query), so on phones the Graph / Docs / Changelog entries had no path. The mobile bottom nav only carries Home / Projects / Sessions / Search / Theme. Adds a hamburger button (visible only ≤1023px) that toggles a slide-down drawer with all 6 nav targets, marks the active page, and exposes `aria-expanded` + `aria-controls`. JS handles ESC-to-close (with focus return to hamburger), click-outside-to-close, and auto-close after navigating to a drawer link. Tests: `tests/test_mobile_hamburger_nav.py` (9 cases) covering markup, CSS, and all four JS behaviours.
+
 ## [1.3.27] — 2026-04-26
 
 Hotfix release fixing four light-theme agent badges that fell below WCAG 2.1 AA contrast (#459).
