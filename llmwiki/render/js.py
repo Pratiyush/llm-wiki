@@ -519,12 +519,69 @@ document.addEventListener("DOMContentLoaded", function () {
     window.location.href = pathPrefix + r.url;
   }
 
+  // #478, #479: dialog focus + inert helpers shared by palette + help.
+  // Stash who opened the dialog so we can restore focus on close.
+  // Apply `inert` to every direct child of <body> EXCEPT the dialog
+  // itself so AT users can't tab into the page chrome behind the
+  // backdrop (the previous aria-hidden gate left siblings reachable).
+  var __dialogLastFocus = null;
+  function __getInertSiblings(dialog) {
+    return Array.prototype.filter.call(
+      document.body.children,
+      function (el) { return el !== dialog; }
+    );
+  }
+  function __isDialogOpen(dialog) {
+    return dialog && dialog.classList.contains("open");
+  }
+  function __getFocusable(container) {
+    return Array.prototype.filter.call(
+      container.querySelectorAll(
+        'a[href], button:not([disabled]), input:not([disabled]), ' +
+        'select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      ),
+      function (el) { return !el.hasAttribute("disabled") && el.offsetParent !== null; }
+    );
+  }
+  function __openDialog(dialog, firstFocus) {
+    if (!dialog || dialog.classList.contains("open")) return;
+    __dialogLastFocus = document.activeElement;
+    dialog.classList.add("open");
+    __getInertSiblings(dialog).forEach(function (s) { s.setAttribute("inert", ""); });
+    if (firstFocus && firstFocus.focus) firstFocus.focus();
+  }
+  function __closeDialog(dialog) {
+    if (!dialog || !dialog.classList.contains("open")) return;
+    dialog.classList.remove("open");
+    __getInertSiblings(dialog).forEach(function (s) { s.removeAttribute("inert"); });
+    if (__dialogLastFocus && __dialogLastFocus.focus) {
+      try { __dialogLastFocus.focus(); } catch (e) { /* trigger gone */ }
+    }
+    __dialogLastFocus = null;
+  }
+  // Trap Tab + Shift+Tab inside `dialog` so focus can't escape into
+  // the inert page chrome and become visually invisible.
+  function __trapTab(dialog) {
+    return function (e) {
+      if (e.key !== "Tab" || !__isDialogOpen(dialog)) return;
+      const focusable = __getFocusable(dialog);
+      if (focusable.length === 0) { e.preventDefault(); return; }
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault(); last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault(); first.focus();
+      }
+    };
+  }
+
   function openPalette() {
     const p = document.getElementById("palette");
     if (!p) return;
-    p.setAttribute("aria-hidden", "false");
     const input = document.getElementById("palette-input");
-    if (input) { input.value = ""; input.focus(); }
+    if (input) { input.value = ""; }
+    __openDialog(p, input);
     // Show meta entries immediately while chunks load
     var meta = getMetaSync();
     if (meta.length && !idx) renderResults(meta.slice(0, 10));
@@ -533,17 +590,18 @@ document.addEventListener("DOMContentLoaded", function () {
 
   function closePalette() {
     const p = document.getElementById("palette");
-    if (!p) return;
-    p.setAttribute("aria-hidden", "true");
+    __closeDialog(p);
   }
 
   function openHelp() {
     const d = document.getElementById("help-dialog");
-    if (d) d.setAttribute("aria-hidden", "false");
+    if (!d) return;
+    const closeBtn = document.getElementById("help-close");
+    __openDialog(d, closeBtn);
   }
   function closeHelp() {
     const d = document.getElementById("help-dialog");
-    if (d) d.setAttribute("aria-hidden", "true");
+    __closeDialog(d);
   }
 
   document.addEventListener("DOMContentLoaded", function () {
@@ -569,6 +627,13 @@ document.addEventListener("DOMContentLoaded", function () {
     if (helpBackdrop) helpBackdrop.addEventListener("click", closeHelp);
     const helpClose = document.getElementById("help-close");
     if (helpClose) helpClose.addEventListener("click", closeHelp);
+
+    // #479: Tab focus traps. Listening on document so the handler fires
+    // even when the focused element is a backdrop / non-focusable.
+    const paletteEl = document.getElementById("palette");
+    if (paletteEl) document.addEventListener("keydown", __trapTab(paletteEl));
+    const helpEl = document.getElementById("help-dialog");
+    if (helpEl) document.addEventListener("keydown", __trapTab(helpEl));
   });
 
   function updateActive() {
@@ -594,8 +659,9 @@ document.addEventListener("DOMContentLoaded", function () {
     if (e.key === "Escape") {
       const p = document.getElementById("palette");
       const h = document.getElementById("help-dialog");
-      if (p && p.getAttribute("aria-hidden") === "false") { closePalette(); return; }
-      if (h && h.getAttribute("aria-hidden") === "false") { closeHelp(); return; }
+      // #478: state check now reads the .open class (was aria-hidden).
+      if (p && p.classList.contains("open")) { closePalette(); return; }
+      if (h && h.classList.contains("open")) { closeHelp(); return; }
       if (inInput) { e.target.blur(); return; }
     }
 

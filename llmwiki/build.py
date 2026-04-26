@@ -860,7 +860,7 @@ def page_foot(js_prefix: str = "") -> str:
     <span>Theme</span>
   </button>
 </nav>
-<div id="palette" class="palette" aria-hidden="true">
+<div id="palette" class="palette">
   <div class="palette-backdrop" id="palette-backdrop"></div>
   <div class="palette-modal" role="dialog" aria-modal="true" aria-label="Command palette">
     <div class="palette-header">
@@ -876,7 +876,7 @@ def page_foot(js_prefix: str = "") -> str:
     </div>
   </div>
 </div>
-<div id="help-dialog" class="help-dialog" aria-hidden="true">
+<div id="help-dialog" class="help-dialog">
   <div class="palette-backdrop" id="help-backdrop"></div>
   <div class="help-modal">
     <h2>Keyboard shortcuts</h2>
