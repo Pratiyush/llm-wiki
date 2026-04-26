@@ -8,6 +8,14 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
+## [1.3.32] — 2026-04-26
+
+Maintenance release adding print-stylesheet validation to the e2e harness (#640, parent #468).
+
+### Added
+
+- **`tests/e2e/test_print_stylesheet.py`** (#640) — Playwright tests that flip media emulation to `print` and assert four contracts: nav header hidden, palette + help dialog hidden, body bg resolves to white + text to near-black, progress bar hidden. Catches print-CSS regressions at `render/css.py:744` where someone removes a `display: none !important` selector or the bg/text colour-flip drifts out of sync.
+
 ## [1.3.31] — 2026-04-26
 
 Maintenance release adding keyboard-only navigation coverage to the e2e harness (#635, parent #468).
