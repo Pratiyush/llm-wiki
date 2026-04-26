@@ -59,13 +59,14 @@ def _stats_shown(page: Page) -> None:
 
 @then('the "Home" back-link is visible')
 def _back_link_visible(page: Page) -> None:
-    # The back-to-site link carries id="back-to-site" per #268.
-    link = page.locator("#back-to-site")
-    # attached rather than visible — on a tiny viewport the button may
-    # be below the fold until scrolled.
+    # #456: the #268 lightweight back-to-site shim was superseded by
+    # the full site nav. The Home link now lives in the nav header
+    # alongside Projects / Sessions / Graph / Docs / Search / Theme,
+    # so we look there.
+    link = page.locator('header.nav nav.nav-links a[href="index.html"]').first
     link.wait_for(state="attached", timeout=3000)
-    href = link.get_attribute("href")
-    assert href == "index.html", f"unexpected href: {href!r}"
+    text = (link.text_content() or "").strip()
+    assert text == "Home", f"unexpected nav link text: {text!r}"
 
 
 @then('the graph JSON payload contains "site_url"')

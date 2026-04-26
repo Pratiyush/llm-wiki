@@ -126,8 +126,8 @@ def test_projects_index_has_no_critical_a11y_violations(page: Page, base_url: st
 def test_graph_page_has_no_critical_a11y_violations(page: Page, base_url: str) -> None:
     """The graph viewer is a canvas-heavy page — different a11y
     surface than text content. We test it separately because the
-    ``#back-to-site`` link and any toolbar controls are the only
-    keyboard-accessible elements."""
+    site nav (#456) and the in-page toolbar controls (search,
+    cluster toggle) are the only keyboard-accessible elements."""
     resp = page.request.get(f"{base_url}/graph.html")
     if resp.status >= 400:
         pytest.skip("graph.html not shipped (empty seeded graph)")

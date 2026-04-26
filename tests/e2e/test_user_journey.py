@@ -97,12 +97,13 @@ def test_full_navigation_journey(page: Page, base_url: str) -> None:
     graph_resp = page.request.get(f"{base_url}/graph.html")
     if graph_resp.status < 400:
         page.goto(f"{base_url}/graph.html", wait_until="domcontentloaded")
-        # The "back to site" link is the user's escape hatch.
-        back = page.locator("#back-to-site")
-        if back.count() > 0:
-            href = back.get_attribute("href")
+        # #456: the user's escape hatch is now the Home link in the
+        # injected site nav (the #268 shim was removed).
+        nav_home = page.locator('header.nav nav.nav-links a[href="index.html"]').first
+        if nav_home.count() > 0:
+            href = nav_home.get_attribute("href")
             assert href in ("index.html", "/index.html", "../index.html"), (
-                f"#back-to-site has bad href: {href!r}"
+                f"nav Home link has bad href: {href!r}"
             )
 
     # Step 9: return home. No errors should have accumulated.
