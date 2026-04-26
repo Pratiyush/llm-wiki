@@ -361,6 +361,13 @@ kbd { display: inline-block; padding: 2px 6px; font-family: var(--mono); font-si
 /* Help dialog */
 /* #478: same .open class swap as the palette — aria-hidden gating
    was an axe-core violation for any focusable child. */
+/* #ui-l8 (#581): hint + example paragraphs in the help dialog moved
+   from inline style="" to these classes so the dialog stays
+   strict-CSP-friendly. */
+.help-dialog-hint { font-size: 0.82rem; margin: 4px 0 8px; }
+.help-dialog-example { font-size: 0.82rem; margin-top: 6px; }
+/* 404 page link list — was inline style="list-style:disc;...". */
+.not-found-links { list-style: disc; padding-left: 24px; margin: 12px 0; }
 .help-dialog { position: fixed; inset: 0; z-index: 250; display: none; }
 .help-dialog.open { display: block; }
 .help-modal { position: relative; max-width: 420px; margin: 15vh auto 0; background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 24px; box-shadow: var(--shadow); }

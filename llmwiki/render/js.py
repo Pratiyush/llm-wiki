@@ -804,6 +804,39 @@ document.addEventListener("DOMContentLoaded", function () {
   const fClear = document.getElementById("filter-clear");
   const fCount = document.getElementById("filter-count");
 
+  // #ui-m1 (#572): persist filter selections to sessionStorage so a
+  // navigation away + back doesn't lose the user's filter state.
+  // sessionStorage (not localStorage) is the right scope: it survives
+  // back/forward but clears on tab close, matching user expectations
+  // for a transient filter view.
+  const STORAGE_KEY = "llmwiki-sessions-filters";
+  function _readSaved() {
+    try {
+      const raw = sessionStorage.getItem(STORAGE_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch (e) { return null; }
+  }
+  function _writeSaved() {
+    try {
+      sessionStorage.setItem(STORAGE_KEY, JSON.stringify({
+        p: fProject ? fProject.value : "",
+        m: fModel ? fModel.value : "",
+        from: fFrom ? fFrom.value : "",
+        to: fTo ? fTo.value : "",
+        txt: fText ? fText.value : "",
+      }));
+    } catch (e) { /* private mode */ }
+  }
+  // Restore on page load.
+  const saved = _readSaved();
+  if (saved) {
+    if (fProject && saved.p) fProject.value = saved.p;
+    if (fModel && saved.m) fModel.value = saved.m;
+    if (fFrom && saved.from) fFrom.value = saved.from;
+    if (fTo && saved.to) fTo.value = saved.to;
+    if (fText && saved.txt) fText.value = saved.txt;
+  }
+
   function apply() {
     const p = fProject ? fProject.value : "";
     const m = fModel ? fModel.value : "";
@@ -826,6 +859,7 @@ document.addEventListener("DOMContentLoaded", function () {
       if (show) shown++;
     });
     if (fCount) fCount.textContent = shown + " shown";
+    _writeSaved();
   }
 
   [fProject, fModel, fFrom, fTo, fText].forEach(function (el) {
@@ -837,6 +871,7 @@ document.addEventListener("DOMContentLoaded", function () {
     if (fFrom) fFrom.value = "";
     if (fTo) fTo.value = "";
     if (fText) fText.value = "";
+    try { sessionStorage.removeItem(STORAGE_KEY); } catch (e) {}
     apply();
   });
   apply();
