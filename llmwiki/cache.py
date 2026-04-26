@@ -1,5 +1,17 @@
 """Prompt caching + batch-API scaffolding (v1.1.0 · #50).
 
+Thread-safety
+-------------
+**This module is NOT thread-safe.** ``load_batch_state`` /
+``save_batch_state`` read + write a JSON file with no locking;
+concurrent callers can race on the temp-file rename. The pure-functional
+helpers (``make_cached_block``, ``build_messages``, ``estimate_tokens``,
+``estimate_cost``) are reentrant. Batch-state helpers must be called from
+a single thread or under an external lock. Today's only call sites are
+single-process CLI invocations of ``llmwiki synthesize`` so this is fine;
+a future MCP path that queues batches concurrently must serialize via its
+own mutex (#py-l7 / #605).
+
 Every `/wiki-sync` and `/wiki-ingest` bundles the same stable prefix —
 CLAUDE.md schema, `wiki/index.md`, and `wiki/overview.md` — with every
 source file it asks the model to summarize. On a 500-page wiki that

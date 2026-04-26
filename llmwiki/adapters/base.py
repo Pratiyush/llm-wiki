@@ -44,10 +44,20 @@ class BaseAdapter:
 
     # ─── classmethods used by the registry + UI ────────────────────────
 
+    # #py-l3 (#601): subclasses can override _DESCRIPTION_OVERRIDE so
+    # `python3 -OO` (which strips __doc__) doesn't degrade the adapter
+    # listing to bare class names. The default reads __doc__ where
+    # available and falls back to a stable explicit string when not.
+    _DESCRIPTION_OVERRIDE: str = ""
+
     @classmethod
     def description(cls) -> str:
         """One-line description shown in `llmwiki adapters`."""
-        return cls.__doc__.split("\n")[0] if cls.__doc__ else cls.__name__
+        if cls._DESCRIPTION_OVERRIDE:
+            return cls._DESCRIPTION_OVERRIDE
+        if cls.__doc__:
+            return cls.__doc__.split("\n")[0]
+        return cls.__name__
 
     @classmethod
     def is_available(cls) -> bool:
