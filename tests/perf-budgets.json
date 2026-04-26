@@ -1,0 +1,9 @@
+{
+  "_doc": "Per-page performance budgets used by tests/e2e/test_perf_budgets.py (#630). Values are conservative starting points based on a local seeded build; tighten after baselining the live demo. Times in milliseconds. domContentLoaded is the most stable signal across CI runners; LCP fluctuates with image decode + font load.",
+  "/index.html":              { "dcl_ms": 2500, "load_ms": 4000 },
+  "/projects/index.html":     { "dcl_ms": 2500, "load_ms": 4000 },
+  "/sessions/index.html":     { "dcl_ms": 3000, "load_ms": 5000 },
+  "/changelog.html":          { "dcl_ms": 3000, "load_ms": 5000 },
+  "/docs/index.html":         { "dcl_ms": 2500, "load_ms": 4000 },
+  "/graph.html":              { "dcl_ms": 4000, "load_ms": 6500 }
+}
