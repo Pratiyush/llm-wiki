@@ -686,7 +686,9 @@ def page_head(title: str, description: str, css_prefix: str = "") -> str:
   <meta name="description" content="{html.escape(description)}">
 {_PRE_PAINT_THEME_SCRIPT}  <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <!-- #ui-m14 (#577): async-load Google Fonts via media="print" + onload swap so it doesn't render-block first paint. <noscript> fallback for JS-disabled users. -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+  <noscript><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"></noscript>
 {_hljs_head_tags()}  <link rel="stylesheet" href="{css_prefix}style.css">
 </head>
 <body>
@@ -723,7 +725,9 @@ def page_head_article(
   <meta name="description" content="{html.escape(description)}">
 {_PRE_PAINT_THEME_SCRIPT}{canonical_tag}{og_tags}  <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <!-- #ui-m14 (#577): async-load Google Fonts via media="print" + onload swap so it doesn't render-block first paint. <noscript> fallback for JS-disabled users. -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+  <noscript><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"></noscript>
 {_hljs_head_tags()}  <link rel="stylesheet" href="{css_prefix}style.css">
 </head>
 <body>

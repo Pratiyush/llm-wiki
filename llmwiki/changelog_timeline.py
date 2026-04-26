@@ -401,11 +401,17 @@ def render_recent_activity(log_events: list[Any]) -> str:
         # Prefer a processed-count detail when present; otherwise show title.
         processed = ev.details.get("Processed") if hasattr(ev, "details") else None
         right_label = f"{processed} processed" if processed else ev.title
+        # #ui-l4 (#580): the event label is truncated visually via CSS
+        # `text-overflow: ellipsis` when it exceeds the column width.
+        # Add `title=` so a hover surfaces the full text — keyboard
+        # users can read the full label without measuring columns.
+        full_label = ev.title if processed else right_label
         rows.append(
             f'<li class="recently-updated-item">'
             f'<span class="recently-updated-slug">{html.escape(ev.operation)}</span>'
             f'<span class="recently-updated-date muted">{html.escape(ev.date.isoformat())}</span>'
-            f'<span class="recently-updated-event">{html.escape(right_label)}</span>'
+            f'<span class="recently-updated-event" title="{html.escape(full_label)}">'
+            f'{html.escape(right_label)}</span>'
             f'</li>'
         )
     return (
