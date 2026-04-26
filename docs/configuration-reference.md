@@ -207,10 +207,6 @@ cp examples/sessions_config.json config.json
 | `synthesis.ollama` | `base_url` | string | `"http://127.0.0.1:11434"` | Ollama HTTP endpoint |
 | `synthesis.ollama` | `timeout` | int (s) | 60 | Per-request timeout |
 | `synthesis.ollama` | `max_retries` | int | 3 | Exponential-backoff retry count on 5xx / timeout |
-| `pdf` | `enabled` | bool | false | Opt-in; non-AI adapter (#326) |
-| `pdf` | `source_dirs` | list | `["~/Documents/PDFs"]` | Directories to scan |
-| `pdf` | `min_pages` | int | 1 | Skip PDFs with fewer pages |
-| `pdf` | `max_pages` | int | 500 | Skip PDFs with more pages (cost guard) |
 | `meeting` | `enabled` | bool | false | Opt-in; non-AI adapter |
 | `meeting` | `source_dirs` | list | `["~/Meetings"]` | Directories to scan |
 | `meeting` | `extensions` | list | `[".vtt", ".srt"]` | File extensions to consider |
@@ -270,7 +266,6 @@ Each adapter can be configured in the `adapters` section of `config.json`. The k
 | Obsidian | `obsidian` | **no** (opt-in) | `vault_paths`, `exclude_folders`, `min_content_chars` |
 | Jira | `jira` | **no** (opt-in) | `server`, `email`, `api_token` / `api_token_env`, `jql`, `max_results` |
 | Meeting transcripts | `meeting` | **no** (opt-in) | `source_dirs`, `extensions` |
-| PDF | `pdf` | **no** (opt-in) | `source_dirs`, `min_pages`, `max_pages` |
 
 Non-AI-session adapters are opt-in only (#326) — set `{name}.enabled: true` in this config to have them fire on `sync`.
 

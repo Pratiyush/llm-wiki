@@ -8,6 +8,18 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
+## [1.3.50] — 2026-04-26
+
+#475 Bundle 3 (public API) + PDF leftover cleanup. Two parallel scopes shipped together because the public-API change is small and the user flagged "remove PDF leftovers" mid-PR.
+
+### Added
+
+- **`llmwiki` package now actually exports its public API** (#617, #arch-m4) — the docstring promised `convert_all`, `build_site`, `serve_site`, `build_and_report`, `export_all`, `REGISTRY`, `main` but nothing was exported. Now wired via PEP 562 `__getattr__` so `from llmwiki import build_site` works without paying the full transitive import cost on `import llmwiki`. Also adds the `py.typed` marker so consumers of the API get type-checking on the re-exported symbols.
+
+### Removed
+
+- **PDF leftovers from the simplification sweep** — the PDF adapter was removed in #363/#493 but residue remained: agent-pdf badge in `build.py:detect_agent_label`, `.agent-pdf` CSS class in `render/css.py`, `[pdf]` extra in `pyproject.toml`, `pdf` entry in the `all` extra, the schema docstring in `adapter_config.py`, the adapter table row in `docs/getting-started.md`, four config rows in `docs/configuration-reference.md`, the row in `docs/faq.md`, the row in `docs/reference/cli.md`, the example in `docs/tutorials/setup-guide.md`, the `pypdf` mention in `docs/framework.md`, and `docs/deploy/docker.md`. `tests/test_adapter_tag.py` and `tests/test_v03.py` updated to assert the dependency stays gone. Closes #563 (the "PDF adapter lacks per-file timeout" sub-issue) as obsolete.
+
 ## [1.3.49] — 2026-04-26
 
 #474 perf hot-path — 3 of 5 issues from epic-research bundle 3.

@@ -188,7 +188,6 @@ Registered adapters:
   meeting           no        -             Meeting transcripts (VTT/SRT)
   obsidian          no        -             Obsidian — reads a vault
   opencode          no        -             OpenCode / OpenClaw sessions
-  pdf               no        -             PDF source files
   web_clipper       no        -             Obsidian Web Clipper intake
 ```
 

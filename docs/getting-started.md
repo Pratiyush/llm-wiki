@@ -62,8 +62,9 @@ Registered adapters:
   cursor            available: yes  (Cursor IDE — reads chat history)
   gemini_cli        available: no   (Gemini CLI — reads ~/.gemini/ session history)
   obsidian          available: no   (Obsidian vault)
-  pdf               available: yes  (PDF files)
 ```
+
+> The PDF adapter was removed in the simplification sweep — `llmwiki adapters` no longer lists it.
 
 Any adapter marked `available: yes` will be included when you run `llmwiki sync`. See [multi-agent-setup.md](multi-agent-setup.md) for details on configuring individual agents.
 

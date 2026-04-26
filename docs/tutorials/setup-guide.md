@@ -299,10 +299,11 @@ Shows default availability + configured state. Enable opt-in adapters in
 {
   "meeting": { "enabled": true, "source_dirs": ["~/Meetings"] },
   "jira": { "enabled": true, "server": "https://me.atlassian.net", "email": "me@x.com", "api_token": "..." },
-  "pdf": { "enabled": true, "source_dirs": ["~/Documents/PDFs"] },
   "web_clipper": { "enabled": true, "watch_dir": "raw/web" }
 }
 ```
+
+> The `pdf` adapter that used to live here was removed in the simplification sweep.
 
 ### 5.2 Share slash commands across agents
 

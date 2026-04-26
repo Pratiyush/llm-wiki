@@ -644,7 +644,7 @@ a.topic-chip:hover {
 .agent-cursor   { color: #92400E; background: rgba(217,119,6,0.1); border-color: rgba(217,119,6,0.3); }
 .agent-gemini   { color: #991B1B; background: rgba(220,38,38,0.1); border-color: rgba(220,38,38,0.3); }
 .agent-obsidian { color: #7E22CE; background: rgba(126,34,206,0.1); border-color: rgba(126,34,206,0.3); }
-.agent-pdf      { color: #B91C1C; background: rgba(185,28,28,0.1); border-color: rgba(185,28,28,0.3); }
+/* Simplification sweep removed the PDF adapter — agent-pdf rule deleted. */
 .agent-unknown  { color: #6B7280; background: rgba(107,114,128,0.1); border-color: rgba(107,114,128,0.3); }
 :root[data-theme="dark"] .agent-claude   { color: #A78BFA; background: rgba(167,139,250,0.15); border-color: rgba(167,139,250,0.3); }
 :root[data-theme="dark"] .agent-codex    { color: #34D399; background: rgba(52,211,153,0.15); border-color: rgba(52,211,153,0.3); }

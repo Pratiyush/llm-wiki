@@ -2575,7 +2575,10 @@ def _agent_map(agent: str) -> tuple[str, str]:
         "gemini": ("Gemini", "agent-gemini"),
         "gemini-cli": ("Gemini", "agent-gemini"),
         "obsidian": ("Obsidian", "agent-obsidian"),
-        "pdf": ("PDF", "agent-pdf"),
+        # Simplification sweep removed the PDF adapter. The "pdf" entry
+        # used to live here; left as a comment so a future grep sees
+        # the rationale instead of guessing why the agent-pdf badge is
+        # gone. CSS class .agent-pdf is also removed (see render/css.py).
     }
     return m.get(agent, (agent.title(), "agent-unknown"))
 
