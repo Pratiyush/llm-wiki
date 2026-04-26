@@ -8,7 +8,7 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
-## [1.2.18] — 2026-04-26
+## [1.2.21] — 2026-04-26
 
 Patch release fixing the `Redactor`'s Windows/WSL blind spot and adding default credential-token redaction flagged by the Opus 4.7 code review (#403). The CLAUDE.md security promise — redaction "before anything hits disk" — now holds across every supported platform.
 
@@ -19,6 +19,22 @@ Patch release fixing the `Redactor`'s Windows/WSL blind spot and adding default 
 ### Added
 
 - **Default credential-token redaction** (#416) — new `_DEFAULT_TOKEN_PATTERNS` runs unconditionally regardless of user `extra_patterns` config, so users who never configured redaction are still protected. Covers GitHub PATs (`ghp_*`, `gho_*`, `ghs_*`, `ghu_*`, `github_pat_*`), AWS access key IDs (`AKIA*`), and Slack tokens (`xoxb-*`, `xoxp-*`, `xoxa-*`, `xoxr-*`, `xoxs-*`). Length thresholds (≥20 chars after the prefix; AKIA-style requires exactly 16 trailing chars) prevent false positives on docs and short example strings. Adds 21 regression tests covering the full path/token matrix.
+
+## [1.2.19] — 2026-04-26
+
+Patch release fixing the `build` CI-surprise commit issue flagged by the Opus 4.7 code review (#403). `llmwiki build` is now read-only on `wiki/` by default — stub seeding moves to opt-in.
+
+### Fixed
+
+- **`build` mutated `wiki/projects/` (CI surprise)** (#414) — `build_site` is documented as "regenerate the static HTML site" and was supposed to be read-only on `wiki/`. As a side effect of #378, `ensure_project_stubs` was wired into the build path and wrote `wiki/projects/<slug>.md` for any newly-discovered project. Users running `llmwiki build` from CI on a curated checkout discovered surprise files in their working tree (and committed-by-CI changes if the workflow auto-pushed). Fix: `build_site()` now takes `seed_project_stubs: bool = False`; the `build` CLI subcommand exposes `--seed-project-stubs` for explicit opt-in. `cmd_sync` (which the user has already opted into mutation for) passes `seed_project_stubs=True` so routine `sync` keeps seeding. Default `build` is now pure. Adds 4 regression tests covering the read-only default, the explicit flag, hand-authored stub preservation, and the CLI flag round-trip.
+
+## [1.2.14] — 2026-04-26
+
+Patch release fixing the `ToolsConsistency` lint rule's silent `TypeError` on list-typed `tools_used` flagged by the Opus 4.7 code review (#403). Pure correctness fix — no API change; the rule now actually runs on every page instead of aborting after the first list-typed value.
+
+### Fixed
+
+- **`ToolsConsistency` raised `TypeError` on list-typed `tools_used`** (#410) — `lint/rules.py:754` did `re.search(_TOOLS_USED_RE, tools_used_raw)` directly. Frontmatter parsed by `_frontmatter.py`'s inline-list path returns `tools_used` as a real Python `list`, not a string, so `re.search(regex, list)` raised `TypeError` and silently aborted the whole rule (16 → 15 effective rules). One source page with parsed-list `tools_used` was enough to take the rule out. Fix: new `_normalise_tools_used(value)` and `_normalise_tool_counts_keys(value)` helpers coerce list / str / dict / None / number / bool into a consistent `set[str]` before the comparison runs. Adds 7 regression tests covering the type matrix (list, quoted-list, empty list, str, missing, dict tool_counts, hostile types).
 
 ## [1.2.12] — 2026-04-26
 

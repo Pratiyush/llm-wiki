@@ -769,6 +769,51 @@ _TOOLS_USED_RE = re.compile(r"\[([^\]]*)\]")
 _TOOL_COUNTS_KEYS_RE = re.compile(r'"([A-Za-z_]+)"\s*:')
 
 
+def _normalise_tools_used(value: Any) -> set[str]:
+    """Coerce a frontmatter ``tools_used`` value into a set of tool names.
+
+    Frontmatter parsers return either a Python ``list`` (when the value
+    is parsed as ``[a, b]``) or a raw ``str`` (legacy paths or
+    string-typed coercion). Older code did
+    ``re.search(_TOOLS_USED_RE, value)`` directly — which raises
+    ``TypeError`` on a list and silently aborted the whole lint rule
+    (#410). This helper normalises both shapes plus the other types
+    that have appeared in real frontmatter (number, bool, dict, None).
+    Anything that isn't sensibly stringifiable returns an empty set.
+    """
+    if value is None or value == "":
+        return set()
+    if isinstance(value, list):
+        return {str(x).strip().strip('"\'') for x in value if str(x).strip()}
+    if isinstance(value, str):
+        m = _TOOLS_USED_RE.search(value)
+        if not m:
+            return set()
+        return {
+            t.strip().strip('"\'')
+            for t in m.group(1).split(",")
+            if t.strip()
+        }
+    # Numbers, bools, dicts — not a tools list.
+    return set()
+
+
+def _normalise_tool_counts_keys(value: Any) -> set[str]:
+    """Coerce a frontmatter ``tool_counts`` value into the set of keys.
+
+    Symmetric to :func:`_normalise_tools_used`. Frontmatter often ships
+    ``tool_counts`` as the raw inline JSON-looking string the converter
+    wrote, but some pipelines (or future fixes) may return a real dict.
+    """
+    if value is None or value == "":
+        return set()
+    if isinstance(value, dict):
+        return {str(k) for k in value.keys()}
+    if isinstance(value, str):
+        return set(_TOOL_COUNTS_KEYS_RE.findall(value))
+    return set()
+
+
 @register
 class ToolsConsistency(LintRule):
     """Source pages: ``tools_used`` and ``tool_counts.keys()`` must agree.
@@ -789,21 +834,14 @@ class ToolsConsistency(LintRule):
             meta = page["meta"]
             if meta.get("type") != "source":
                 continue
-            tools_used_raw = meta.get("tools_used", "")
-            tool_counts_raw = meta.get("tool_counts", "")
-            if not tools_used_raw or not tool_counts_raw:
+            # #410: tools_used can be list (post-parser), str (legacy),
+            # or None — _normalise handles all three without a
+            # TypeError on `re.search(regex, list)`.
+            tools_used = _normalise_tools_used(meta.get("tools_used"))
+            tool_counts_keys = _normalise_tool_counts_keys(meta.get("tool_counts"))
+            if not tools_used or not tool_counts_keys:
                 # One side missing — that's a different lint concern, skip.
                 continue
-
-            m = _TOOLS_USED_RE.search(tools_used_raw)
-            if not m:
-                continue
-            tools_used = {
-                t.strip().strip('"\'')
-                for t in m.group(1).split(",")
-                if t.strip()
-            }
-            tool_counts_keys = set(_TOOL_COUNTS_KEYS_RE.findall(tool_counts_raw))
 
             only_used = tools_used - tool_counts_keys
             only_counted = tool_counts_keys - tools_used
