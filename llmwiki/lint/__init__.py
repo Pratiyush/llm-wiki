@@ -25,9 +25,13 @@ from pathlib import Path
 from typing import Any, Callable, Optional
 
 from llmwiki import REPO_ROOT
+# #495: use the canonical parser instead of a local LF-only regex.
+# The local copy missed BOM (#423) and CRLF (#409) line endings — every
+# Windows- or BOM-prefixed wiki page silently parsed as zero
+# frontmatter, so every lint rule that read `meta["type"]` skipped it.
+from llmwiki._frontmatter import parse_frontmatter as _parse_fm
 
 WIKI_DIR = REPO_ROOT / "wiki"
-FRONTMATTER_RE = re.compile(r"^---\n(.*?)\n---\n", re.DOTALL)
 WIKILINK_RE = re.compile(r"\[\[([^\]|]+)(?:\|[^\]]*)?\]\]")
 
 
@@ -65,18 +69,18 @@ def register(cls: type[LintRule]) -> type[LintRule]:
 
 # ─── Page loading ──────────────────────────────────────────────────────
 
-def parse_frontmatter(text: str) -> dict[str, str]:
-    """Parse YAML-like frontmatter from markdown text."""
-    m = FRONTMATTER_RE.match(text)
-    if not m:
-        return {}
-    out: dict[str, str] = {}
-    for line in m.group(1).splitlines():
-        if ":" not in line:
-            continue
-        k, _, v = line.partition(":")
-        out[k.strip()] = v.strip().strip('"')
-    return out
+def parse_frontmatter(text: str) -> dict[str, Any]:
+    """Parse YAML-like frontmatter from markdown text.
+
+    #495: thin wrapper around the canonical
+    :func:`llmwiki._frontmatter.parse_frontmatter` so lint sees the
+    same shape — including BOM-stripped, CRLF-tolerant input, real
+    list/bool values — as build.py and the synth pipeline.
+    Backward-compatible: returns the meta dict only (callers that
+    want body still use ``FRONTMATTER_RE.sub("", text, count=1)``).
+    """
+    meta, _body = _parse_fm(text)
+    return meta
 
 
 def load_pages(wiki_dir: Optional[Path] = None) -> dict[str, dict[str, Any]]:
@@ -96,8 +100,11 @@ def load_pages(wiki_dir: Optional[Path] = None) -> dict[str, dict[str, Any]]:
             text = p.read_text(encoding="utf-8")
         except OSError:
             continue
-        meta = parse_frontmatter(text)
-        body = FRONTMATTER_RE.sub("", text, count=1)
+        # #495: derive both meta + body from the canonical parser in
+        # one pass — was two regex hits before, and the body-substitution
+        # used the legacy LF-only regex which would leave CRLF-prefixed
+        # frontmatter intact in body output.
+        meta, body = _parse_fm(text)
         rel = str(p.relative_to(root))
         pages[rel] = {
             "path": p,

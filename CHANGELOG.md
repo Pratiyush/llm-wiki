@@ -8,6 +8,14 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
+## [1.3.12] — 2026-04-26
+
+Hotfix release consolidating 3 divergent frontmatter parsers onto the canonical `_frontmatter.py` (#495).
+
+### Changed
+
+- **3 local frontmatter parsers replaced with `llmwiki._frontmatter`** (#495) — `lint/__init__.py`, `models_page.py`, and `tags.py` each shipped their own LF-only regex parser that diverged from the canonical helper after #409 (BOM strip) and #423 (CRLF support) fixes landed there. Result: every Windows-authored or BOM-prefixed wiki page silently parsed as zero frontmatter to lint, models, and tag-rename. All three rules / runners that read `meta["type"]` skipped those pages. Fix: each module now imports the canonical parser as a thin wrapper. Net deletion: ~50 lines of duplicate regex + scalar-parse logic. Adds `tests/test_frontmatter_consolidation.py` (5 cases) covering BOM-stripped + CRLF-line-ending + mixed-line-ending input through each of the 3 entry points, asserting they all see the same fields the canonical parser sees.
+
 ## [1.3.11] — 2026-04-26
 
 Hotfix release deleting the phantom PDF adapter dispatch + docs (#493).

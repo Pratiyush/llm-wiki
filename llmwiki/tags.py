@@ -33,7 +33,12 @@ from llmwiki import REPO_ROOT
 # ─── frontmatter parsing (minimal, schema-agnostic) ──────────────────────
 
 
-_FM_RE = re.compile(r"^---\n(.*?)\n---\n(.*)$", re.DOTALL)
+# #495: replaced local LF-only regex with the canonical
+# parse_frontmatter_or_none helper, which also strips BOM and accepts
+# CRLF line endings — the previous local regex silently parsed
+# Windows-authored / BOM-prefixed pages as no-frontmatter, so every
+# tag-rename run skipped them.
+from llmwiki._frontmatter import parse_frontmatter_or_none as _parse_frontmatter
 
 # Inline-list tag value: ``tags: [a, b, c]``.
 _INLINE_LIST_RE = re.compile(
@@ -58,13 +63,6 @@ class TagEntry:
     page: Path
     field: str   # "tags" or "topics"
     tag: str
-
-
-def _parse_frontmatter(text: str) -> tuple[Optional[str], str]:
-    m = _FM_RE.match(text)
-    if not m:
-        return None, text
-    return m.group(1), m.group(2)
 
 
 def _iter_tags_in_frontmatter(fm: str) -> list[tuple[str, list[str]]]:
