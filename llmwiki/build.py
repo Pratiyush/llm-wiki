@@ -1116,6 +1116,13 @@ def render_session(
         )
         + nav_bar("sessions", link_prefix="../../")
         + hero(str(title_raw), meta_strip, size="hero-sm", subtitle_is_html=True)
+        # #471: human-readable description rendered as a subtitle below
+        # the hero, before the meta-strip. Only emit if frontmatter
+        # carries the field; older sessions skip this block cleanly.
+        + (
+            f'<div class="container session-description"><p>{html.escape(str(meta["description"]))}</p></div>'
+            if meta.get("description") else ""
+        )
         + f'<section class="section">\n  <div class="container">\n{breadcrumbs}\n{tools_preview}\n{actions_html}\n{tool_chart_block}\n{token_card_block}\n    <article class="content" itemscope itemtype="https://schema.org/Article">\n'
         + f'<meta itemprop="headline" content="{html.escape(str(title_raw))}">\n'
         + f'<meta itemprop="datePublished" content="{html.escape(str(meta.get("started") or date))}">\n'
@@ -1369,13 +1376,22 @@ def render_sessions_index(
             title = title[: -(len(date) + 3)]
         # Truncate long titles for table display
         display_title = title[:70] + "..." if len(title) > 70 else title
+        # #471: human-readable description from the first user turn —
+        # if frontmatter carries one, render it as a small muted line
+        # below the slug. Falls back to no second line for older
+        # sessions without the field.
+        description = str(meta.get("description") or "").strip()
+        desc_line = (
+            f'<div class="session-cell-desc muted">{html.escape(description)}</div>'
+            if description else ""
+        )
         model = meta.get("model", "")
         umsgs = meta.get("user_messages", "")
         tcalls = meta.get("tool_calls", "")
         href = f"{project}/{p.stem}.html"
         rows.append(
             f"""        <tr data-project="{html.escape(str(project))}" data-model="{html.escape(str(model))}" data-date="{html.escape(str(date))}" data-slug="{html.escape(str(slug))}">
-          <td><a href="{html.escape(str(href))}">{html.escape(str(display_title))}</a></td>
+          <td><a href="{html.escape(str(href))}">{html.escape(str(display_title))}</a>{desc_line}</td>
           <td>{render_agent_badge(meta)}</td>
           <td><a href="../projects/{html.escape(str(project))}.html">{html.escape(str(project))}</a></td>
           <td>{html.escape(str(date))}</td>

@@ -8,6 +8,28 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
+## [1.3.62] — 2026-04-26
+
+Phase 2 (a) — human-readable session descriptions (#471).
+
+### Added
+
+- **Sessions now ship a `description:` frontmatter field** (#471) — auto-derived at convert time from the first non-trivial user prompt, replacing the opaque `clever-munching-parnas — 2026-04-07` slug-date title in listings. The `derive_description(records, redact)` helper walks user records, skips trivial openers ("hi", "thanks", "continue"), strips path-noise prefixes (`/Users/x/...`), skips code-fence opens, and truncates at 120 chars on a word boundary. All output flows through the same `Redactor` the body uses so the description never leaks redacted content.
+
+### Changed
+
+- **Session detail page renders the description as a subtitle** (#471) — between the hero strip and the meta line. Older sessions without the field skip the block cleanly.
+- **Sessions index table shows the description below the slug** (#471) — `.session-cell-desc` muted class, ellipsis-truncated. The slug stays in the URL; the description is the new human anchor.
+
+### Tests
+
+- **`tests/test_session_description.py`** (11 cases) — empty records, no-user-turn fallback, trivial-opener skip, code-fence skip, path-noise strip, word-boundary truncation, block-form content, redactor pass-through, frontmatter emit happy + empty paths.
+
+### Deferred to follow-up
+
+- `llmwiki backfill --field description` subcommand for re-writing existing `raw/sessions/*.md` frontmatter without re-converting the body. New sessions get the field via `sync`; existing ones keep their old frontmatter until `--force`-resync or the backfill tool ships.
+- `description` in `graph.jsonld` session nodes — small follow-up.
+
 ## [1.3.61] — 2026-04-26
 
 Phase 1 housekeeping — vault helper extraction + schema-versions hoist (#620, #621).

@@ -1127,6 +1127,70 @@ def _adapter_tag(adapter_name: str) -> str:
     return normalised
 
 
+def derive_description(records: list[dict[str, Any]], redact: "Redactor") -> str:
+    """#471: derive a 120-char human-readable description from the
+    first non-trivial user prompt in the session.
+
+    Walks the records looking for the first user message, strips path
+    noise, skips trivial openers ("hi", "thanks", "continue"), and
+    truncates to ~120 chars at a word boundary.
+
+    Empty / un-derivable input returns ``""``; callers can fall back
+    to the slug. Always passes the result through the same Redactor
+    the body uses so the description doesn't leak any path / token
+    that the body would have redacted.
+    """
+    TRIVIAL = {"hi", "hello", "hey", "thanks", "thank you", "ok",
+               "continue", "go on", "ya", "yes", "no", "."}
+    MAX_CHARS = 120
+    PATH_PREFIX_RE = re.compile(r"^/?(?:Users|home|mnt/[a-z]|cygdrive/[a-z])/[^/\s]+/")
+
+    for r in records:
+        if not isinstance(r, dict):
+            continue
+        if r.get("type") != "user":
+            continue
+        msg = r.get("message", {})
+        if not isinstance(msg, dict):
+            continue
+        content = msg.get("content")
+        text = ""
+        if isinstance(content, str):
+            text = content
+        elif isinstance(content, list):
+            # Take the first text-shaped block.
+            for block in content:
+                if isinstance(block, dict) and block.get("type") == "text":
+                    text = block.get("text") or ""
+                    break
+                if isinstance(block, str):
+                    text = block
+                    break
+        if not text:
+            continue
+
+        # First non-empty line (skip code-fence opens + path-noise).
+        for raw_line in text.splitlines():
+            line = raw_line.strip()
+            if not line:
+                continue
+            if line.startswith("```") or line.startswith("~~~"):
+                continue
+            # Strip leading absolute-path prefix from "two tasks in /Users/x/..." style.
+            line = PATH_PREFIX_RE.sub("", line, count=1)
+            # Skip trivial openers (case-insensitive).
+            if line.lower().rstrip(" ?!.") in TRIVIAL:
+                continue
+            # Truncate at word boundary.
+            if len(line) > MAX_CHARS:
+                cut = line.rfind(" ", 0, MAX_CHARS - 3)
+                if cut < MAX_CHARS // 2:
+                    cut = MAX_CHARS - 3
+                line = line[:cut].rstrip() + "..."
+            return redact(line)
+    return ""
+
+
 def render_session_markdown(
     records: list[dict[str, Any]],
     jsonl_path: Path,
@@ -1167,10 +1231,17 @@ def render_session_markdown(
     # sessions were mis-tagged and grouped under the wrong chip on
     # the compiled site.
     tag_adapter = _adapter_tag(adapter_name)
+    # #471: human-readable description from the first non-trivial user
+    # turn — replaces the opaque slug-date title in listings.
+    description = derive_description(records, redact)
+    # YAML-escape inner double quotes so the frontmatter parser doesn't
+    # truncate at the first internal `"`.
+    description_safe = description.replace("\\", "\\\\").replace('"', '\\"')
     front = [
         "---",
         f'title: "{title}"',
         "type: source",
+        f'description: "{description_safe}"',
         f"tags: [{tag_adapter}, session-transcript]",
         f"date: {date_str}",
         f"source_file: raw/sessions/{started.strftime('%Y-%m-%dT%H-%M')}-{project_slug}-{slug}.md",
