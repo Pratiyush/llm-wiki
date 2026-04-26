@@ -8,6 +8,14 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
+## [1.3.63] — 2026-04-26
+
+Phase 2 (b) — README "every command in 60 seconds" tutorial (#469).
+
+### Added
+
+- **README gains a top-level "Tutorial — every command in 60 seconds" section** (#469) — a guided walkthrough placed between "What you get" and "How it works" so first-time readers can run the full happy path (`init` → `sync` → `build` → `serve` → `graph` → `export all`) without leaving the README. Each command has a one-line description, expected runtime, and the by-default behaviour. Followed by 2 commonly-reached-for commands (`adapters`, `lint`) and 3 optional flags (`--adapter`, `--vault`, `--synthesize`).
+
 ## [1.3.62] — 2026-04-26
 
 Phase 2 (a) — human-readable session descriptions (#471).
