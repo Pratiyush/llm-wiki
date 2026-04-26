@@ -8,6 +8,14 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
+## [1.3.4] — 2026-04-26
+
+Hotfix release renaming `llmwiki/queue.py` → `llmwiki/ingest_queue.py` to stop shadowing the Python stdlib `queue` module (#491).
+
+### Changed
+
+- **Renamed `llmwiki.queue` → `llmwiki.ingest_queue`** (#491) — naming a module `queue.py` shadows Python's stdlib `queue`, breaking any future code inside `llmwiki/` that wants `queue.Queue` for thread-safe primitives. Pylint/ruff also flag this anti-pattern. Renamed the module to `ingest_queue` (matches the actual purpose — pending-source ingest queue, not a generic queue). Old `llmwiki/queue.py` becomes a back-compat shim that re-exports the public API and emits a `DeprecationWarning` so any third-party code keeps working through one minor cycle. Will be removed in v1.5. Adds `tests/test_ingest_queue_shim.py` (3 cases) covering the rename, the shim's deprecation warning, and the stdlib `queue` import inside `llmwiki/` working correctly.
+
 ## [1.3.3] — 2026-04-26
 
 Hotfix release fixing yellow chip contrast failure flagged by the Opus UI/UX audit (#480).
