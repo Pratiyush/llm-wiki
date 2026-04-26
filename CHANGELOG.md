@@ -16,6 +16,18 @@ Patch release fixing the `is_subagent` mis-classification flagged by the Opus 4.
 
 - **`is_subagent` heuristic mis-tagged top-level sessions whose path contains 'subagent'** (#406) — `BaseAdapter.is_subagent` returned True for any path with `"subagent"` in any segment. Combined with the renderer renaming the slug to `<slug>-subagent-<id>`, every session in any user project named e.g. `subagent-runner` was demoted to sub-agent on the project page and excluded from main-session counts. Fix: `BaseAdapter.is_subagent` now returns False (no adapter has the concept by default); `ClaudeCodeAdapter` overrides with a strict canonical-path check (parent directory must be literally named `subagents` AND filename must start with `agent-`). Same conservative fix applied to `CodexCliAdapter`. Adds `tests/test_is_subagent.py` (18 cases including a cross-product matrix of project-name × path × adapter) closing test-gap #430.
 
+## [1.2.31] — 2026-04-26
+
+Patch release fixing the synth-pipeline state-file collision across vault overlays flagged by the Opus 4.7 code review (#403). Pure correctness fix — single-vault and no-vault users see no behaviour change; multi-vault users no longer have one vault's run mark another vault's files unchanged.
+
+### Fixed
+
+- **Synth pipeline state file collided across vault overlays** (#420) — `synth/pipeline.py:STATE_FILE` was hardcoded to `REPO_ROOT / ".llmwiki-synth-state.json"`. Vault-overlay mode (`--vault`) plumbed the new root through `convert_all` but `synthesize_new_sessions` still wrote to the *repo* state file. Two vaults synthesised against the same repo silently shared idempotency state; running synth on vault B marked vault A's already-processed files as unchanged on the next run, leaving vault A drifting silently. Fix: `synthesize_new_sessions(state_file=...)` now accepts an explicit state path; `_load_state` and `_save_state` route through a new `_resolve_state_file` helper. The `synthesize` CLI subcommand exposes `--vault PATH` mirroring `build` and `sync` — when set, state lives at `<vault>/.llmwiki-synth-state.json`. Default no-vault behaviour unchanged.
+
+### Added
+
+- **11 new tests** (`tests/test_vault.py`) covering default vs vault state-file paths, load/save round-trip with explicit path, end-to-end isolation between two vaults, corrupted-file fallback to empty state, missing-file fallback, unicode + spaces in vault paths, the new CLI flag round-trip, default `args.vault is None`, and `cmd_synthesize` exit-2 on non-existent vault path.
+
 ## [1.2.30] — 2026-04-26
 
 Patch release fixing the tilde-fence blind spot in truncate-time fence balancing flagged by the Opus 4.7 code review (#403). Pure correctness fix — markdown allows both ` ``` ` and `~~~` fence styles, and Quarto-flavoured docs use the latter.
