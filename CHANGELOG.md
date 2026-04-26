@@ -8,6 +8,14 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
+## [1.3.16] — 2026-04-26
+
+Hotfix release extending username redaction to cover Windows non-C drives, Cygwin, WSL UNC, and Windows extended-length paths (#485).
+
+### Fixed
+
+- **Username redaction missed D:/, E:/, Cygwin, WSL UNC, and `\\\\?\\` extended-length prefixes** (#485) — `_redact_username` previously covered `/Users/`, `/home/`, `C:\\Users\\`, `C:/Users/`, `/mnt/<letter>/Users/`. Windows users with their profile on a non-C drive (corporate split-disk policy is common: OS on C:, profiles on D:) had their actual username leak verbatim into every `cwd:` frontmatter field and every Bash tool preview. Same for Cygwin (`/cygdrive/c/Users/<u>`), Windows extended-length paths (`\\\\?\\C:\\Users\\<u>` from APIs bypassing MAX_PATH), and WSL UNC paths (`\\\\wsl.localhost\\Ubuntu\\home\\<u>`, `\\\\wsl$\\Ubuntu\\home\\<u>`). Fix: extended the prefix alternation in the redactor regex to include all 5 new shapes. Adds `tests/test_username_redact_paths.py` (10 cases) covering each new prefix variant + a regression test for the existing macOS/Linux/Windows-C/WSL-mnt paths.
+
 ## [1.3.15] — 2026-04-26
 
 Hotfix release extending default redaction to cover the keys that get pasted into LLM sessions most often (#484).
