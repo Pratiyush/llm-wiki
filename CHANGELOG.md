@@ -8,6 +8,17 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
+## [1.3.45] — 2026-04-26
+
+#475 docs/CLI sweep — 4 documentation fixes from epic-research bundle 1. Stops llmwiki from claiming features it doesn't have.
+
+### Fixed
+
+- **`llmwiki export-obsidian` references replaced with `llmwiki sync --vault PATH`** (#609, #arch-h3) — the dedicated `export-obsidian` subcommand was removed in v1.2.0 (alongside `watch`, `export-qmd`, `export-marp`) but its name still appeared in `obsidian_output.py` docstring (3 sites), `docs/faq.md`, and `docs/tutorials/setup-guide.md`. Replaced with the canonical `sync --vault` command and added pointers to `docs/UPGRADING.md` for the migration path.
+- **README adapter status table demoted Cursor / Gemini CLI / Copilot to Beta** (#623, #arch-l1) — README claimed "✅ Production" for adapters whose own docstrings concede they're unverified ("to be pinned against a real Cursor install"). Demoted to `🧪 Beta` with a one-line note explaining the gap. Claude Code, Codex CLI, and Obsidian (input + output) stay Production.
+- **`flat_output_name` docstring clarified for sub-agent slugs** (#624, #arch-l2) — the helper was producing filenames like `2026-04-01-llm-wiki-foo-subagent-abc123.md` but the docstring promised a plain `<slug>` shape. Caller actually mixes the `-subagent-<id>` suffix into the slug arg upstream; the helper just concatenates. Docstring now states this explicitly so the next reader doesn't try to "fix" the sub-agent suffixing inside the helper.
+- **`examples/sessions_config.json` flagged as canonical, not a sample** (#618, #arch-m5) — `convert.load_config()` reads this file as the default; the `examples/` path implied "copy me, edit me." Updated the leading `_comment` field to call out that this IS the canonical config and the gitignored `./config.json` is only for per-checkout overrides.
+
 ## [1.3.44] — 2026-04-26
 
 #475 architecture quick wins — 4 mechanical fixes from epic-research bundle 2.

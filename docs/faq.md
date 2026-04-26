@@ -94,8 +94,8 @@ Yes. llmwiki supports several export formats:
 - `llmwiki export jsonld` -- JSON-LD knowledge graph
 - `llmwiki export sitemap` -- XML sitemap
 - `llmwiki export rss` -- RSS feed
-- `llmwiki export-obsidian` -- export to an Obsidian vault
-- `llmwiki export-qmd` -- export as a qmd collection
-- `llmwiki export-marp` -- generate Marp slide decks
+- `llmwiki sync --vault PATH` -- write through to an Obsidian vault as part of the regular sync (replaces the removed `export-obsidian` subcommand)
 
 Run `llmwiki export all` to generate everything at once.
+
+> The `export-obsidian`, `export-qmd`, `export-marp`, and `watch` subcommands were removed in v1.2.0. See `docs/UPGRADING.md` for the migration path.

@@ -1009,6 +1009,12 @@ def flat_output_name(
     The date+time+project+slug format ensures chronological sort,
     project traceability, and uniqueness without nested directories.
 
+    Note (#arch-l2 / #624): the ``slug`` argument may already carry a
+    ``-subagent-<agent_id>`` suffix when the caller is rendering a
+    sub-agent transcript. ``flat_output_name`` does NOT add that
+    suffix itself — it's mixed in upstream (see ``render_session_*``
+    sites in this file) so this helper stays single-purpose.
+
     ``disambiguator`` (#339): when two distinct source jsonls would
     produce the same filename (subagents that inherit the parent's
     start-time + slug, or top-level sessions that happen to start in

@@ -19,9 +19,10 @@ Usage:
     from llmwiki.obsidian_output import export_to_vault
     export_to_vault(vault="~/Documents/Obsidian Vault", subfolder="LLM Wiki")
 
-Or via the CLI:
-
-    python3 -m llmwiki export-obsidian --vault "~/Documents/Obsidian Vault"
+#arch-h3 (#609): the ``llmwiki export-obsidian`` CLI subcommand was
+removed in v1.2.0 alongside ``llmwiki watch`` (see docs/UPGRADING.md).
+Use the function above directly, or run ``llmwiki sync --vault PATH``
+which writes through to Obsidian as part of the regular sync pipeline.
 """
 
 from __future__ import annotations
@@ -173,7 +174,8 @@ transcripts.
 - **{n_pages}** pages exported
 - **Source:** `{wiki_source}`
 - **Do not edit directly.** Changes here will be overwritten the next time you
-  run `llmwiki export-obsidian`.
+  run `llmwiki sync --vault PATH` (the dedicated `export-obsidian` subcommand
+  was removed in v1.2.0; vault sync now lives under the main `sync` flow).
 
 ## Structure
 
@@ -201,6 +203,6 @@ transcripts.
 From the llmwiki repo:
 
 ```bash
-python3 -m llmwiki export-obsidian --vault "~/Documents/Obsidian Vault"
+python3 -m llmwiki sync --vault "~/Documents/Obsidian Vault"
 ```
 """
