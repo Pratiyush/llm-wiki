@@ -311,21 +311,24 @@ def ensure_project_stubs(
         # valid — slugs/summaries from real sessions occasionally contain
         # quotes (`"why didn't this work"`).
         description_safe = description.replace("\\", "\\\\").replace('"', '\\"')
+        # #py-l8 (#606): drop f-prefix on lines that have no
+        # placeholders so ruff's F541 doesn't flag the file. Mixed
+        # f-/plain in a concatenation chain is fine.
         stub = (
-            f"---\n"
+            "---\n"
             f'title: "{slug}"\n'
-            f"type: entity\n"
-            f"entity_type: project\n"
+            "type: entity\n"
+            "entity_type: project\n"
             f"project: {slug}\n"
             f"topics: {_format_topics_yaml(topics)}\n"
             f'description: "{description_safe}"\n'
-            f'homepage: ""\n'
-            f"---\n\n"
+            'homepage: ""\n'
+            "---\n\n"
             f"# {slug}\n\n"
-            f"*Auto-generated project stub. `topics` and `description` are "
-            f"pre-filled from session metadata — edit any field above and "
-            f"the build will pick it up. Fill in `homepage` to add a link "
-            f"chip to the project hero.*\n"
+            "*Auto-generated project stub. `topics` and `description` are "
+            "pre-filled from session metadata — edit any field above and "
+            "the build will pick it up. Fill in `homepage` to add a link "
+            "chip to the project hero.*\n"
         )
         target.write_text(stub, encoding="utf-8")
         written.append(target)

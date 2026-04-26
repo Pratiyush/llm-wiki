@@ -17,7 +17,7 @@ lists with `- ` bullets).
 from __future__ import annotations
 
 import re
-from typing import Any, Optional, Tuple
+from typing import Any, Optional
 
 # Accept LF, CRLF, or CR after each fence so Windows-authored (CRLF) and
 # old-Mac (CR) files parse identically to LF input. The optional newline
@@ -37,7 +37,7 @@ def _strip_bom(text: str) -> str:
     return text
 
 
-def parse_frontmatter(text: str) -> Tuple[dict[str, Any], str]:
+def parse_frontmatter(text: str) -> tuple[dict[str, Any], str]:
     """Return ``(meta, body)`` — the canonical shape.
 
     Empty or malformed input returns ``({}, text)`` so callers can
@@ -66,7 +66,7 @@ def parse_frontmatter_dict(text: str) -> dict[str, Any]:
     return parse_frontmatter(text)[0]
 
 
-def parse_frontmatter_or_none(text: str) -> Tuple[Optional[str], str]:
+def parse_frontmatter_or_none(text: str) -> tuple[Optional[str], str]:
     """Return ``(raw_frontmatter_text | None, body)`` — legacy shape
     used by ``llmwiki/tags.py`` which does its own line-level parsing
     inside the frontmatter block."""
@@ -77,11 +77,15 @@ def parse_frontmatter_or_none(text: str) -> Tuple[Optional[str], str]:
     return m.group(1), m.group(2)
 
 
-def _parse_scalar(raw: str) -> Any:
+def _parse_scalar(raw: str, *, coerce_bool: bool = True) -> Any:
     """Parse a single YAML scalar value (best-effort, no external deps).
 
     Handles: inline lists ``[a, b, c]``, quoted strings, bools, ints.
     Everything else comes back as the stripped string.
+
+    #py-l1 (#599): pass ``coerce_bool=False`` when recursing into list
+    items so a tag list like ``[no, yes, maybe]`` doesn't become
+    ``[False, True, "maybe"]``. Top-level scalars still coerce.
     """
     s = raw.strip()
     if not s:
@@ -94,12 +98,12 @@ def _parse_scalar(raw: str) -> Any:
         body = s[1:-1].strip()
         if not body:
             return []
-        return [_parse_scalar(x) for x in body.split(",")]
+        return [_parse_scalar(x, coerce_bool=False) for x in body.split(",")]
     # Bool
     low = s.lower()
-    if low in {"true", "yes"}:
+    if coerce_bool and low in {"true", "yes"}:
         return True
-    if low in {"false", "no"}:
+    if coerce_bool and low in {"false", "no"}:
         return False
     # Int
     try:

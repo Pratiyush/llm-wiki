@@ -480,9 +480,11 @@ def cmd_sync_status(args: argparse.Namespace) -> int:
     by ``convert_all``) and ``.llmwiki-quarantine.json`` for the failing
     sources.
     """
+    # #py-l10 (#608): Path is already imported at module top (line 25 as
+    # `from pathlib import Path`); re-importing as `_Path` here was
+    # legacy from an earlier rename. Just reuse the module-level name.
     import json as _json
     from datetime import datetime, timezone
-    from pathlib import Path as _Path
 
     from llmwiki import quarantine as _q
     from llmwiki.convert import DEFAULT_STATE_FILE
@@ -563,12 +565,12 @@ def cmd_sync_status(args: argparse.Namespace) -> int:
 
 def _resolve_key_exists(key: str) -> bool:
     """Check whether a portable state-file key points at an extant file."""
-    from pathlib import Path as _Path
+    # #py-l10 (#608): Path is already imported at module top.
     if "::" not in key:
-        return _Path(key).exists()
+        return Path(key).exists()
     _, rel = key.split("::", 1)
-    candidate = _Path.home() / rel
-    return candidate.exists() or _Path(rel).exists()
+    candidate = Path.home() / rel
+    return candidate.exists() or Path(rel).exists()
 
 
 def cmd_export(args: argparse.Namespace) -> int:

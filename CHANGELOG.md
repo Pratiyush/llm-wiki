@@ -8,6 +8,19 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
+## [1.3.43] — 2026-04-26
+
+#474 lint sweep — 6 LOW Python correctness nits picked off in one PR (per the bundle plan from epic-research).
+
+### Fixed
+
+- **`_parse_scalar` no longer coerces `yes`/`no` inside list items** (#599, #py-l1) — a tag list like `[no, yes, maybe]` was becoming `[False, True, "maybe"]`. Recursive call now passes `coerce_bool=False` so list items stay strings; top-level scalars still coerce.
+- **`BaseAdapter.description()` survives `python -OO`** (#601, #py-l3) — `__doc__` is stripped under `-OO`, leaving the adapter listing as bare class names. Subclasses can now set `_DESCRIPTION_OVERRIDE` for a stable explicit string; the default still reads `__doc__` when available.
+- **F541: f-strings without placeholders stripped** (#606, #py-l8) — 8 unnecessary `f"..."` prefixes in the project-stub emitter at `build.py:315-328`. Mixed f-/plain in concatenation chains is fine; ruff F541 stops flagging the file.
+- **`Tuple[]` → `tuple[]` in `_frontmatter.py`** (#607, #py-l9) — last holdout of pre-PEP-585 typing; the rest of the tree already uses `tuple[]`. Removed `Tuple` from the typing import.
+- **Duplicate `Path` imports in `cli.py` removed** (#608, #py-l10) — two function-local `from pathlib import Path as _Path` re-imports of the module-level name. Both cleaned up.
+- **Cache module documents thread-safety contract** (#605, #py-l7) — added a `Thread-safety` section to `llmwiki/cache.py` docstring stating the helpers are NOT thread-safe; pure functions reentrant; batch-state callers must serialize externally.
+
 ## [1.3.42] — 2026-04-26
 
 Post-review remediation. Five Opus subagents (Python, Security, Architecture, UI/a11y, JS) reviewed v1.3.41 and converged on seven real bugs across the day's work. This release fixes all seven.
