@@ -8,6 +8,14 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
+## [1.3.36] — 2026-04-26
+
+Maintenance release adding nightly synthetic monitoring of the deployed demo (#637, parent #468).
+
+### Added
+
+- **`.github/workflows/synthetic.yml`** + **`.github/synthetic-failure-template.md`** (#637) — nightly cron (04:13 UTC) runs `tests/e2e/test_cross_browser_smoke.py` against `https://pratiyush.github.io/llm-wiki/` (the deployed demo). On failure it appends to a single tracking issue titled "Synthetic monitoring failure" via the same `update_existing: true` dedupe pattern `link-check.yml` uses, so a stuck regression doesn't spam the tracker. Catches post-deploy breakage we can't see in normal CI: GitHub Pages publish corruption, third-party CDN failures, browser update breakage.
+
 ## [1.3.35] — 2026-04-26
 
 Maintenance release adding cross-browser smoke matrix to CI (#636, parent #468).
