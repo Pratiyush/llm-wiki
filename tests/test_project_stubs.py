@@ -230,3 +230,210 @@ def test_cli_build_flag_round_trips(tmp_path: Path):
     assert getattr(args, "seed_project_stubs", False) is True
     args_default = parser.parse_args(["build"])
     assert getattr(args_default, "seed_project_stubs", False) is False
+
+
+# ─── #425: pre-populate stub topics + description from session metadata ──
+
+
+def _session(slug: str, *, tags=None, tools=None, summary=None):
+    """Mimic a `(path, meta, body)` tuple as `discover_sources` produces."""
+    meta: dict = {}
+    if tags is not None:
+        meta["tags"] = list(tags)
+    if tools is not None:
+        meta["tools_used"] = list(tools)
+    if summary is not None:
+        meta["summary"] = summary
+    if slug:
+        meta["slug"] = slug
+    return (Path(f"/raw/{slug}.md"), meta, "")
+
+
+def test_humanize_slug_kebab_to_titlecase():
+    from llmwiki.build import _humanize_slug
+    assert _humanize_slug("my-cool-project") == "My Cool Project"
+    assert _humanize_slug("snake_case_thing") == "Snake Case Thing"
+    assert _humanize_slug("mixed-case_thing") == "Mixed Case Thing"
+    assert _humanize_slug("single") == "Single"
+
+
+def test_humanize_slug_edge_cases():
+    from llmwiki.build import _humanize_slug
+    assert _humanize_slug("") == ""
+    assert _humanize_slug("   ") == ""
+    assert _humanize_slug("a-b-c") == "A B C"
+    # Acronyms / preserved interior caps (we only upper-case the first letter
+    # of each segment, leaving the rest intact).
+    assert _humanize_slug("API-handler") == "API Handler"
+
+
+def test_stub_topics_pre_populated_from_tags(tmp_path: Path):
+    from llmwiki.build import ensure_project_stubs
+    sessions = [
+        _session("first-session", tags=["python", "api"]),
+        _session("second-session", tags=["python", "fastapi"]),
+    ]
+    groups = {"alpha": sessions}
+    ensure_project_stubs(groups, tmp_path)
+    text = (tmp_path / "alpha.md").read_text()
+    assert "topics: [python, api, fastapi]" in text or "topics: [python, fastapi, api]" in text
+
+
+def test_stub_topics_filter_noise(tmp_path: Path):
+    """Universal noise tags are filtered, matching project_topics."""
+    from llmwiki.build import ensure_project_stubs
+    sessions = [
+        _session(
+            "s1",
+            tags=["claude-code", "session-transcript", "demo", "rust", "ssg"],
+        ),
+        _session("s2", tags=["claude-code", "rust"]),
+    ]
+    groups = {"alpha": sessions}
+    ensure_project_stubs(groups, tmp_path)
+    text = (tmp_path / "alpha.md").read_text()
+    assert "rust" in text
+    assert "ssg" in text
+    assert "claude-code" not in text
+    assert "session-transcript" not in text
+
+
+def test_stub_topics_fallback_to_tools_used(tmp_path: Path):
+    """When sessions carry no `tags:` but do carry `tools_used`, those
+    populate topics so a fresh project still gets non-empty chips."""
+    from llmwiki.build import ensure_project_stubs
+    sessions = [
+        _session("s1", tools=["Read", "Edit", "Bash"]),
+        _session("s2", tools=["Read", "Grep"]),
+    ]
+    groups = {"alpha": sessions}
+    ensure_project_stubs(groups, tmp_path)
+    text = (tmp_path / "alpha.md").read_text()
+    assert "topics: [" in text
+    # Top tools by frequency, ordered Read > others.
+    assert "read" in text.lower()
+
+
+def test_stub_topics_caps_at_six(tmp_path: Path):
+    """Avoid renderer overflow — cap at 6 most-common topics."""
+    from llmwiki.build import ensure_project_stubs
+    tags = [f"tag{i}" for i in range(20)]
+    sessions = [_session("s", tags=tags)]
+    groups = {"alpha": sessions}
+    ensure_project_stubs(groups, tmp_path)
+    text = (tmp_path / "alpha.md").read_text()
+    # Extract the topics line and count entries.
+    line = next(ln for ln in text.splitlines() if ln.startswith("topics: "))
+    inner = line[len("topics: "):].strip().strip("[]")
+    items = [x.strip() for x in inner.split(",") if x.strip()]
+    assert len(items) <= 6
+
+
+def test_stub_topics_empty_when_no_tags_or_tools(tmp_path: Path):
+    """0/1 sessions without tags or tools → empty topics list."""
+    from llmwiki.build import ensure_project_stubs
+    groups = {"alpha": [_session("only-session")]}
+    ensure_project_stubs(groups, tmp_path)
+    text = (tmp_path / "alpha.md").read_text()
+    assert "topics: []" in text
+
+
+def test_stub_description_from_summary(tmp_path: Path):
+    """Description prefers `summary:` over slug humanisation."""
+    from llmwiki.build import ensure_project_stubs
+    sessions = [
+        _session("old-session", summary="Old work"),
+        _session("latest-session", summary="Latest progress on the parser"),
+    ]
+    groups = {"alpha": sessions}
+    ensure_project_stubs(groups, tmp_path)
+    text = (tmp_path / "alpha.md").read_text()
+    assert 'description: "Latest progress on the parser"' in text
+
+
+def test_stub_description_from_slug_when_no_summary(tmp_path: Path):
+    """Description falls back to humanised slug when summary missing."""
+    from llmwiki.build import ensure_project_stubs
+    sessions = [_session("rewrite-the-parser")]
+    groups = {"alpha": sessions}
+    ensure_project_stubs(groups, tmp_path)
+    text = (tmp_path / "alpha.md").read_text()
+    assert 'description: "Rewrite The Parser"' in text
+
+
+def test_stub_description_truncated(tmp_path: Path):
+    """Long summaries are truncated to fit the hero block."""
+    from llmwiki.build import ensure_project_stubs
+    long_summary = "x " * 200  # 400 chars
+    sessions = [_session("s", summary=long_summary)]
+    groups = {"alpha": sessions}
+    ensure_project_stubs(groups, tmp_path)
+    text = (tmp_path / "alpha.md").read_text()
+    desc_line = next(ln for ln in text.splitlines() if ln.startswith("description: "))
+    # Strip the `description: "..."` wrapping.
+    inner = desc_line[len('description: "'):-1]
+    assert len(inner) <= 145, f"description not truncated: {len(inner)} chars"
+
+
+def test_stub_description_empty_when_no_source(tmp_path: Path):
+    """Sessions with neither slug nor summary → empty description."""
+    from llmwiki.build import ensure_project_stubs
+    # `_session(slug="")` would still set meta["slug"]=""; pass tuple manually.
+    groups = {"alpha": [(Path("/raw/x.md"), {}, "")]}
+    ensure_project_stubs(groups, tmp_path)
+    text = (tmp_path / "alpha.md").read_text()
+    assert 'description: ""' in text
+
+
+def test_stub_description_escapes_quotes(tmp_path: Path):
+    """Embedded double-quotes in summaries don't break YAML."""
+    from llmwiki.build import ensure_project_stubs
+    sessions = [_session("s", summary='Why didn\'t "this" work?')]
+    groups = {"alpha": sessions}
+    ensure_project_stubs(groups, tmp_path)
+    text = (tmp_path / "alpha.md").read_text()
+    desc_line = next(ln for ln in text.splitlines() if ln.startswith("description: "))
+    # Backslash-escaped quote so the YAML still parses.
+    assert '\\"this\\"' in desc_line
+
+
+def test_stub_homepage_always_empty(tmp_path: Path):
+    """User-only field — auto-seeder never fills homepage."""
+    from llmwiki.build import ensure_project_stubs
+    sessions = [_session("s", tags=["x"], summary="y")]
+    groups = {"alpha": sessions}
+    ensure_project_stubs(groups, tmp_path)
+    text = (tmp_path / "alpha.md").read_text()
+    assert 'homepage: ""' in text
+
+
+def test_stub_existing_never_overwritten_with_pre_populated(tmp_path: Path):
+    """Hand-authored stub stays byte-identical even with rich session data."""
+    from llmwiki.build import ensure_project_stubs
+    curated = tmp_path / "alpha.md"
+    curated_text = (
+        "---\ntitle: \"alpha\"\ntopics: [hand-curated]\n"
+        'description: "human-written"\nhomepage: ""\n---\n\nDO NOT TOUCH\n'
+    )
+    curated.write_text(curated_text, encoding="utf-8")
+    sessions = [_session("auto-derived", tags=["python", "rust"], summary="Auto")]
+    groups = {"alpha": sessions}
+    written = ensure_project_stubs(groups, tmp_path)
+    assert written == []
+    assert curated.read_text() == curated_text
+
+
+def test_stub_pre_populated_loadable_by_project_profile(tmp_path: Path):
+    """Round-trip: pre-populated stub parses cleanly via load_project_profile."""
+    from llmwiki.build import ensure_project_stubs
+    from llmwiki.project_topics import load_project_profile
+    sessions = [
+        _session("api-rewrite", tags=["python", "api"], summary="API rewrite"),
+    ]
+    groups = {"my-proj": sessions}
+    ensure_project_stubs(groups, tmp_path)
+    profile = load_project_profile(tmp_path, "my-proj")
+    assert profile is not None
+    assert "python" in profile.get("topics", [])
+    assert "api" in profile.get("topics", [])
+    assert profile.get("description") == "API rewrite"
