@@ -786,14 +786,30 @@ document.addEventListener("DOMContentLoaded", function () {
     const dates = Array.from(counts.keys()).sort();
     const maxCount = Math.max(...counts.values());
 
+    // #453: position bars by calendar date so gaps between active days are
+    // visible. The previous behaviour stretched dates.length bars across
+    // the full width with equal spacing, which hid 6-month gaps. We now
+    // compute calendar span (minDate→maxDate) in days and lay bars out
+    // proportional to their date offset. Single-day collections fall back
+    // to a single centred bar.
+    const minDate = new Date(dates[0] + "T00:00:00Z");
+    const maxDate = new Date(dates[dates.length - 1] + "T00:00:00Z");
+    const dayMs = 86400000;
+    const spanDays = Math.round((maxDate - minDate) / dayMs) + 1;
+
     // Build an SVG sparkline
     const w = 800;
     const h = 60;
     const padX = 4;
-    const bars = dates.map(function (d, i) {
+    const innerW = w - 2 * padX;
+    const slotW = spanDays > 1 ? innerW / spanDays : innerW;
+    const bars = dates.map(function (d) {
       const count = counts.get(d);
-      const barW = Math.max(2, (w - 2 * padX) / dates.length - 2);
-      const x = padX + i * ((w - 2 * padX) / dates.length);
+      const offset = spanDays > 1
+        ? Math.round((new Date(d + "T00:00:00Z") - minDate) / dayMs)
+        : 0;
+      const x = spanDays > 1 ? padX + offset * slotW : padX + innerW / 2 - 2;
+      const barW = Math.max(2, slotW - 1);
       const barH = (count / maxCount) * (h - 16);
       const y = h - barH - 4;
       return '<rect x="' + x + '" y="' + y + '" width="' + barW + '" height="' + barH +
@@ -805,12 +821,18 @@ document.addEventListener("DOMContentLoaded", function () {
       'style="width:100%;height:' + h + 'px;display:block" aria-label="Session activity timeline">' +
       bars + '</svg>';
 
+    // #453: label now shows calendar span (matches the geometry above) plus
+    // active-day count and peak so users can read both stories from one line.
+    const labelText = spanDays === 1
+      ? 'Activity timeline · 1 day · peak ' + maxCount + (maxCount === 1 ? ' session' : ' sessions')
+      : 'Activity timeline · ' + spanDays + ' days · ' + dates.length +
+        ' active · peak ' + maxCount + (maxCount === 1 ? ' session/day' : ' sessions/day');
+
     // Create the timeline block
     const tl = document.createElement("div");
     tl.className = "timeline-block";
     tl.innerHTML =
-      '<div class="timeline-label muted">Activity timeline · ' + dates.length +
-      ' days · peak ' + maxCount + ' sessions</div>' + svg;
+      '<div class="timeline-label muted">' + labelText + '</div>' + svg;
 
     // Insert above the filter bar
     const filter = container.querySelector(".filter-bar");
