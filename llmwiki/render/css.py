@@ -255,7 +255,7 @@ kbd { display: inline-block; padding: 2px 6px; font-family: var(--mono); font-si
   background: currentColor;
 }
 .fresh-green   { color: #15803d; background: #dcfce7; border-color: #86efac; }
-.fresh-yellow  { color: #b45309; background: #fef3c7; border-color: #fcd34d; }
+.fresh-yellow  { color: #92400e; background: #fef3c7; border-color: #fcd34d; }
 .fresh-red     { color: #b91c1c; background: #fee2e2; border-color: #fca5a5; }
 .fresh-unknown { color: #6b7280; background: #f3f4f6; border-color: #d1d5db; }
 :root[data-theme="dark"] .fresh-green   { color: #86efac; background: #052e16; border-color: #065f46; }
@@ -446,7 +446,7 @@ kbd { display: inline-block; padding: 2px 6px; font-family: var(--mono); font-si
 .token-ratio-label { color: var(--text-secondary); }
 .token-ratio-value { font-weight: 600; font-size: 0.95rem; }
 .token-ratio-value.tier-green   { color: #15803d; }
-.token-ratio-value.tier-yellow  { color: #b45309; }
+.token-ratio-value.tier-yellow  { color: #92400e; }
 .token-ratio-value.tier-red     { color: #b91c1c; }
 .token-ratio-value.tier-unknown { color: var(--text-secondary); }
 :root[data-theme="dark"] .token-ratio-value.tier-green  { color: #86efac; }
