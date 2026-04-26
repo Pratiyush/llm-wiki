@@ -1268,9 +1268,16 @@ def render_sessions_index(
         # Strip "Session: " prefix for cleaner display
         if title.startswith("Session: "):
             title = title[9:]
+        # #452: titles auto-generated from session frontmatter follow the
+        # pattern "<slug> — <date>" but the table already has a dedicated
+        # Date column, so the trailing date is redundant. Strip it so the
+        # Session cell shows just the slug (or whatever custom title the
+        # user gave) and the Date column carries the date alone.
+        date = meta.get("date", "")
+        if date and title.endswith(f" — {date}"):
+            title = title[: -(len(date) + 3)]
         # Truncate long titles for table display
         display_title = title[:70] + "..." if len(title) > 70 else title
-        date = meta.get("date", "")
         model = meta.get("model", "")
         umsgs = meta.get("user_messages", "")
         tcalls = meta.get("tool_calls", "")
@@ -1332,6 +1339,15 @@ def render_sessions_index(
     </div>
     <div class="table-wrap">
     <table class="sessions-table">
+      <colgroup>
+        <col style="width: 30%">
+        <col style="width: 8%">
+        <col style="width: 16%">
+        <col style="width: 10%">
+        <col style="width: 22%">
+        <col style="width: 7%">
+        <col style="width: 7%">
+      </colgroup>
       <thead>
         <tr><th>Session</th><th>Agent</th><th>Project</th><th>Date</th><th>Model</th><th>Msgs</th><th>Tools</th></tr>
       </thead>
