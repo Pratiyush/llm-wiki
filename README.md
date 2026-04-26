@@ -9,7 +9,7 @@ Rebuilt on every `master` push from the synthetic sessions in [`examples/demo-se
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/)
-[![Version](https://img.shields.io/badge/version-v1.3.62-10B981.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-v1.3.63-10B981.svg)](CHANGELOG.md)
 [![Tests](https://img.shields.io/badge/tests-2363%20passing-10B981.svg)](tests/)
 [![CI](https://github.com/Pratiyush/llm-wiki/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/Pratiyush/llm-wiki/actions/workflows/ci.yml)
 [![Link check](https://github.com/Pratiyush/llm-wiki/actions/workflows/link-check.yml/badge.svg?branch=master)](https://github.com/Pratiyush/llm-wiki/actions/workflows/link-check.yml)
@@ -158,6 +158,57 @@ The full script is **stdlib-only** at [`examples/scripts/tree_from_graph.py`](ex
 - **MCP server** — 12 production tools (query, search, list, read, lint, sync, export, + confidence, lifecycle, dashboard, entity search, category browse) queryable from any MCP client (Claude Desktop, Cline, Cursor, ChatGPT desktop)
 - **Pending ingest queue** — SessionStart hook converts + queues; `/wiki-sync` processes queue
 - **No servers, no database, no npm** — Python stdlib + `markdown`. Syntax highlighting loads from a highlight.js CDN at view time.
+
+## Tutorial — every command in 60 seconds
+
+A guided tour. Run these in order and you'll have a fully working wiki at `http://127.0.0.1:8765/` by the end. Each command is idempotent and prints what it did.
+
+```bash
+# 1. One-time scaffold (≈1 sec). Creates raw/, wiki/, site/, seed nav files.
+llmwiki init
+
+# 2. Pull in your sessions (≈1 sec / 100 sessions). Walks every adapter
+#    that's "available" on this machine (Claude Code, Codex CLI, Cursor,
+#    Gemini, Obsidian, Copilot Chat / CLI), converts new .jsonl files to
+#    raw/sessions/*.md, then runs build + lint by default.
+llmwiki sync
+
+# 3. Compile the static HTML site (≈3 sec on a 500-session corpus).
+#    Already runs as part of `sync`; call directly when you're iterating
+#    on a wiki/ page and don't need a fresh sync.
+llmwiki build
+
+# 4. Browse it locally. Cmd+K opens the search palette; / focuses the
+#    filter bar on /sessions/. Press Ctrl+C to stop.
+llmwiki serve
+
+# 5. (Optional) Generate the knowledge graph + AI-consumable exports.
+#    `all` runs build → graph → export → lint in one shot.
+llmwiki graph
+llmwiki export all
+llmwiki all     # one-shot equivalent of build + graph + export + lint
+```
+
+That's the entire happy path. Two more commands you'll reach for occasionally:
+
+```bash
+# Inspect what's installed + configured. Prints a per-adapter table:
+# (available: yes/no, configured: yes/no, session-store path).
+llmwiki adapters
+
+# Lint the wiki. 16 rules — broken wikilinks, orphaned pages, stale
+# summaries, duplicate detection, freshness, missing entities, etc.
+# Runs as part of `sync` by default; call directly for a one-shot check.
+llmwiki lint
+```
+
+Three optional flags you'll discover later:
+
+- `--adapter <name>` — limit `sync` to one adapter (e.g. `--adapter claude_code`)
+- `--vault PATH` — write into an Obsidian / Logseq vault overlay instead of `wiki/` (#54)
+- `--synthesize` — call out to a local Claude / Ollama backend during `build` for an LLM-generated overview page
+
+Each subcommand has its own `--help` with the rest. The CLI reference table below is the full list.
 
 ## How it works
 
