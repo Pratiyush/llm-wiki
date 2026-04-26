@@ -529,7 +529,19 @@ def _md_to_html_uncached(body: str) -> str:
     # and auto-detection for untagged blocks.
     extensions = ["fenced_code", "tables", "toc", "sane_lists"]
     ext_configs: dict[str, dict[str, Any]] = {
-        "toc": {"permalink": True, "toc_depth": "2-3"},
+        # #646: drop `permalink: True`. The Python-Markdown TOC
+        # extension's permalink emits a `<a class="headerlink">¶</a>`
+        # next to every heading; the site CSS doesn't style
+        # `.headerlink` (only `.deep-link` is styled), so axe-core
+        # flags every one as a `link-in-text-block` violation
+        # (links that aren't visually distinguishable). The JS-
+        # driven `.deep-link` icon next to each heading (rendered by
+        # render/js.py) is the canonical deep-link affordance — it
+        # has CSS + hover state + aria-hidden treatment. Two emitters
+        # for the same job; the markdown one is the older one. Anchor
+        # targets (`<h2 id="...">`) still ship via toc — links to
+        # `#section-name` keep working.
+        "toc": {"toc_depth": "2-3"},
     }
     md = markdown.Markdown(extensions=extensions, extension_configs=ext_configs)
     # v0.5 (#74): escape raw HTML tags in prose so session content mentioning
