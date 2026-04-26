@@ -16,6 +16,18 @@ Patch release fixing the `is_subagent` mis-classification flagged by the Opus 4.
 
 - **`is_subagent` heuristic mis-tagged top-level sessions whose path contains 'subagent'** (#406) — `BaseAdapter.is_subagent` returned True for any path with `"subagent"` in any segment. Combined with the renderer renaming the slug to `<slug>-subagent-<id>`, every session in any user project named e.g. `subagent-runner` was demoted to sub-agent on the project page and excluded from main-session counts. Fix: `BaseAdapter.is_subagent` now returns False (no adapter has the concept by default); `ClaudeCodeAdapter` overrides with a strict canonical-path check (parent directory must be literally named `subagents` AND filename must start with `agent-`). Same conservative fix applied to `CodexCliAdapter`. Adds `tests/test_is_subagent.py` (18 cases including a cross-product matrix of project-name × path × adapter) closing test-gap #430.
 
+## [1.2.32] — 2026-04-26
+
+Patch release fixing the `DuplicateDetection` lint rule's O(n²) blowup flagged by the Opus 4.7 code review (#403). Pure perf fix — no API change. The rule produces the same warnings as before; it just no longer takes minutes on a 500-page corpus.
+
+### Fixed
+
+- **`DuplicateDetection` O(n²) on large wikis** (#412) — `lint/rules.py:DuplicateDetection.run` did a full pairwise scan with `SequenceMatcher` over every page (~500² ≈ 250k comparisons on a real wiki). The `_same_bucket` filter ran *inside* the loop, so cross-bucket pairs paid the iteration cost even though they could never match. Combined with `SequenceMatcher` being instantiated fresh per pair (cold junk-heuristic cache), lint became the slowest stage of `llmwiki all`. Fix: bucket pages first by `(type, project)`, fingerprint bodies (whitespace-normalised md5 of first 4 KB), and only run `SequenceMatcher` for pairs whose fingerprints collide *or* whose titles already match. Same-fingerprint pairs flag immediately (body 1.00). Closes #412.
+
+### Added
+
+- **Perf-budget tests for lint rules** (#429) — new `tests/test_lint_perf.py` synthesises a 500-page corpus and pins wall-clock budgets per rule (`DuplicateDetection` < 1 s, `LinkIntegrity` < 500 ms, `OrphanDetection` < 200 ms, full pass < 3 s). Marked `@pytest.mark.slow` so default `pytest` skips them; CI runs them on a separate job. Includes correctness regression tests for the perf rewrite (identical pages still flagged, CRLF vs LF still flagged via whitespace-normalised fingerprint, same-title-different-body still not flagged) plus scaling guards (5× pages → < 40× wall-clock; shared-prefix worst case under 2 s; no leak across 5 sequential runs). Closes #429.
+
 ## [1.2.31] — 2026-04-26
 
 Patch release fixing the synth-pipeline state-file collision across vault overlays flagged by the Opus 4.7 code review (#403). Pure correctness fix — single-vault and no-vault users see no behaviour change; multi-vault users no longer have one vault's run mark another vault's files unchanged.
