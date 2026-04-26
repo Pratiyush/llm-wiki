@@ -33,33 +33,10 @@ from llmwiki.schema import (
     parse_model_profile,
 )
 
-_FRONTMATTER_RE = re.compile(r"^---\n(.*?)\n---\n(.*)$", re.DOTALL)
-
-
-def _parse_frontmatter(text: str) -> tuple[dict[str, Any], str]:
-    """Lightweight frontmatter parser — mirrors the one in build.py so this
-    module stays self-contained and can be tested without touching build.py.
-    Supports key: value pairs (optionally quoted) and bracketed list values."""
-    m = _FRONTMATTER_RE.match(text)
-    if not m:
-        return {}, text
-    raw, body = m.group(1), m.group(2)
-    meta: dict[str, Any] = {}
-    for line in raw.splitlines():
-        if ":" not in line:
-            continue
-        key, _, value = line.partition(":")
-        value = value.strip()
-        if len(value) >= 2 and value[0] == value[-1] and value[0] in ("'", '"'):
-            value = value[1:-1]
-        if value.startswith("[") and value.endswith("]"):
-            inner = value[1:-1].strip()
-            meta[key.strip()] = (
-                [x.strip() for x in inner.split(",") if x.strip()] if inner else []
-            )
-        else:
-            meta[key.strip()] = value
-    return meta, body
+# #495: was a hand-rolled LF-only regex parser that diverged from
+# `_frontmatter.py` after #409 (BOM) and #423 (CRLF) fixes landed
+# there. Now a thin wrapper around the canonical helper.
+from llmwiki._frontmatter import parse_frontmatter as _parse_frontmatter
 
 
 def discover_model_entities(
