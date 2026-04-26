@@ -8,6 +8,14 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
+## [1.3.2] — 2026-04-26
+
+Hotfix release adding `viewport-fit=cover` so iOS Safari exposes safe-area insets, fixing the mobile bottom nav overlap with the iPhone home indicator (#481).
+
+### Fixed
+
+- **Mobile bottom nav `env(safe-area-inset-bottom)` returned 0 on iOS** (#481) — `render/css.py:673` mobile bottom nav padded with `calc(6px + env(safe-area-inset-bottom, 0px))` to clear the iPhone home indicator. But the `<meta name="viewport">` in `build.py:622, 659` was missing `viewport-fit=cover`, so Safari iOS reported the inset as 0. The bottom nav rendered flush against the home indicator, and the system swipe-up gesture intercepted taps on the rightmost Theme + Search buttons. Fix: add `viewport-fit=cover` to both `page_head` and `page_head_article` viewport meta tags. Adds `tests/test_viewport_meta.py` (3 cases) asserting both meta tags carry the directive.
+
 ## [1.3.1] — 2026-04-26
 
 Hotfix release fixing the localStorage theme key mismatch between site and graph (#477). One-line correctness fix; graph page now correctly inherits the user's site theme on every visit.
