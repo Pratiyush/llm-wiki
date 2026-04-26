@@ -8,13 +8,21 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
-## [1.2.31] — 2026-04-26
+## [1.2.32] — 2026-04-26
 
 Patch release fixing the `is_subagent` mis-classification flagged by the Opus 4.7 code review (#403). Pure correctness fix — no API change.
 
 ### Fixed
 
 - **`is_subagent` heuristic mis-tagged top-level sessions whose path contains 'subagent'** (#406) — `BaseAdapter.is_subagent` returned True for any path with `"subagent"` in any segment. Combined with the renderer renaming the slug to `<slug>-subagent-<id>`, every session in any user project named e.g. `subagent-runner` was demoted to sub-agent on the project page and excluded from main-session counts. Fix: `BaseAdapter.is_subagent` now returns False (no adapter has the concept by default); `ClaudeCodeAdapter` overrides with a strict canonical-path check (parent directory must be literally named `subagents` AND filename must start with `agent-`). Same conservative fix applied to `CodexCliAdapter`. Adds `tests/test_is_subagent.py` (18 cases including a cross-product matrix of project-name × path × adapter) closing test-gap #430.
+
+## [1.2.29] — 2026-04-26
+
+Patch release fixing the `wiki_query` MCP-tool ranking quality regression flagged by the Opus 4.7 code review (#403). Pure ranking fix — no API change beyond floats appearing in the score field.
+
+### Fixed
+
+- **`wiki_query` ranking had no length normalisation** (#418) — the formula was `score = 50·full_match + 10·tokens_in_body + 100·title_match + 20·title_token_match`. A 1-MB log page that contains every query token *anywhere* always beat a perfectly relevant 1-paragraph entity page. As LLM clients lean on `wiki_query`, that quality regression was user-visible. Fix: divide the body component by `log2(max(len(content), 256))` before summing — long pages still rank but no longer dominate, short pages don't get an artificial boost (the 256-byte floor caps it). Title matches are unchanged since titles are already short and high-signal. Empty bodies and frontmatter-only pages now ranked safely (no division-by-zero, no NaN). Adds 8 regression tests covering short-vs-long, title precedence, empty query, no-matches, frontmatter-only, unicode tokenisation, finite-score guarantee, and short-page floor.
 
 ## [1.2.26] — 2026-04-26
 
