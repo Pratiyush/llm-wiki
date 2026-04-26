@@ -8,6 +8,24 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
+## [1.3.42] — 2026-04-26
+
+Post-review remediation. Five Opus subagents (Python, Security, Architecture, UI/a11y, JS) reviewed v1.3.41 and converged on seven real bugs across the day's work. This release fixes all seven.
+
+### Fixed
+
+- **Dialog focus restoration with interleaved palette + help** — `__dialogLastFocus` was a single shared closure variable. If the help-dialog opened while the palette was already open (reachable via `?` after `Cmd+K`), the second `__openDialog` call clobbered the palette's saved trigger; closing both dialogs dropped focus into the void. Now a `Map` keyed by `dialog.id` so each dialog has its own restoration target.
+- **`inert` removal no longer strips an open sibling's chrome guard** — `__closeDialog` called `removeAttribute("inert")` on every body sibling, including any sibling that was itself still an open dialog. Closing help-dialog while palette was open re-exposed the chrome behind the palette to AT users. Added `__isOpenDialog` check that skips siblings still carrying `.open`.
+- **Latent XSS in related-pages innerHTML** — `s.entry.title`, `s.entry.url`, and `s.entry.date` were concatenated into `innerHTML` unescaped. Future adapter/raw-import paths that ship session frontmatter with `<` characters or `javascript:` URLs would have executed code in every visitor's browser. Now built via `createElement` + `textContent`, with a `_safeHref()` validator that rejects `javascript:`/`data:`/`vbscript:` URL schemes.
+- **`role="menu"` removed from `nav-drawer`** — children are plain `<a>` elements, not `role="menuitem"`. Screen readers were instructing users to "press arrow keys" which did nothing. Replaced with `aria-label="Main navigation"`; the hamburger's `aria-controls` already provides the trigger→drawer association so no role is needed on the container.
+- **Mobile bottom-nav `#mbn-theme` syncs `aria-pressed`** — desktop `#theme-toggle` already kept `aria-pressed` in sync via `syncAriaPressed()`; the mobile sibling never did, so VoiceOver/TalkBack heard "Toggle theme, button" with no state. Added a parallel `_mbnSyncPressed()` closure that fires on init + after every click, plus `aria-pressed="false"` baked into the static markup.
+- **Palette `<input>` has accessible label** — added `aria-label="Search pages"` so AT announces something persistent after the placeholder disappears on first keystroke.
+- **`render_models_section` + `render_vs_section` no longer NameError** — both functions referenced 8 names (`discover_model_entities*`, `render_models_index`, `render_model_info_card`, `generate_pairs`, `render_comparisons_index`, `discover_user_overrides`, `pair_slug`, `render_comparison_body`) without ever importing them. Build doesn't currently call either function so the bug was latent, but the next person wiring them up would have hit `NameError` on first call. Added lazy imports inside both functions.
+
+### Tests
+
+- **`tests/test_post_review_remediation.py`** — 10 cases pinning each of the seven contracts above so they can't silently regress in a future palette refactor or build.py reshuffle. Plus updates to `tests/test_palette_dialog_a11y.py` (2 contracts) for the new Map-backed focus stash.
+
 ## [1.3.41] — 2026-04-26
 
 UI/a11y bundle release picking off five small Opus-found issues from epic #473 in one PR (closely related single-line CSS / JS / HTML adjustments that share the same render code path).

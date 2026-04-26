@@ -764,7 +764,13 @@ def nav_bar(active: str, link_prefix: str = "") -> str:
         + (' active' if key == active else '') + '">'
         + label + '</a>'
     )
-    nav_drawer_html = f"""<div id="nav-drawer" class="nav-drawer" hidden role="menu" aria-labelledby="nav-hamburger">
+    # Post-review: dropped `role="menu"` + `aria-labelledby` — children
+    # are plain <a>, not role="menuitem", so screen readers were being
+    # told "press arrow keys" which did nothing. The drawer is a
+    # disclosure nav, not an ARIA menu. The hamburger's aria-controls
+    # already provides the trigger→drawer association; no role needed
+    # on the container.
+    nav_drawer_html = f"""<div id="nav-drawer" class="nav-drawer" hidden aria-label="Main navigation">
 {drawer_link("index.html", "Home", "home")}
 {drawer_link("projects/index.html", "Projects", "projects")}
 {drawer_link("sessions/index.html", "Sessions", "sessions")}
@@ -858,7 +864,7 @@ def page_foot(js_prefix: str = "") -> str:
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
     <span>Search</span>
   </button>
-  <button type="button" class="mbn-link" id="mbn-theme" aria-label="Toggle theme">
+  <button type="button" class="mbn-link" id="mbn-theme" aria-label="Toggle theme" aria-pressed="false">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
     <span>Theme</span>
   </button>
@@ -868,7 +874,7 @@ def page_foot(js_prefix: str = "") -> str:
   <div class="palette-modal" role="dialog" aria-modal="true" aria-label="Command palette">
     <div class="palette-header">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-      <input type="text" id="palette-input" placeholder="Search… or type:session project:llm-wiki date:>2026-03 sort:date" autocomplete="off" spellcheck="false">
+      <input type="text" id="palette-input" aria-label="Search pages" placeholder="Search… or type:session project:llm-wiki date:>2026-03 sort:date" autocomplete="off" spellcheck="false">
       <kbd>ESC</kbd>
     </div>
     <ul class="palette-results" id="palette-results"></ul>
@@ -1740,6 +1746,15 @@ def render_models_section(out_dir: Path) -> tuple[Optional[Path], int]:
     `wiki/entities/` directory OR no model pages there, we still write
     an empty-state index so the nav link doesn't 404.
     """
+    # Post-review: imports lazily so this function actually works the
+    # next time someone wires it from the CLI. Previously these names
+    # were referenced but never imported — function body was reachable
+    # but would crash with NameError on first call.
+    from llmwiki.models_page import (  # noqa: F401
+        discover_model_entities_with_meta,
+        render_models_index,
+        render_model_info_card,
+    )
     entities_dir = REPO_ROOT / "wiki" / "entities"
     entries_with_meta = discover_model_entities_with_meta(entities_dir)
     # Backwards-compatible list without meta for render_models_index.
@@ -1844,6 +1859,17 @@ def render_vs_section(
     `(index_path, pair_count)`. Always writes the index so the nav
     link resolves even when no entities exist.
     """
+    # Post-review: lazy imports so this function actually works the
+    # next time someone wires it. Previously these names were referenced
+    # but never imported — first call would have crashed with NameError.
+    from llmwiki.models_page import discover_model_entities  # noqa: F401
+    from llmwiki.compare import (  # noqa: F401
+        discover_user_overrides,
+        generate_pairs,
+        pair_slug,
+        render_comparison_body,
+        render_comparisons_index,
+    )
     entities_dir = REPO_ROOT / "wiki" / "entities"
     overrides_dir = REPO_ROOT / "wiki" / "vs"
     entries = discover_model_entities(entities_dir)

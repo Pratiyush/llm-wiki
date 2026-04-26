@@ -269,6 +269,15 @@ JS = r"""// llmwiki viewer — theme + copy + search palette + keyboard shortcut
     // Wire the theme button to toggle
     const themeBtn = document.getElementById("mbn-theme");
     if (themeBtn) {
+      // Post-review: keep aria-pressed in sync with the dark-state on
+      // the mobile theme button so VoiceOver / TalkBack hear the right
+      // state. Mirrors what #theme-toggle does on desktop.
+      function _mbnSyncPressed() {
+        const t = document.documentElement.getAttribute("data-theme") ||
+          ((window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) ? "dark" : "light");
+        themeBtn.setAttribute("aria-pressed", t === "dark" ? "true" : "false");
+      }
+      _mbnSyncPressed();
       themeBtn.addEventListener("click", function () {
         const root = document.documentElement;
         let current = root.getAttribute("data-theme");
@@ -279,6 +288,7 @@ JS = r"""// llmwiki viewer — theme + copy + search palette + keyboard shortcut
         root.setAttribute("data-theme", next);
         try { localStorage.setItem("llmwiki-theme", next); } catch (e) { /* #ui-h4: private mode */ }
         if (window.__llmwikiSyncHljsTheme) window.__llmwikiSyncHljsTheme();
+        _mbnSyncPressed();
       });
     }
   });
@@ -539,12 +549,23 @@ document.addEventListener("DOMContentLoaded", function () {
   // Apply `inert` to every direct child of <body> EXCEPT the dialog
   // itself so AT users can't tab into the page chrome behind the
   // backdrop (the previous aria-hidden gate left siblings reachable).
-  var __dialogLastFocus = null;
+  //
+  // Post-review: stash is a Map keyed by dialog.id so opening a second
+  // dialog while the first is still open doesn't clobber the first
+  // dialog's restoration target. Equally, inert is only removed from
+  // siblings that are NOT themselves currently-open dialogs, so closing
+  // help while palette is still open doesn't strip the palette's inert
+  // wrapping of the rest of the chrome.
+  var __dialogLastFocus = new Map();
   function __getInertSiblings(dialog) {
     return Array.prototype.filter.call(
       document.body.children,
       function (el) { return el !== dialog; }
     );
+  }
+  function __isOpenDialog(el) {
+    return el && el.classList && el.classList.contains("open") &&
+           (el.id === "palette" || el.id === "help-dialog");
   }
   function __isDialogOpen(dialog) {
     return dialog && dialog.classList.contains("open");
@@ -568,7 +589,7 @@ document.addEventListener("DOMContentLoaded", function () {
   }
   function __openDialog(dialog, firstFocus) {
     if (!dialog || dialog.classList.contains("open")) return;
-    __dialogLastFocus = document.activeElement;
+    if (dialog.id) __dialogLastFocus.set(dialog.id, document.activeElement);
     dialog.classList.add("open");
     __syncTriggerAriaExpanded(dialog, true);
     __getInertSiblings(dialog).forEach(function (s) { s.setAttribute("inert", ""); });
@@ -578,11 +599,17 @@ document.addEventListener("DOMContentLoaded", function () {
     if (!dialog || !dialog.classList.contains("open")) return;
     dialog.classList.remove("open");
     __syncTriggerAriaExpanded(dialog, false);
-    __getInertSiblings(dialog).forEach(function (s) { s.removeAttribute("inert"); });
-    if (__dialogLastFocus && __dialogLastFocus.focus) {
-      try { __dialogLastFocus.focus(); } catch (e) { /* trigger gone */ }
+    // Only strip inert from siblings that are NOT themselves an open
+    // dialog — otherwise closing the help-dialog while palette is open
+    // re-exposes the palette's inert chrome guard.
+    __getInertSiblings(dialog).forEach(function (s) {
+      if (!__isOpenDialog(s)) s.removeAttribute("inert");
+    });
+    var lf = dialog.id ? __dialogLastFocus.get(dialog.id) : null;
+    if (lf && lf.focus) {
+      try { lf.focus(); } catch (e) { /* trigger gone */ }
     }
-    __dialogLastFocus = null;
+    if (dialog.id) __dialogLastFocus.delete(dialog.id);
   }
   // Trap Tab + Shift+Tab inside `dialog` so focus can't escape into
   // the inert page chrome and become visually invisible.
@@ -1022,20 +1049,40 @@ document.addEventListener("DOMContentLoaded", function () {
           .slice(0, 5);
         if (!scored.length) return;
 
+        // Post-review remediation: title + url + date used to be
+        // interpolated into innerHTML without escaping. Build the DOM
+        // tree explicitly with createElement / textContent so a malicious
+        // session frontmatter title (e.g. "<img src=x onerror=...>") or
+        // a `javascript:` URL can't execute in the visitor's browser.
+        function _safeHref(raw) {
+          // Reject anything that isn't a relative path or http(s).
+          // Same-origin checks happen at the browser; we just gate the
+          // protocol prefix here to stop `javascript:` / `data:` etc.
+          var s = String(raw || "");
+          if (/^(javascript|data|vbscript):/i.test(s)) return "#";
+          return s;
+        }
         const section = document.createElement("div");
         section.className = "related-pages";
-        section.innerHTML =
-          "<h3>Related pages</h3>" +
-          '<ul>' +
-          scored.map(function (s) {
-            const href = "../../" + s.entry.url;
-            const title = s.entry.title;
-            const date = s.entry.date || "";
-            return '<li><a href="' + href + '">' + title + '</a>' +
-              (date ? ' <span class="muted">· ' + date + '</span>' : '') +
-              '</li>';
-          }).join("") +
-          '</ul>';
+        const heading = document.createElement("h3");
+        heading.textContent = "Related pages";
+        section.appendChild(heading);
+        const ul = document.createElement("ul");
+        scored.forEach(function (s) {
+          const li = document.createElement("li");
+          const a = document.createElement("a");
+          a.href = _safeHref("../../" + (s.entry.url || ""));
+          a.textContent = String(s.entry.title || "");
+          li.appendChild(a);
+          if (s.entry.date) {
+            const span = document.createElement("span");
+            span.className = "muted";
+            span.textContent = " \u00b7 " + String(s.entry.date);
+            li.appendChild(span);
+          }
+          ul.appendChild(li);
+        });
+        section.appendChild(ul);
         article.appendChild(section);
       })
       .catch(function () {});

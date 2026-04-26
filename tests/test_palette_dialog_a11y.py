@@ -59,20 +59,30 @@ def test_css_uses_open_class_for_help_visibility() -> None:
 
 def test_js_dialog_open_helper_uses_inert_and_class() -> None:
     """__openDialog must (a) flip the `.open` class, (b) set `inert`
-    on body siblings, (c) capture the previous focused element."""
+    on body siblings, (c) capture the previous focused element.
+
+    Post-review (#642 remediation): focus is now stashed in a Map
+    keyed by dialog id so interleaving palette + help-dialog doesn't
+    clobber either restoration target."""
     assert "__openDialog" in JS
     assert 'classList.add("open")' in JS
     assert 'setAttribute("inert"' in JS
-    assert "__dialogLastFocus = document.activeElement" in JS
+    assert "__dialogLastFocus.set(dialog.id, document.activeElement)" in JS
 
 
 def test_js_dialog_close_helper_restores_focus_and_clears_inert() -> None:
     """Close must (a) flip class off, (b) remove `inert` from siblings,
-    (c) restore focus to the saved trigger."""
+    (c) restore focus to the saved trigger.
+
+    Post-review (#642 remediation): focus is fetched from the Map by
+    dialog id; siblings that are themselves still-open dialogs are
+    skipped during inert removal so closing one doesn't strip the
+    other's chrome guard."""
     assert "__closeDialog" in JS
     assert 'classList.remove("open")' in JS
     assert 'removeAttribute("inert")' in JS
-    assert "__dialogLastFocus.focus()" in JS
+    assert "__dialogLastFocus.get(dialog.id)" in JS
+    assert "lf.focus()" in JS
 
 
 def test_js_palette_uses_dialog_helpers() -> None:
