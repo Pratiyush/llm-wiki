@@ -164,17 +164,17 @@ kbd { display: inline-block; padding: 2px 6px; font-family: var(--mono); font-si
 
 /* Code copy button */
 .code-wrap { position: relative; }
-/* #ui-m4 (#574): copy-code-btn used to be opacity:0 by default and
-   only became visible on `:hover` of the parent — invisible to touch
-   + keyboard users until they hovered. Now visible at low opacity by
-   default so the affordance is always discoverable; full opacity
-   on hover/focus. #ui-m3 (#573): bumped padding to land the touch
-   target at 44×44 minimum (was effectively 24×24). */
-.copy-code-btn { position: absolute; top: 8px; right: 8px; padding: 8px 12px; min-width: 44px; min-height: 36px; font-size: 0.72rem; font-weight: 500; background: var(--bg); border: 1px solid var(--border); border-radius: 4px; color: var(--text-secondary); cursor: pointer; font-family: var(--font); opacity: 0.6; transition: opacity 0.15s; z-index: 2; }
-.code-wrap:hover .copy-code-btn,
-.copy-code-btn:focus-visible { opacity: 1; }
-.copy-code-btn:hover { border-color: var(--accent); color: var(--accent); }
-.copy-code-btn.copied { background: var(--accent-bg); color: var(--accent); border-color: var(--accent); opacity: 1; }
+/* #ui-m4 (#574) + axe color-contrast follow-up: copy-code-btn was
+   opacity: 0 by default; touch + keyboard users couldn't see it. The
+   first fix used opacity: 0.6 by default but axe flagged the resulting
+   blend (text color × 0.6 over page bg) as 4.5:1 borderline-failing.
+   Switched to full opacity always-visible — no hover/focus state to
+   reveal — and de-emphasised the button via lower-contrast neutral
+   border + muted text instead of opacity. WCAG-clean. #ui-m3 (#573):
+   padding bumped so the hit area lands at the 44×44 minimum. */
+.copy-code-btn { position: absolute; top: 8px; right: 8px; padding: 8px 12px; min-width: 44px; min-height: 36px; font-size: 0.72rem; font-weight: 500; background: var(--bg); border: 1px solid var(--border); border-radius: 4px; color: var(--text); cursor: pointer; font-family: var(--font); transition: border-color 0.15s, color 0.15s; z-index: 2; }
+.copy-code-btn:hover, .copy-code-btn:focus-visible { border-color: var(--accent); color: var(--accent); }
+.copy-code-btn.copied { background: var(--accent-bg); color: var(--accent); border-color: var(--accent); }
 
 /* Content */
 .content { color: var(--text); font-size: 0.95rem; max-width: 100%; overflow-wrap: break-word; word-wrap: break-word; min-width: 0; }
