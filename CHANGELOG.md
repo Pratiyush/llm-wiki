@@ -8,6 +8,14 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
+## [1.3.10] — 2026-04-26
+
+Hotfix release ensuring `cmd_graph` always falls back to the builtin engine when the graphify path fails (#488).
+
+### Fixed
+
+- **`cmd_graph` didn't fall back to builtin on graphify failure** (#488) — `cli.py:cmd_graph` had two missing fallbacks: (a) any uncaught exception from `build_graphify_graph()` (e.g. `nx.NetworkXError`, `ImportError` deep inside graphify) propagated as a stack trace + non-zero exit instead of falling through to the builtin engine; (b) when `result.get("graph") is None` (legitimate early-return for tiny corpora with zero edges), the function returned 1 directly without trying builtin. Fix: wrap `build_graphify_graph()` in `try/except Exception` that logs the failure mode and falls through to builtin; also fall through on the empty-result path. Builtin's exit code is now authoritative. Adds `tests/test_cmd_graph_fallback.py` (4 cases) covering: graphify exception falls through, empty graphify result falls through, graphify success short-circuits, builtin path runs when graphify unavailable.
+
 ## [1.3.9] — 2026-04-26
 
 Hotfix release fixing Windows lint exemptions broken by POSIX-only path splitting (#490).

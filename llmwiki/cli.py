@@ -407,7 +407,13 @@ def cmd_query(args: argparse.Namespace) -> int:
 
 
 def cmd_graph(args: argparse.Namespace) -> int:
-    """Build the knowledge graph from wiki/ wikilinks."""
+    """Build the knowledge graph from wiki/ wikilinks.
+
+    #488: graphify-engine failures (uninstalled, crashes, empty
+    result) ALL fall back to the builtin engine so the user always
+    gets *some* graph. Only the builtin engine's exit code is
+    authoritative for the CLI return value.
+    """
     engine = getattr(args, "engine", "graphify")
     if engine == "graphify":
         from llmwiki.graphify_bridge import is_available, build_graphify_graph
@@ -416,8 +422,25 @@ def cmd_graph(args: argparse.Namespace) -> int:
             print("  install with: pip install llmwiki[graph]", file=sys.stderr)
             engine = "builtin"
         else:
-            result = build_graphify_graph()
-            return 0 if result.get("graph") is not None else 1
+            try:
+                result = build_graphify_graph()
+            except Exception as e:
+                # #488: uncaught graphify exception used to surface as a
+                # bare stack trace + non-zero exit. Now we log a warning
+                # and fall through to the builtin engine.
+                print(f"  graphify engine crashed ({type(e).__name__}: {e}) — "
+                      f"falling back to builtin", file=sys.stderr)
+                engine = "builtin"
+            else:
+                if result.get("graph") is not None:
+                    return 0
+                # #488: empty-result early-return used to fail with rc=1
+                # without trying builtin. graphify can legitimately
+                # return None for tiny corpora (no edges); the builtin
+                # engine handles the same input gracefully.
+                print("  graphify returned no graph — falling back to builtin",
+                      file=sys.stderr)
+                engine = "builtin"
 
     from llmwiki.graph import build_and_report
     write_json = args.format in ("json", "both")
