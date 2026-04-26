@@ -82,7 +82,11 @@ a:hover { text-decoration: underline; }
 a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
 /* Skip-to-content link — visible only on keyboard focus */
 .skip-link { position: absolute; left: -9999px; top: auto; width: 1px; height: 1px; overflow: hidden; z-index: 999; padding: 8px 16px; background: var(--accent); color: #fff; font-weight: 600; font-size: 0.9rem; border-radius: 0 0 6px 0; text-decoration: none; }
-.skip-link:focus { position: fixed; top: 0; left: 0; width: auto; height: auto; overflow: visible; }
+/* #ui-h1 (#565): explicit focus styles. Reset overflow + width on focus
+   so the link's content actually paints, and add a visible outline so
+   the keyboard-focus ring isn't ambiguous against the accent bg. */
+.skip-link:focus,
+.skip-link:focus-visible { position: fixed; top: 0; left: 0; width: auto; height: auto; overflow: visible; outline: 3px solid #fff; outline-offset: 0; box-shadow: 0 0 0 6px var(--accent); }
 .container { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
 .muted { color: var(--text-muted); }
 kbd { display: inline-block; padding: 2px 6px; font-family: var(--mono); font-size: 0.72rem; color: var(--text-secondary); background: var(--bg-code); border: 1px solid var(--border); border-radius: 4px; line-height: 1; }

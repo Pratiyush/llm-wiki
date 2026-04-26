@@ -40,13 +40,27 @@ JS = r"""// llmwiki viewer — theme + copy + search palette + keyboard shortcut
     light.disabled = isDark;
     dark.disabled = !isDark;
   }
-  const saved = localStorage.getItem("llmwiki-theme");
+  // #ui-h4 (#566): localStorage access can throw in Safari Private Mode,
+  // sandboxed iframes, and some embedded browsers. Wrap reads + writes
+  // in try/catch so a thrown SecurityError doesn't kill the whole
+  // theme + hljs-sync wiring.
+  let saved = null;
+  try { saved = localStorage.getItem("llmwiki-theme"); } catch (e) { /* private mode */ }
   if (saved === "dark" || saved === "light") root.setAttribute("data-theme", saved);
   syncHljsTheme();
   document.addEventListener("DOMContentLoaded", function () {
     syncHljsTheme();
     const btn = document.getElementById("theme-toggle");
     if (!btn) return;
+    // #ui-h8 (#568): aria-pressed mirrors the dark-state so AT users
+    // hear "toggle dark mode, pressed" vs "not pressed" instead of an
+    // ambiguous toggle.
+    function syncAriaPressed() {
+      const t = root.getAttribute("data-theme") ||
+        ((window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) ? "dark" : "light");
+      btn.setAttribute("aria-pressed", t === "dark" ? "true" : "false");
+    }
+    syncAriaPressed();
     btn.addEventListener("click", function () {
       // When no explicit theme is set, the page follows the OS preference.
       // Resolve that to a concrete value so the first toggle always flips.
@@ -56,8 +70,9 @@ JS = r"""// llmwiki viewer — theme + copy + search palette + keyboard shortcut
       }
       const next = current === "dark" ? "light" : "dark";
       root.setAttribute("data-theme", next);
-      localStorage.setItem("llmwiki-theme", next);
+      try { localStorage.setItem("llmwiki-theme", next); } catch (e) { /* private mode */ }
       syncHljsTheme();
+      syncAriaPressed();
     });
   });
   // Also respond to the mobile bottom nav theme button (bound later in script.js).
@@ -262,7 +277,7 @@ JS = r"""// llmwiki viewer — theme + copy + search palette + keyboard shortcut
         }
         const next = current === "dark" ? "light" : "dark";
         root.setAttribute("data-theme", next);
-        localStorage.setItem("llmwiki-theme", next);
+        try { localStorage.setItem("llmwiki-theme", next); } catch (e) { /* #ui-h4: private mode */ }
         if (window.__llmwikiSyncHljsTheme) window.__llmwikiSyncHljsTheme();
       });
     }
@@ -543,16 +558,26 @@ document.addEventListener("DOMContentLoaded", function () {
       function (el) { return !el.hasAttribute("disabled") && el.offsetParent !== null; }
     );
   }
+  function __syncTriggerAriaExpanded(dialog, value) {
+    // #ui-h8 (#568): trigger button's aria-expanded must mirror the
+    // dialog's open/closed state so AT users hear the right thing
+    // when they re-focus the trigger.
+    if (!dialog || !dialog.id) return;
+    const trigger = document.querySelector('[aria-controls="' + dialog.id + '"]');
+    if (trigger) trigger.setAttribute("aria-expanded", value ? "true" : "false");
+  }
   function __openDialog(dialog, firstFocus) {
     if (!dialog || dialog.classList.contains("open")) return;
     __dialogLastFocus = document.activeElement;
     dialog.classList.add("open");
+    __syncTriggerAriaExpanded(dialog, true);
     __getInertSiblings(dialog).forEach(function (s) { s.setAttribute("inert", ""); });
     if (firstFocus && firstFocus.focus) firstFocus.focus();
   }
   function __closeDialog(dialog) {
     if (!dialog || !dialog.classList.contains("open")) return;
     dialog.classList.remove("open");
+    __syncTriggerAriaExpanded(dialog, false);
     __getInertSiblings(dialog).forEach(function (s) { s.removeAttribute("inert"); });
     if (__dialogLastFocus && __dialogLastFocus.focus) {
       try { __dialogLastFocus.focus(); } catch (e) { /* trigger gone */ }

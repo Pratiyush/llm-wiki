@@ -385,7 +385,15 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
     #stats-overlay, #legend { max-width: 180px; font-size: 0.72rem; }
   }
 </style>
-<script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+<!-- #ui-h14 (#571): pin vis-network to a specific version + SRI hash so
+     a malicious or accidental upstream change can't ship code to every
+     visitor of the site. Bump the version + regenerate integrity via
+     `curl -s <url> | openssl dgst -sha384 -binary | openssl base64 -A`
+     when upgrading. -->
+<script src="https://unpkg.com/vis-network@9.1.9/standalone/umd/vis-network.min.js"
+        integrity="sha384-yxKDWWf0wwdUj/gPeuL11czrnKFQROnLgY8ll7En9NYoXibgg3C6NK/UDHNtUgWJ"
+        crossorigin="anonymous"
+        referrerpolicy="no-referrer"></script>
 </head>
 <body>
 <a href="#main-content" class="skip-link">Skip to content</a>
