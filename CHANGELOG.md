@@ -8,7 +8,7 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
-## [1.2.33] — 2026-04-26
+## [1.2.31] — 2026-04-26
 
 Patch release fixing the synth-pipeline state-file collision across vault overlays flagged by the Opus 4.7 code review (#403). Pure correctness fix — single-vault and no-vault users see no behaviour change; multi-vault users no longer have one vault's run mark another vault's files unchanged.
 
@@ -19,6 +19,14 @@ Patch release fixing the synth-pipeline state-file collision across vault overla
 ### Added
 
 - **11 new tests** (`tests/test_vault.py`) covering default vs vault state-file paths, load/save round-trip with explicit path, end-to-end isolation between two vaults, corrupted-file fallback to empty state, missing-file fallback, unicode + spaces in vault paths, the new CLI flag round-trip, default `args.vault is None`, and `cmd_synthesize` exit-2 on non-existent vault path.
+
+## [1.2.30] — 2026-04-26
+
+Patch release fixing the tilde-fence blind spot in truncate-time fence balancing flagged by the Opus 4.7 code review (#403). Pure correctness fix — markdown allows both ` ``` ` and `~~~` fence styles, and Quarto-flavoured docs use the latter.
+
+### Fixed
+
+- **`_close_open_fence` only counted backtick fences** (#419) — `convert.py:_close_open_fence` summed lines starting with `\`\`\`` and ignored `~~~` entirely. Truncated tool results that opened a tilde fence (Quarto, some pretty-printers) left the rest of the page consumed by the build's `fenced_code` extension. Fix: count both fence styles independently and append the matching close for each. Mixed-fence inputs (one `\`\`\`` open + one `~~~` open) now get both closes. Added a regression test that exercises the previous bug pattern (one fence type can't accidentally mask the other's odd count). 10 new tests covering tilde-fence opener+autoclose via `truncate_chars` and `truncate_lines`, balanced-fence preservation, mixed-fence handling, indented fences (inside list items), and direct unit tests for the helper.
 
 ## [1.2.29] — 2026-04-26
 
