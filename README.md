@@ -9,7 +9,7 @@ Rebuilt on every `master` push from the synthetic sessions in [`examples/demo-se
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/)
-[![Version](https://img.shields.io/badge/version-v1.3.4-10B981.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-v1.3.5-10B981.svg)](CHANGELOG.md)
 [![Tests](https://img.shields.io/badge/tests-2363%20passing-10B981.svg)](tests/)
 [![CI](https://github.com/Pratiyush/llm-wiki/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/Pratiyush/llm-wiki/actions/workflows/ci.yml)
 [![Link check](https://github.com/Pratiyush/llm-wiki/actions/workflows/link-check.yml/badge.svg?branch=master)](https://github.com/Pratiyush/llm-wiki/actions/workflows/link-check.yml)
@@ -365,8 +365,6 @@ llmwiki build                   # compile static HTML + AI exports
 llmwiki serve                   # local HTTP server on 127.0.0.1:8765
 llmwiki adapters                # list available adapters + configured state (v1.0)
 llmwiki graph                   # build knowledge graph (v0.2)
-llmwiki watch                   # file watcher with debounce (v0.2)
-llmwiki export-obsidian         # write wiki to Obsidian vault (v0.2)
 llmwiki lint                    # 16-rule wiki lint (v1.2)
 llmwiki export <format>         # AI-consumable exports (v0.4)
 llmwiki synthesize              # auto-ingest synthesis pipeline (v0.5)
