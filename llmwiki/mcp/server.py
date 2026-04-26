@@ -301,27 +301,46 @@ def tool_wiki_query(args: dict[str, Any]) -> dict[str, Any]:
     index = (wiki / "index.md").read_text(encoding="utf-8") if (wiki / "index.md").exists() else ""
     overview = (wiki / "overview.md").read_text(encoding="utf-8") if (wiki / "overview.md").exists() else ""
 
-    # Scan every .md under wiki/ for matches on title + body
+    # Scan every .md under wiki/ for matches on title + body.
+    # #418: ranking is now length-normalised — body matches are
+    # divided by ``log2(max(len(content), 256))`` so a 1MB log
+    # page can't beat a perfectly-relevant 1-paragraph entity page
+    # just by accidentally containing every query token. Title
+    # matches are unchanged since titles are already short and
+    # high-signal.
     query_lower = question.lower()
     tokens = [t for t in re.split(r"\W+", query_lower) if t]
-    matches: list[tuple[int, Path, str]] = []
+    matches: list[tuple[float, Path, str]] = []
     for page in wiki.rglob("*.md"):
         try:
             content = page.read_text(encoding="utf-8")
         except OSError:
             continue
         content_lower = content.lower()
-        score = 0
+        body_score = 0
         if query_lower in content_lower:
-            score += 50
-        score += sum(10 for t in tokens if t in content_lower)
-        # Title bonus
+            body_score += 50
+        body_score += sum(10 for t in tokens if t in content_lower)
+        # Length normalisation: divide raw body score by
+        # log2(max(len, 256)). The 256-byte floor keeps very short
+        # pages (frontmatter-only) from getting a massive boost on
+        # zero-token queries.
+        if body_score > 0:
+            import math as _math
+            length_factor = _math.log2(max(len(content), 256))
+            normalised_body = body_score / length_factor
+        else:
+            normalised_body = 0.0
+        # Title bonus — unchanged. Titles are already short and
+        # high-signal; no normalisation needed.
+        title_score = 0
         title_match = re.search(r'^title:\s*"?([^"\n]+)', content, re.MULTILINE)
         if title_match:
             title = title_match.group(1).lower()
             if query_lower in title:
-                score += 100
-            score += sum(20 for t in tokens if t in title)
+                title_score += 100
+            title_score += sum(20 for t in tokens if t in title)
+        score = normalised_body + title_score
         if score > 0:
             snippet = _extract_snippet(content, tokens, max_chars=400)
             matches.append((score, page, snippet))
@@ -336,7 +355,7 @@ def tool_wiki_query(args: dict[str, Any]) -> dict[str, Any]:
     else:
         for score, page, snippet in top:
             rel = page.relative_to(REPO_ROOT)
-            out.append(f"## `{rel}` (score: {score})\n")
+            out.append(f"## `{rel}` (score: {score:.1f})\n")
             out.append(snippet)
             out.append("")
     out.append("---\n")

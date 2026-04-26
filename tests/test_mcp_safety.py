@@ -21,6 +21,7 @@ from unittest.mock import patch
 import pytest
 
 from llmwiki.mcp.server import (
+    tool_wiki_query,
     tool_wiki_search,
     tool_wiki_list_sources,
 )
@@ -254,3 +255,159 @@ def test_list_sources_filter_does_not_glob(tmp_path: Path):
         result = tool_wiki_list_sources({"project": "demo*"})
     payload = _result_json(result)
     assert payload == []
+
+
+# ─── #418: wiki_query ranking length normalisation ──────────────────
+
+
+def _seed_query_corpus(tmp_path: Path, pages: dict[str, str]) -> None:
+    """Seed wiki/ with the given (path → body) mapping. Each page also
+    gets a `## Connections\\n- [[NoOp]]` section so the orphan check
+    isn't relevant to ranking."""
+    wiki = tmp_path / "wiki"
+    wiki.mkdir(parents=True, exist_ok=True)
+    for rel, body in pages.items():
+        target = wiki / rel
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(body, encoding="utf-8")
+
+
+def _query_pages_in_order(result: dict) -> list[str]:
+    """Extract the ordered list of page paths from a wiki_query result."""
+    text = _result_text(result)
+    import re as _re
+    return _re.findall(r"## `([^`]+)`", text)
+
+
+def test_query_short_relevant_beats_long_incidental(tmp_path: Path):
+    """Regression for #418: a 1-paragraph entity page exactly matching
+    the query must outrank a 1-MB log page that incidentally contains
+    every query token. Pre-fix, the long page won by sheer mass.
+    """
+    short_relevant = (
+        '---\ntitle: "Caching"\ntype: concept\n---\n\n'
+        "# Caching\n\nA short, focused page about caching strategies.\n"
+    )
+    long_incidental = (
+        '---\ntitle: "Long Log"\ntype: source\n---\n\n'
+        "# Long Log\n\n"
+        # Bury "caching" once in a long sea of other content.
+        + ("Generic prose that doesn't mention the topic. " * 5000)
+        + " caching mentioned exactly once "
+        + ("More filler content. " * 5000)
+    )
+    _seed_query_corpus(tmp_path, {
+        "concepts/Caching.md": short_relevant,
+        "sources/log.md": long_incidental,
+    })
+    with patch("llmwiki.mcp.server.REPO_ROOT", tmp_path):
+        result = tool_wiki_query({"question": "caching"})
+    pages = _query_pages_in_order(result)
+    assert pages, f"no pages returned: {_result_text(result)[:500]}"
+    assert pages[0].endswith("Caching.md"), (
+        f"length normalisation broken — long page won: {pages}"
+    )
+
+
+def test_query_title_match_still_wins(tmp_path: Path):
+    """Title matches stay the strongest signal even after normalisation."""
+    body_match = (
+        '---\ntitle: "Unrelated"\ntype: source\n---\n\n'
+        "# Unrelated\n\nfoo " * 100  # body has 100 mentions of "foo"
+    )
+    title_match = (
+        '---\ntitle: "Foo"\ntype: entity\n---\n\n'
+        "# Foo\n\nA short page about something else entirely.\n"
+    )
+    _seed_query_corpus(tmp_path, {
+        "sources/x.md": body_match,
+        "entities/Foo.md": title_match,
+    })
+    with patch("llmwiki.mcp.server.REPO_ROOT", tmp_path):
+        result = tool_wiki_query({"question": "foo"})
+    pages = _query_pages_in_order(result)
+    assert pages[0].endswith("Foo.md"), (
+        f"title match should win, got order: {pages}"
+    )
+
+
+def test_query_empty_question_returns_no_results(tmp_path: Path):
+    _seed_query_corpus(tmp_path, {
+        "entities/Foo.md": '---\ntitle: "Foo"\n---\n\n# Foo\n',
+    })
+    with patch("llmwiki.mcp.server.REPO_ROOT", tmp_path):
+        result = tool_wiki_query({"question": ""})
+    text = _result_text(result)
+    # Either explicit empty-results message or just no `## ` page entries.
+    assert "score:" not in text or "No matching" in text
+
+
+def test_query_no_matches_does_not_crash(tmp_path: Path):
+    _seed_query_corpus(tmp_path, {
+        "entities/Foo.md": '---\ntitle: "Foo"\n---\n\n# Foo\n',
+    })
+    with patch("llmwiki.mcp.server.REPO_ROOT", tmp_path):
+        result = tool_wiki_query({"question": "completely-unrelated-xyz"})
+    text = _result_text(result)
+    assert "No matching pages" in text or "score:" not in text
+
+
+def test_query_handles_frontmatter_only_pages(tmp_path: Path):
+    """Pages with empty body shouldn't crash on length normalisation."""
+    _seed_query_corpus(tmp_path, {
+        "entities/EmptyBody.md": '---\ntitle: "EmptyBody"\ntype: entity\n---\n',
+        "entities/Real.md": (
+            '---\ntitle: "Real"\n---\n\n# Real\n\nA real body.\n'
+        ),
+    })
+    with patch("llmwiki.mcp.server.REPO_ROOT", tmp_path):
+        result = tool_wiki_query({"question": "Real"})
+    # Must succeed (no crash on the empty-body page).
+    pages = _query_pages_in_order(result)
+    assert any("Real" in p for p in pages)
+
+
+def test_query_unicode_query_tokenises(tmp_path: Path):
+    """CJK / emoji queries don't break tokenisation."""
+    _seed_query_corpus(tmp_path, {
+        "entities/Cafe.md": (
+            '---\ntitle: "Café"\n---\n\n# Café\n\nA page with café in body.\n'
+        ),
+    })
+    with patch("llmwiki.mcp.server.REPO_ROOT", tmp_path):
+        result = tool_wiki_query({"question": "café"})
+    pages = _query_pages_in_order(result)
+    assert pages, f"unicode query returned nothing: {_result_text(result)[:500]}"
+
+
+def test_query_score_is_finite_no_nan(tmp_path: Path):
+    """Length normalisation must never divide by zero / produce NaN."""
+    _seed_query_corpus(tmp_path, {
+        "entities/Tiny.md": "x",  # 1-byte page
+        "entities/Normal.md": '---\ntitle: "X"\n---\n\n# X\n\nSome x body.\n',
+    })
+    with patch("llmwiki.mcp.server.REPO_ROOT", tmp_path):
+        result = tool_wiki_query({"question": "x"})
+    text = _result_text(result)
+    # No NaN/Infinity should appear in the rendered scores.
+    assert "nan" not in text.lower()
+    assert "inf" not in text.lower()
+
+
+def test_query_short_floor_prevents_tiny_page_dominance(tmp_path: Path):
+    """The 256-byte length floor stops 5-byte pages from getting
+    log2(5)≈2.3 scaling and dominating."""
+    tiny = "match"  # 5 bytes, all relevant
+    normal = (
+        '---\ntitle: "Match Page"\n---\n\n# Match Page\n\n'
+        "match match match match\n"
+    )
+    _seed_query_corpus(tmp_path, {
+        "entities/Tiny.md": tiny,
+        "entities/Normal.md": normal,
+    })
+    with patch("llmwiki.mcp.server.REPO_ROOT", tmp_path):
+        result = tool_wiki_query({"question": "match"})
+    pages = _query_pages_in_order(result)
+    # The page with title match should still win (titles aren't normalised).
+    assert pages[0].endswith("Normal.md")
