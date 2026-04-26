@@ -7,7 +7,6 @@ to the network unless the user explicitly passes --host 0.0.0.0.
 from __future__ import annotations
 
 import http.server
-import os
 import socketserver
 import webbrowser
 from pathlib import Path
@@ -33,8 +32,12 @@ class _QuietHandler(http.server.SimpleHTTPRequestHandler):
         when ``404.html`` is missing (e.g. a partially-built site)."""
         if code == 404:
             try:
-                # cwd has been os.chdir'd to the site root by serve_site below.
-                with open("404.html", "rb") as f:
+                # #py-m2 (#588): no longer relies on os.chdir(). The
+                # SimpleHTTPRequestHandler's `directory` arg holds the
+                # site root; we read 404.html from there explicitly.
+                site_root = getattr(self, "directory", None)
+                err_page = (Path(site_root) / "404.html") if site_root else Path("404.html")
+                with open(err_page, "rb") as f:
                     body = f.read()
                 self.send_response(404, message)
                 self.send_header("Content-Type", "text/html; charset=utf-8")
@@ -62,12 +65,17 @@ def serve_site(
     if not directory.exists():
         print(f"error: {directory} does not exist. Run `llmwiki build` first.")
         return 2
-    os.chdir(directory)
+    # #py-m2 (#588): use SimpleHTTPRequestHandler's `directory=` kwarg
+    # (Python 3.7+) instead of mutating global cwd. The previous
+    # `os.chdir(directory)` call leaked process state — every test
+    # using this function had to remember to chdir back, and
+    # concurrent serve_site calls in tests would race.
+    handler_factory = lambda *a, **kw: _QuietHandler(*a, directory=str(directory), **kw)
     url = f"http://{host}:{port}/"
     print(f"==> Serving {directory} at {url}")
     print("    Press Ctrl+C to stop.")
     try:
-        with _ReusableTCPServer((host, port), _QuietHandler) as httpd:
+        with _ReusableTCPServer((host, port), handler_factory) as httpd:
             if open_browser:
                 try:
                     webbrowser.open(url)
