@@ -484,18 +484,33 @@ class Redactor:
 
 
 def _close_open_fence(text: str) -> str:
-    """If ``text`` contains an odd number of ``\\`\\`\\``` fence markers,
-    append a closing fence so downstream markdown parsers don't swallow the
-    rest of the page as one giant code block. Counts only lines whose first
-    non-whitespace characters are triple backticks (real fences, not inline
-    code). See #72 — truncated tool results used to eat everything below them.
+    """If ``text`` contains an unclosed code fence, append the matching
+    close so downstream markdown parsers don't swallow the rest of the
+    page as one giant code block.
+
+    #72 — truncated tool results used to eat everything below them.
+    #419 — track ``\\`\\`\\``` and ``~~~`` independently. Markdown allows
+    both fence styles; some pretty-printers and Quarto-flavoured docs
+    use ``~~~``. Counting them together lets one style mask the other's
+    open count and the wrong fence type ends up appended.
+
+    Counts only lines whose first non-whitespace characters are triple
+    backticks or triple tildes (real fences, not inline code).
     """
-    fence_count = sum(
-        1 for line in text.splitlines() if line.lstrip().startswith("```")
-    )
-    if fence_count % 2 == 1:
-        return text + "\n```"
-    return text
+    backtick_count = 0
+    tilde_count = 0
+    for line in text.splitlines():
+        stripped = line.lstrip()
+        if stripped.startswith("```"):
+            backtick_count += 1
+        elif stripped.startswith("~~~"):
+            tilde_count += 1
+    suffix = ""
+    if backtick_count % 2 == 1:
+        suffix += "\n```"
+    if tilde_count % 2 == 1:
+        suffix += "\n~~~"
+    return text + suffix if suffix else text
 
 
 def truncate_chars(text: str, max_chars: int) -> str:
