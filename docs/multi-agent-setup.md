@@ -13,7 +13,6 @@ llmwiki reads sessions from multiple coding agents simultaneously. One `llmwiki 
 | Cursor | `cursor` | Cursor IDE workspaceStorage | Scaffold (SQLite parser in progress) |
 | Gemini CLI | `gemini_cli` | `~/.gemini/` | Scaffold (schema TBC) |
 | Obsidian | `obsidian` | Configurable vault paths | Production |
-| PDF | `pdf` | Any `.pdf` dropped into `raw/` | Production |
 
 ## How auto-detection works
 
@@ -42,7 +41,6 @@ Registered adapters:
   cursor            available: yes  (Cursor IDE — reads chat history)
   gemini_cli        available: no   (Gemini CLI — reads ~/.gemini/ session history)
   obsidian          available: no   (Obsidian vault)
-  pdf               available: yes  (PDF files)
 ```
 
 ## Per-agent setup
