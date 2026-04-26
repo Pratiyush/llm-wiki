@@ -67,13 +67,21 @@ def _now_utc_iso() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
-def load(path: Path = DEFAULT_QUARANTINE_FILE) -> list[QuarantineEntry]:
+def load(path: Optional[Path] = None) -> list[QuarantineEntry]:
     """Load the quarantine file. Returns ``[]`` on missing/corrupt file.
 
     Never raises — the caller treats the quarantine as best-effort UI.
     Malformed entries are skipped individually so one bad row doesn't
     blow up the whole file.
+
+    #py-m7 (#593): default-arg ``DEFAULT_QUARANTINE_FILE`` was captured
+    at module-load time, breaking ``monkeypatch.setattr(quarantine,
+    "DEFAULT_QUARANTINE_FILE", tmp)`` in tests because the parameter
+    default still pointed at the original constant. Resolve at call
+    time instead.
     """
+    if path is None:
+        path = DEFAULT_QUARANTINE_FILE
     if not path.is_file():
         return []
     try:
@@ -108,9 +116,15 @@ def load(path: Path = DEFAULT_QUARANTINE_FILE) -> list[QuarantineEntry]:
 
 def save(
     entries: Iterable[QuarantineEntry],
-    path: Path = DEFAULT_QUARANTINE_FILE,
+    path: Optional[Path] = None,
 ) -> Path:
-    """Write the quarantine file. Sorts deterministically for stable diffs."""
+    """Write the quarantine file. Sorts deterministically for stable diffs.
+
+    #py-m7 (#593): default resolved at call time so tests that
+    monkeypatch DEFAULT_QUARANTINE_FILE see the override.
+    """
+    if path is None:
+        path = DEFAULT_QUARANTINE_FILE
     items = sorted(set(entries), key=lambda e: (e.adapter, e.source))
     payload = {
         "version": SCHEMA_VERSION,
@@ -129,10 +143,12 @@ def add_entry(
     source: str,
     error: str,
     *,
-    path: Path = DEFAULT_QUARANTINE_FILE,
+    path: Optional[Path] = None,
     extra: Optional[dict[str, Any]] = None,
 ) -> QuarantineEntry:
     """Add or refresh a quarantine entry.
+
+    #py-m7 (#593): default resolved at call time.
 
     If ``(adapter, source)`` already exists the call bumps ``attempts``,
     updates ``last_seen`` + ``error``, and merges ``extra`` — callers
@@ -172,14 +188,18 @@ def clear_entry(
     source: str,
     *,
     adapter: Optional[str] = None,
-    path: Path = DEFAULT_QUARANTINE_FILE,
+    path: Optional[Path] = None,
 ) -> int:
     """Remove matching entries.  Returns count removed.
 
     If ``adapter`` is ``None`` every entry whose ``source`` matches is
     removed (useful when the operator passes an absolute path without
     remembering which adapter produced it).
+
+    #py-m7 (#593): default resolved at call time.
     """
+    if path is None:
+        path = DEFAULT_QUARANTINE_FILE
     entries = load(path)
     keep: list[QuarantineEntry] = []
     removed = 0

@@ -734,9 +734,14 @@ def synthesize_new_sessions(
     # G-09 (#295): rebuild wiki/index.md so lint's index_sync rule
     # passes on fresh synthesized corpora. Synthesize is authoritative
     # for `## Sources` — the index reflects whatever's on disk now.
-    try:
-        _rebuild_index(sources_out.parent)
-    except Exception as e:
-        summary["errors"].append(f"index rebuild: {e}")
+    # #arch-m7 (#619): gate behind a "did anything actually change?"
+    # check. The index rebuild walks the entire wiki + parses every
+    # frontmatter; on a 5k-page corpus that's seconds. Skip when zero
+    # pages were synthesized in this pass.
+    if summary.get("synthesized", 0) > 0:
+        try:
+            _rebuild_index(sources_out.parent)
+        except (OSError, ValueError, RuntimeError) as e:
+            summary["errors"].append(f"index rebuild: {e}")
 
     return summary
