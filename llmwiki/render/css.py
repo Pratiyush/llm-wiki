@@ -776,11 +776,21 @@ mark { background: var(--accent-bg); color: var(--accent); padding: 0 2px; borde
     --text: #000; --text-secondary: #333; --text-muted: #555;
     --border: #ccc; --accent: #000;
   }
+  /* #ui-l1 (#578): keep breadcrumbs in print so a printed page
+     retains its location context. #ui-l3 (#579): keep activity
+     heatmap + token charts + related-pages too — useful when an
+     offline reader needs to follow a hardcopy. Removed from the
+     hide-list. */
   .nav, .footer, .palette, .help-dialog, .session-actions, .filter-bar,
   .progress-bar, .nav-search-btn, .theme-toggle, .copy-code-btn,
   .wikilink-preview, .timeline-block, .toc-sidebar, .mobile-bottom-nav,
-  .related-pages, .activity-heatmap, .tool-chart-card, .token-card, .token-stat-grid, .model-warnings, .timeline-card, .recently-updated-card, .deep-link, .breadcrumbs,
+  .deep-link,
   .meta-tools { display: none !important; }
+  /* Breadcrumbs + heatmap + charts kept on print, but rendered
+     monochrome to save ink. */
+  .breadcrumbs { color: #333; }
+  .activity-heatmap { filter: grayscale(100%); }
+  .related-pages { border-top: 1px solid #ccc; padding-top: 8pt; margin-top: 12pt; page-break-inside: avoid; }
   body { background: #fff; color: #000; font-size: 11pt; padding-bottom: 0; }
   .hero { padding: 12px 0 8px; background: #fff; border: none; }
   .hero h1 { font-size: 18pt; color: #000; }

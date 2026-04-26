@@ -8,6 +8,16 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
+## [1.3.57] — 2026-04-26
+
+#473 print stylesheet + perf + truncation tooltip (4 issues).
+
+### Fixed
+
+- **Google Fonts loaded async, not render-blocking** (#577, #ui-m14) — the `<link rel="stylesheet">` was a parser-blocking resource. Now uses the `media="print"; onload='this.media="all"'` swap pattern so the browser fetches the stylesheet asynchronously while still applying it once loaded. `<noscript>` fallback for the 1% with JS disabled. Saves ~200ms LCP on the 10% percentile slowest mobile connection.
+- **Print stylesheet keeps breadcrumbs + heatmap + token charts + related-pages** (#578, #579, #ui-l1 #ui-l3) — these were hidden in print, losing context on offline-shared printouts. Now visible in monochrome (`filter: grayscale(100%)` on the heatmap to save ink); related-pages gains a `page-break-inside: avoid` + top border so it reads as a clear footer block on the printed page.
+- **Truncated recently-updated text gains `title=` tooltip** (#580, #ui-l4) — `text-overflow: ellipsis` truncated the event label without surfacing the full text on hover. Added `title=` with the unabridged label.
+
 ## [1.3.56] — 2026-04-26
 
 #473 UI MEDIUM cleanup — touch targets, decorative-SVG a11y, copy-code visibility (3 issues).
