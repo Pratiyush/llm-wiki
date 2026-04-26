@@ -459,26 +459,74 @@ def most_common_model(records: list[dict[str, Any]]) -> str:
 
 # ─── redaction + truncation ────────────────────────────────────────────────
 
-# #416: default token shapes that should be redacted out of any session
-# transcript regardless of user config. The CLAUDE.md security model
-# promises redaction "before anything hits disk" — these patterns close
-# the gap left by relying on user-provided `extra_patterns`.
+# #416 + #484: default token shapes redacted out of every session
+# transcript regardless of user config. CLAUDE.md security model
+# promises redaction "before anything hits disk" — these patterns
+# close the gap left by relying on user-provided `extra_patterns`.
 #
-# - GitHub PATs: `ghp_*` (classic), `gho_*` (OAuth), `ghs_*` (server-to-
-#   server), `ghu_*` (user-to-server), `github_pat_*` (fine-grained)
+# Original (#416):
+# - GitHub PATs: `ghp_*` (classic), `gho_*` (OAuth), `ghs_*`
+#   (server-to-server), `ghu_*` (user-to-server), `github_pat_*`
+#   (fine-grained)
 # - AWS access key IDs: `AKIA*` (20 chars total)
 # - Slack tokens: `xoxb-*`, `xoxp-*`, `xoxa-*`, `xoxr-*`, `xoxs-*`
 #
-# These run AFTER user `extra_patterns` so users can override with a
-# more permissive matcher if they really need to (e.g. test fixtures).
+# Extended (#484) — added the patterns Pratiyush's developers most
+# commonly paste into Claude sessions ("here's my .env, why isn't
+# auth working?"). Anything below this comment is one PEM-encoded
+# / one prefix-shaped paste away from being committed to raw/ and
+# served at the public GitHub Pages URL by the pages.yml workflow:
+#
+# - Anthropic API keys: `sk-ant-api03-*` (and any future variant)
+# - OpenAI keys: classic `sk-*`, project keys `sk-proj-*`,
+#   service-account keys `sk-svcacct-*`
+# - Google API keys: `AIza[A-Za-z0-9_-]{35}`
+# - Stripe live keys: `sk_live_*`, `pk_live_*` (publishable too —
+#   leak associates the project with you even if revoked)
+# - npm tokens: `npm_[A-Za-z0-9]{36}`
+# - JWT structure: `eyJ...eyJ...sig` (loose 3-segment shape)
+# - PEM private keys: full BEGIN/END envelope
+#
+# These run AFTER user `extra_patterns` so users can override.
 _DEFAULT_TOKEN_PATTERNS = [
+    # GitHub
     re.compile(r"\bghp_[A-Za-z0-9_]{20,}\b"),
     re.compile(r"\bgho_[A-Za-z0-9_]{20,}\b"),
     re.compile(r"\bghs_[A-Za-z0-9_]{20,}\b"),
     re.compile(r"\bghu_[A-Za-z0-9_]{20,}\b"),
     re.compile(r"\bgithub_pat_[A-Za-z0-9_]{20,}\b"),
+    # AWS
     re.compile(r"\bAKIA[0-9A-Z]{16}\b"),
+    # Slack
     re.compile(r"\bxox[abprs]-[A-Za-z0-9-]{10,}\b"),
+    # #484: Anthropic API keys
+    re.compile(r"\bsk-ant-api[0-9]{2}-[A-Za-z0-9_-]{20,}\b"),
+    # #484: OpenAI keys (project + service-account variants must come
+    # BEFORE the generic `sk-` rule below so they match more specifically).
+    re.compile(r"\bsk-proj-[A-Za-z0-9_-]{20,}\b"),
+    re.compile(r"\bsk-svcacct-[A-Za-z0-9_-]{20,}\b"),
+    re.compile(r"\bsk-[A-Za-z0-9_-]{20,}\b"),
+    # #484: Google API keys (39 chars total: AIza + 35)
+    re.compile(r"\bAIza[A-Za-z0-9_-]{35}\b"),
+    # #484: Stripe live + restricted keys (test keys `sk_test_*` are
+    # intentionally not redacted — they're meant to ship in code).
+    re.compile(r"\bsk_live_[0-9a-zA-Z]{24,}\b"),
+    re.compile(r"\bpk_live_[0-9a-zA-Z]{24,}\b"),
+    re.compile(r"\brk_live_[0-9a-zA-Z]{24,}\b"),
+    # #484: npm registry tokens
+    re.compile(r"\bnpm_[A-Za-z0-9]{36}\b"),
+    # #484: JWT shape — 3 base64url segments separated by `.`. Loose
+    # enough to catch most JWTs without false-positiving on every dotted
+    # token. Header MUST start `eyJ` (`{"`) which is the canonical JWT
+    # opening; payload likewise.
+    re.compile(r"\beyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b"),
+    # #484: PEM-encoded private keys. Multi-line via `re.DOTALL`.
+    re.compile(
+        r"-----BEGIN (?:RSA |EC |DSA |OPENSSH |ENCRYPTED |PGP )?PRIVATE KEY-----"
+        r".*?"
+        r"-----END (?:RSA |EC |DSA |OPENSSH |ENCRYPTED |PGP )?PRIVATE KEY-----",
+        re.DOTALL,
+    ),
 ]
 
 
