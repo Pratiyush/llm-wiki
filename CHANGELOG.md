@@ -8,6 +8,14 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
+## [1.2.35] — 2026-04-26
+
+Patch release fixing `cmd_all` rebuilding the argparse tree once per step flagged by the Opus 4.7 code review (#403). Pure perf + decoupling fix — same external behaviour, just one parser construction per `llmwiki all` instead of four.
+
+### Fixed
+
+- **`cmd_all` re-parses argv per step** (#422) — the orchestrator called `build_parser()` inside the per-step loop, rebuilding the entire argparse tree 4× per `llmwiki all` invocation. Apart from being wasteful, every subcommand's flag set leaked into the cmd_all contract via the shared parser — exactly the coupling cmd_all was supposed to avoid. Fix: lift the `build_parser()` call out of the loop so the parser is built once and re-used. Adds `tests/test_cmd_all_parser.py` (10 cases) covering the parser-build-once invariant, default exit code, fail-fast vs no-fail-fast propagation, --skip-graph behaviour, --strict propagation to lint argv, --out and --search-mode round-trips through to the build step, and the full `build → graph → export → lint` ordering.
+
 ## [1.2.34] — 2026-04-26
 
 Patch release tightening the claude-CLI subprocess hygiene flagged by the Opus 4.7 code review (#403). No functional change for users with claude on PATH; users who relied on the hardcoded `/usr/local/bin/claude` fallback now get `shutil.which("claude")` instead, which works on Linux package installs, NixOS, Windows, brew, asdf, nvm, and pyenv.

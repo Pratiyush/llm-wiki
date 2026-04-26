@@ -65,9 +65,15 @@ def cmd_all(args: argparse.Namespace) -> int:
 
     overall_rc = 0
     lint_rc: Optional[int] = None
+    # #422: build the parser ONCE and re-use for all steps. The previous
+    # version called ``build_parser()`` per step (4× per ``llmwiki all``)
+    # which (a) was wasteful argparse-tree work and (b) made every
+    # subcommand's flag set part of the global build_parser() contract
+    # — exactly the coupling cmd_all was supposed to avoid.
+    parser = build_parser()
     for name, argv in steps:
         print(f"\n==> llmwiki {' '.join(shlex.quote(a) for a in argv)}")
-        sub_args = build_parser().parse_args(argv)
+        sub_args = parser.parse_args(argv)
         rc = sub_args.func(sub_args)
         if name == "lint":
             lint_rc = rc
