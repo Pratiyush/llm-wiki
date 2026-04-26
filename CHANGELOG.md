@@ -8,6 +8,14 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
+## [1.3.33] — 2026-04-26
+
+Maintenance release adding i18n smoke tests to the e2e harness (#639, parent #468).
+
+### Added
+
+- **`tests/e2e/test_i18n_smoke.py`** (#639) — Playwright tests for the three locale pages under `docs/i18n/{ja,es,zh-CN}/getting-started.html`: reachability (HTTP 200), expected Unicode script presence (Hiragana/Katakana for ja, accented Latin for es, CJK for zh-CN), and `<html lang="..">` matching the locale path. The lang-attr check currently `xfail`s because every i18n page still ships with `lang="en"` — flagged as a finding for the i18n owner; the test will tighten automatically when a per-locale lang override lands.
+
 ## [1.3.32] — 2026-04-26
 
 Maintenance release adding print-stylesheet validation to the e2e harness (#640, parent #468).
