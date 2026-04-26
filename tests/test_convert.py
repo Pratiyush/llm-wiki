@@ -91,6 +91,108 @@ def test_truncate_chars_fenced_lang_marker():
     assert len(fences) % 2 == 0
 
 
+# ─── #419: tilde-fence handling ──────────────────────────────────────
+
+
+def test_truncate_chars_closes_open_tilde_fence():
+    """~~~python\\ncode...  → must auto-close with ~~~ (#419)."""
+    src = "~~~python\n" + "x = 1\n" * 50
+    out = truncate_chars(src, 30)
+    tildes = [ln for ln in out.splitlines() if ln.lstrip().startswith("~~~")]
+    assert len(tildes) % 2 == 0
+    assert len(tildes) >= 2  # opener + auto-close
+    assert "truncated" in out
+
+
+def test_truncate_lines_closes_open_tilde_fence():
+    src = "~~~\nroot/\n├── a\n├── b\n├── c\n├── d\n"
+    out = truncate_lines(src, 3)
+    tildes = [ln for ln in out.splitlines() if ln.lstrip().startswith("~~~")]
+    assert len(tildes) % 2 == 0
+    assert "truncated" in out
+
+
+def test_truncate_chars_balanced_tilde_unchanged():
+    """Already-balanced ~~~ pair: no phantom close added."""
+    src = "~~~\nshort\n~~~\nmore text past the budget that's longer"
+    out = truncate_chars(src, 25)
+    tildes = [ln for ln in out.splitlines() if ln.lstrip().startswith("~~~")]
+    assert len(tildes) == 2
+
+
+def test_truncate_chars_mixed_fences_both_closed():
+    """One unclosed ``` + one unclosed ~~~ → both get their own close."""
+    src = "```js\nconsole.log()\n~~~python\nprint('x')\n" + "more " * 50
+    out = truncate_chars(src, 80)
+    backticks = [ln for ln in out.splitlines() if ln.lstrip().startswith("```")]
+    tildes = [ln for ln in out.splitlines() if ln.lstrip().startswith("~~~")]
+    assert len(backticks) % 2 == 0, f"backtick count odd: {backticks}"
+    assert len(tildes) % 2 == 0, f"tilde count odd: {tildes}"
+
+
+def test_truncate_chars_one_fence_style_doesnt_mask_other():
+    """Pre-fix bug: counting both fence types together let one even out
+    the other's odd count, so the wrong type was appended."""
+    # 1 unclosed ~~~ alone — must close with ~~~, NOT ```
+    src = "~~~python\ncode\n" + "x " * 100
+    out = truncate_chars(src, 30)
+    # Last non-truncation-marker fence-line should be ~~~
+    fence_lines = [
+        ln for ln in out.splitlines()
+        if ln.lstrip().startswith(("```", "~~~"))
+    ]
+    assert fence_lines, "no fences found in output"
+    assert all("~~~" in ln or "```python" in ln for ln in fence_lines), (
+        f"unexpected fence type appended: {fence_lines}"
+    )
+    # The closing fence should be tilde, not backtick.
+    last_fence = fence_lines[-1]
+    assert last_fence.lstrip() == "~~~", (
+        f"closing fence should be ~~~, got: {last_fence!r}"
+    )
+
+
+def test_truncate_chars_indented_fence():
+    """Indented fences (e.g. inside list items) still count."""
+    src = "- item\n  ```python\n  x = 1\n  y = 2\n  z = 3\n"
+    out = truncate_chars(src, 25)
+    backticks = [ln for ln in out.splitlines() if ln.lstrip().startswith("```")]
+    assert len(backticks) % 2 == 0
+
+
+def test_close_open_fence_unit_tilde_only():
+    """Direct unit test for the helper — odd ~~~ count gets ~~~ close."""
+    from llmwiki.convert import _close_open_fence
+    text = "~~~python\ncode here\n"
+    out = _close_open_fence(text)
+    assert out.endswith("~~~")
+    assert out.count("~~~") == 2
+
+
+def test_close_open_fence_unit_balanced_no_change():
+    """Even count of either fence type: no change."""
+    from llmwiki.convert import _close_open_fence
+    text = "```\nfoo\n```\n~~~\nbar\n~~~\n"
+    assert _close_open_fence(text) == text
+
+
+def test_close_open_fence_unit_both_unclosed():
+    """One ``` open + one ~~~ open → both get appended."""
+    from llmwiki.convert import _close_open_fence
+    text = "```js\nconst x = 1\n~~~python\nprint('y')\n"
+    out = _close_open_fence(text)
+    # Both styles are now even.
+    assert out.count("```") == 2
+    assert out.count("~~~") == 2
+
+
+def test_close_open_fence_unit_no_fences():
+    """Plain text — no fences added."""
+    from llmwiki.convert import _close_open_fence
+    text = "just plain text\nwith no fences\n"
+    assert _close_open_fence(text) == text
+
+
 def test_redactor_username_in_path():
     config = {"redaction": {"real_username": "alice", "replacement_username": "USER", "extra_patterns": []}}
     r = Redactor(config)
