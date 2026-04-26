@@ -676,9 +676,12 @@ _PRE_PAINT_THEME_SCRIPT = """  <script>
 """
 
 
-def page_head(title: str, description: str, css_prefix: str = "") -> str:
+def page_head(title: str, description: str, css_prefix: str = "", lang: str = "en") -> str:
+    # #ui-m13 (#576): lang argument lets callers override the default
+    # `<html lang="en">` for translated docs (`docs/i18n/<locale>/`).
+    # See also page_head_article() which has the same parameter.
     return f"""<!DOCTYPE html>
-<html lang="en">
+<html lang="{html.escape(lang)}" dir="auto">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
@@ -704,9 +707,15 @@ def page_head_article(
     canonical: str = "",
     date: str = "",
     metadata_comment: str = "",
+    lang: str = "en",
 ) -> str:
     """v0.4: Extended page head for session (Article) pages with schema.org
-    microdata, canonical link, and an AI-readable metadata HTML comment."""
+    microdata, canonical link, and an AI-readable metadata HTML comment.
+
+    #ui-m13 (#576): `lang` arg lets translated docs override the
+    default `en`. `dir="auto"` lets the browser infer RTL/LTR per
+    paragraph for sessions whose body contains Arabic / Hebrew
+    transliterations or quotes."""
     canonical_tag = ""
     if canonical:
         canonical_tag = f'  <link rel="canonical" href="{html.escape(canonical)}">\n'
@@ -717,7 +726,7 @@ def page_head_article(
     if date:
         og_tags += f'  <meta property="article:published_time" content="{html.escape(date)}">\n'
     return f"""<!DOCTYPE html>
-<html lang="en">
+<html lang="{html.escape(lang)}" dir="auto">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
@@ -916,7 +925,7 @@ def page_foot(js_prefix: str = "") -> str:
       <tr><td><kbd>Esc</kbd></td><td>Close dialogs</td></tr>
     </table>
     <h3>Structured queries</h3>
-    <p class="muted" style="font-size: 0.82rem; margin: 4px 0 8px;">Mix key:value filters with free text in the palette:</p>
+    <p class="muted help-dialog-hint">Mix key:value filters with free text in the palette:</p>
     <table>
       <tr><td><code>type:session</code></td><td>Only session pages</td></tr>
       <tr><td><code>project:llm-wiki</code></td><td>Filter by project name (substring)</td></tr>
@@ -926,7 +935,7 @@ def page_foot(js_prefix: str = "") -> str:
       <tr><td><code>tags:rust</code></td><td>Pages mentioning a tag/topic</td></tr>
       <tr><td><code>sort:date</code></td><td>Sort results by date (newest first)</td></tr>
     </table>
-    <p class="muted" style="font-size: 0.82rem; margin-top: 6px;">Example: <code>type:session project:llm-wiki date:&gt;2026-04 sort:date</code></p>
+    <p class="muted help-dialog-example">Example: <code>type:session project:llm-wiki date:&gt;2026-04 sort:date</code></p>
     <button class="btn" id="help-close">Close</button>
   </div>
 </div>
@@ -1658,7 +1667,7 @@ def render_404(out_dir: Path) -> Path:
 <section class="section">
   <div class="container">
     <p>Try one of these:</p>
-    <ul style="list-style: disc; padding-left: 24px; margin: 12px 0;">
+    <ul class="not-found-links">
       <li><a href="index.html">Home</a> — overview and recent activity</li>
       <li><a href="projects/index.html">Projects</a> — every project with sessions</li>
       <li><a href="sessions/index.html">Sessions</a> — every session, sortable + filterable</li>

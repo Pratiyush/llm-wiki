@@ -8,6 +8,16 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
+## [1.3.59] — 2026-04-26
+
+#473 UI medium tail — filter persistence + lang/dir + inline-style sweep (3 issues).
+
+### Fixed
+
+- **Sessions filter selections persist across navigation** (#572, #ui-m1) — filter state (project/model/date-range/slug) was lost on every back/forward / page reload. Now mirrored to `sessionStorage["llmwiki-sessions-filters"]` (NOT localStorage — matches user expectation that the filter is transient to the tab session). Restored on page load; cleared on Clear button click.
+- **`<html lang>` + `dir="auto"`** (#576, #ui-m13) — `page_head` and `page_head_article` gained a `lang=` parameter so translated docs (`docs/i18n/<locale>/`) can override the default. `dir="auto"` lets the browser infer RTL/LTR per paragraph so sessions with mixed Arabic/Hebrew content render correctly.
+- **3 inline `style=""` attributes moved to CSS classes** (#581, #ui-l8) — help-dialog hint + example paragraphs and the 404-page link list. Site is one step closer to strict-CSP compatibility (no `unsafe-inline` style needed for these). The 7 `<col style="width: X%">` rules in the sessions colgroup are kept inline — those are tabular-data shape, not a reusable presentation.
+
 ## [1.3.58] — 2026-04-26
 
 #474 + #475 small Python cleanups (3 issues).
