@@ -188,20 +188,21 @@ def _press_key(page: Page, key: str) -> None:
 @when("the command palette becomes visible")
 @then("the command palette becomes visible")
 def _palette_visible(page: Page) -> None:
-    # The palette flips `aria-hidden="false"` on open via the
-    # openPalette() JS function (see llmwiki/build.py). We retry
-    # for up to 3s because openPalette also kicks off an async
-    # loadIndex().then(...) that could race with Playwright on CI.
+    # #478: the palette toggles a `.open` class on open via the
+    # openPalette() JS function (was `aria-hidden="false"`; that
+    # gating was an axe-core violation). Retry for up to 3s because
+    # openPalette also kicks off an async loadIndex().then(...) that
+    # could race with Playwright on CI.
     page.wait_for_function(
-        "() => document.getElementById('palette')?.getAttribute('aria-hidden') === 'false'",
+        "() => document.getElementById('palette')?.classList.contains('open') === true",
         timeout=3000,
     )
 
 
 @then("the palette input is focused")
 def _palette_input_focused(page: Page) -> None:
-    # Focus is set inside openPalette() right after the aria-hidden
-    # flip. Wait up to 2s to let the input claim focus.
+    # #478/#479: focus is set inside __openDialog() right after the
+    # .open class flip. Wait up to 2s to let the input claim focus.
     page.wait_for_function(
         "() => document.activeElement && document.activeElement.id === 'palette-input'",
         timeout=2000,
@@ -310,20 +311,23 @@ def _help_dialog_visible(page: Page) -> None:
 
 @then("the command palette becomes hidden")
 def _palette_hidden(page: Page) -> None:
+    # #478: hidden state is now the absence of the .open class.
     page.wait_for_function(
-        "() => document.getElementById('palette')?.getAttribute('aria-hidden') === 'true'",
+        "() => document.getElementById('palette')?.classList.contains('open') !== true",
         timeout=3000,
     )
 
 
 @then("the help dialog becomes hidden")
 def _help_dialog_hidden(page: Page) -> None:
-    # The help dialog may unmount OR gain a hidden attribute — accept either.
+    # #478: same .open class gate as the palette. Accept either the
+    # element being unmounted (some test paths navigate away first)
+    # or simply not having the .open class.
     page.wait_for_function(
         """() => {
             const d = document.querySelector('.help-dialog');
             if (!d) return true;
-            return d.offsetParent === null || d.getAttribute('aria-hidden') === 'true';
+            return d.offsetParent === null || !d.classList.contains('open');
         }""",
         timeout=3000,
     )
@@ -554,12 +558,11 @@ def _console_clean(page: Page) -> None:
 
 @then("the command palette is hidden")
 def _palette_hidden(page: Page) -> None:
-    # Close flips aria-hidden back to "true". We assert on that
-    # directly — the Playwright `to_be_hidden` check treats
-    # aria-hidden="true" as "attached but hidden" which is exactly
-    # the state we want.
+    # #478: close removes the .open class. We assert on the absence
+    # of the class — Playwright's `to_be_hidden` check is too strict
+    # because the element stays attached for focus restoration.
     page.wait_for_function(
-        "() => document.getElementById('palette')?.getAttribute('aria-hidden') === 'true'",
+        "() => document.getElementById('palette')?.classList.contains('open') !== true",
         timeout=3000,
     )
 

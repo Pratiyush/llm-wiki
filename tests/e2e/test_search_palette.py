@@ -24,7 +24,7 @@ def _open_palette(page: Page) -> None:
     page.locator("body").click(position={"x": 1, "y": 1})
     page.keyboard.press("ControlOrMeta+k")
     page.wait_for_function(
-        "() => document.getElementById('palette')?.getAttribute('aria-hidden') === 'false'",
+        "() => document.getElementById('palette')?.classList.contains('open') === true",
         timeout=3000,
     )
 
@@ -82,7 +82,7 @@ def test_palette_closes_on_escape(page: Page, base_url: str) -> None:
     page.keyboard.press("Escape")
     # Wait for hide.
     page.wait_for_function(
-        "() => document.getElementById('palette')?.getAttribute('aria-hidden') === 'true'",
+        "() => document.getElementById('palette')?.classList.contains('open') !== true",
         timeout=3000,
     )
     assert page.url == starting_url, (
