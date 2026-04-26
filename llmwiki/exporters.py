@@ -331,8 +331,18 @@ def write_graph_jsonld(
         "@context": "https://schema.org",
         "@graph": graph,
     }
+    # #sec-10 (#554): graph.jsonld is sometimes embedded inside a
+    # `<script type="application/ld+json">` block on third-party pages
+    # that consume our schema.org graph. A wiki page title containing
+    # the literal `</script>` would then close the script block early,
+    # opening up an XSS via attacker-controlled content downstream.
+    # Apply the same `<\/` defense graph.py uses for its own embedded
+    # payload.
+    payload = json.dumps(doc, indent=2, ensure_ascii=False)
+    if "</script>" in payload:
+        payload = payload.replace("</script>", "<\\/script>")
     out_path = out_dir / "graph.jsonld"
-    out_path.write_text(json.dumps(doc, indent=2, ensure_ascii=False), encoding="utf-8")
+    out_path.write_text(payload, encoding="utf-8")
     return out_path
 
 

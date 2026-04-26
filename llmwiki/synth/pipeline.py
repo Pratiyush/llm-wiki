@@ -128,14 +128,32 @@ def _resolve_state_file(state_file: Optional[Path] = None) -> Path:
 
 
 def _load_state(state_file: Optional[Path] = None) -> dict[str, float]:
-    """Load the mtime state file. Returns {relative_path: mtime}."""
+    """Load the mtime state file. Returns {relative_path: mtime}.
+
+    #sec-16 (#560): validate the schema before trusting it. A
+    corrupted or hand-edited state file used to be returned verbatim,
+    which then crashed every downstream consumer that expected
+    `{str: float}`. Now: must be a dict, every value must be int/float,
+    every key must be str. Anything else → reset to empty so synthesis
+    re-runs from scratch (worst case: extra work, never wrong work).
+    """
     target = _resolve_state_file(state_file)
     if not target.is_file():
         return {}
     try:
-        return json.loads(target.read_text(encoding="utf-8"))
+        raw = json.loads(target.read_text(encoding="utf-8"))
     except ValueError:
         return {}
+    if not isinstance(raw, dict):
+        return {}
+    out: dict[str, float] = {}
+    for k, v in raw.items():
+        if not isinstance(k, str):
+            continue
+        if isinstance(v, (int, float)):
+            out[k] = float(v)
+        # Other shapes silently dropped — caller treats as "needs synth"
+    return out
 
 
 def _save_state(state: dict[str, float], state_file: Optional[Path] = None) -> None:

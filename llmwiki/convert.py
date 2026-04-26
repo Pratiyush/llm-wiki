@@ -399,12 +399,38 @@ def parse_jsonl(path: Path) -> list[dict[str, Any]]:
     single bad line shouldn't abandon the whole file. Only
     file-level I/O failures bubble up.
     """
+    # #sec-8 (#552): size guards. A maliciously-large or runaway
+    # transcript could blow up memory or stall the parser. Per-line cap
+    # rejects pathologically long lines (a 200MB single-line JSON);
+    # per-file cap caps total bytes consumed even if every line is fine.
+    # Numbers chosen well above the largest legitimate Claude session
+    # observed in the wild (≈4 MB / 800 KB per line).
+    PER_LINE_BYTE_CAP = 16 * 1024 * 1024     # 16 MB / line
+    PER_FILE_BYTE_CAP = 256 * 1024 * 1024    # 256 MB / file
     out: list[dict[str, Any]] = []
+    consumed = 0
     # ``errors="replace"`` lets us survive the occasional corrupt byte in a
     # session transcript (e.g. a truncated UTF-8 sequence from a killed
     # tool). Before the fix a single bad byte would abort the whole sync.
     with path.open(encoding="utf-8", errors="replace") as f:
         for line_no, line in enumerate(f, 1):
+            line_bytes = len(line.encode("utf-8", errors="replace"))
+            consumed += line_bytes
+            if line_bytes > PER_LINE_BYTE_CAP:
+                # Skip — but keep walking. A single 30 MB line is
+                # almost certainly noise; one bad line shouldn't
+                # abandon the rest of the file.
+                continue
+            if consumed > PER_FILE_BYTE_CAP:
+                # Stop here — return what we've accumulated so far so
+                # callers still get partial data instead of nothing.
+                import sys as _sys
+                print(
+                    f"warning: {path} exceeded {PER_FILE_BYTE_CAP // (1024*1024)}MB cap; "
+                    f"truncating after {line_no} lines",
+                    file=_sys.stderr,
+                )
+                break
             line = line.strip()
             if not line:
                 continue
