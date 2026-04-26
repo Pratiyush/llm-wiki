@@ -276,7 +276,12 @@ kbd { display: inline-block; padding: 2px 6px; font-family: var(--mono); font-si
 
 /* Sessions table */
 .table-wrap { max-width: 100%; overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-card); }
-.sessions-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+/* #452: table-layout: fixed pins column widths from <colgroup> so sticky <thead>
+   columns stay aligned with <tbody> as the user scrolls. min-width keeps the
+   table horizontally scrollable on narrow viewports rather than crushing cols. */
+.sessions-table { width: 100%; min-width: 880px; border-collapse: collapse; font-size: 0.88rem; table-layout: fixed; }
+.sessions-table td { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sessions-table td a { display: inline-block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; vertical-align: bottom; }
 .sessions-table thead { position: sticky; top: 56px; background: var(--bg-alt); z-index: 1; }
 .sessions-table th, .sessions-table td { padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--border); }
 .sessions-table th { background: var(--bg-alt); font-weight: 600; color: var(--text-secondary); font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.05em; }

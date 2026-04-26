@@ -8,6 +8,15 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
+## [1.3.21] — 2026-04-26
+
+Hotfix release cleaning up the sessions index table — the Session column no longer duplicates the Date column, and the sticky header now stays aligned with the body as you scroll (#452).
+
+### Fixed
+
+- **Session column no longer duplicates the Date column** (#452) — session frontmatter titles auto-generated as `"Session: <slug> — <date>"` were rendering as `"<slug> — <date>"` in the Session cell while the dedicated Date column showed the same date. The renderer now strips the trailing ` — <date>` suffix when it matches the row's date, so the Session cell carries just the slug. Custom titles without the date suffix are unaffected.
+- **Sessions table sticky header alignment** (#452) — sticky `<thead>` would drift out of column alignment with `<tbody>` cells once the user scrolled past 100+ rows because column widths were derived from content. Added `<colgroup>` with explicit per-column widths plus `table-layout: fixed`, `min-width: 880px`, and `text-overflow: ellipsis` per cell so columns stay locked across scroll positions and the table scrolls horizontally rather than crushing on narrow viewports.
+
 ## [1.3.20] — 2026-04-26
 
 Hotfix release adding a small muted date-range line under each home project card so users can spot fresh vs stale projects at a glance (#455).
