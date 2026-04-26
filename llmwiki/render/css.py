@@ -621,11 +621,16 @@ a.topic-chip:hover {
   border: 1px solid;
   vertical-align: middle;
 }
+/* #459: light-theme agent text colors darkened to clear WCAG AA on the
+   alpha-blended backgrounds. Originals (codex #059669, copilot #2563EB,
+   cursor #D97706, gemini #DC2626) measured 2.86–4.49:1 on the effective
+   10%-alpha tint, all under the 4.5:1 small-text threshold. The border
+   tint is decorative so its rgba(color, 0.3) value is unchanged. */
 .agent-claude   { color: #7C3AED; background: rgba(124,58,237,0.1); border-color: rgba(124,58,237,0.3); }
-.agent-codex    { color: #059669; background: rgba(5,150,105,0.1); border-color: rgba(5,150,105,0.3); }
-.agent-copilot  { color: #2563EB; background: rgba(37,99,235,0.1); border-color: rgba(37,99,235,0.3); }
-.agent-cursor   { color: #D97706; background: rgba(217,119,6,0.1); border-color: rgba(217,119,6,0.3); }
-.agent-gemini   { color: #DC2626; background: rgba(220,38,38,0.1); border-color: rgba(220,38,38,0.3); }
+.agent-codex    { color: #047857; background: rgba(5,150,105,0.1); border-color: rgba(5,150,105,0.3); }
+.agent-copilot  { color: #1E40AF; background: rgba(37,99,235,0.1); border-color: rgba(37,99,235,0.3); }
+.agent-cursor   { color: #92400E; background: rgba(217,119,6,0.1); border-color: rgba(217,119,6,0.3); }
+.agent-gemini   { color: #991B1B; background: rgba(220,38,38,0.1); border-color: rgba(220,38,38,0.3); }
 .agent-obsidian { color: #7E22CE; background: rgba(126,34,206,0.1); border-color: rgba(126,34,206,0.3); }
 .agent-pdf      { color: #B91C1C; background: rgba(185,28,28,0.1); border-color: rgba(185,28,28,0.3); }
 .agent-unknown  { color: #6B7280; background: rgba(107,114,128,0.1); border-color: rgba(107,114,128,0.3); }
