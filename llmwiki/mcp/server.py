@@ -26,6 +26,7 @@ import json
 import re
 import subprocess
 import sys
+import time
 from pathlib import Path
 from typing import Any
 
@@ -677,15 +678,46 @@ def tool_wiki_sync(args: dict[str, Any]) -> dict[str, Any]:
     cmd = [sys.executable, "-m", "llmwiki", "sync"]
     if dry_run:
         cmd.append("--dry-run")
+    # #py-h1 (#582): capture_output=True buffers all stdout in RAM. A
+    # very chatty sync (thousands of sessions) can blow past the
+    # 1 GB-ish ceiling Python can hold + grow before OOM-killing.
+    # Stream stdout via Popen + readline, capping the captured tail
+    # to a fixed byte budget so the MCP response stays bounded.
+    OUTPUT_CAP_BYTES = 256 * 1024  # 256 KB tail in the response
+    captured: list[str] = []
+    captured_bytes = 0
+    truncated = False
     try:
-        result = subprocess.run(
-            cmd, capture_output=True, text=True, cwd=str(REPO_ROOT), timeout=120,
+        proc = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            cwd=str(REPO_ROOT),
         )
+        # Read line-by-line so a hung child doesn't block forever — the
+        # outer try wraps a 120s timeout via proc.wait below.
+        assert proc.stdout is not None
+        deadline = time.time() + 120.0
+        for line in proc.stdout:
+            if captured_bytes < OUTPUT_CAP_BYTES:
+                captured.append(line)
+                captured_bytes += len(line)
+            else:
+                truncated = True
+            if time.time() > deadline:
+                proc.kill()
+                return _err("sync timed out after 120s")
+        proc.wait(timeout=max(0.1, deadline - time.time()))
     except subprocess.TimeoutExpired:
+        try: proc.kill()  # type: ignore[name-defined]
+        except Exception: pass
         return _err("sync timed out after 120s")
-    except Exception as e:
+    except (OSError, subprocess.SubprocessError) as e:
         return _err(f"sync failed: {e}")
-    output = result.stdout + (f"\n--- stderr ---\n{result.stderr}" if result.stderr else "")
+    output = "".join(captured)
+    if truncated:
+        output += f"\n[output truncated at {OUTPUT_CAP_BYTES // 1024} KB]"
     return _ok(output or "(no output)")
 
 

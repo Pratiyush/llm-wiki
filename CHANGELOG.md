@@ -8,6 +8,22 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
+## [1.3.53] — 2026-04-26
+
+#474 Bundle 5 — CLI/MCP HIGH (4 of 6; #583 cmd_all argv re-parse + #585 Ollama prompt re-render deferred as standalones).
+
+### Fixed
+
+- **MCP `wiki_sync` streams output instead of buffering all of it** (#582, #py-h1) — `subprocess.run(capture_output=True)` would hold the entire sync stdout in RAM and could OOM on a chatty multi-thousand-session sync. Now uses `Popen` + line-by-line read with a 256 KB tail cap and explicit deadline; long output truncates to a marker instead of crashing the server.
+- **`synth/pipeline._render_synth_page` no longer silently drops curated tags** (#584, #py-h5) — the broad `except Exception` was eating real parse failures + unicode errors silently, dropping maintainer-curated tags on every regression. Narrowed to `(OSError, ValueError, UnicodeDecodeError)` and added a stderr warning so a tag-loss diff is loud, not silent.
+- **`synth/pipeline.py` imports `parse_frontmatter` from `_frontmatter` directly** (#587 / #arch-h5, #py-m1) — was importing from `build` which drags 145+ transitive imports into every synth call. The parser sits cleanly in `_frontmatter.py` with no deps; switching trims the cold-start cost for `llmwiki synthesize`.
+- **`MODEL_PRICING` includes `claude-haiku-4-5-20251001`** (#589, #py-m3) — `synthesize_overview` actually invokes the date-suffixed haiku alias; cost-estimate code was raising `ValueError: unknown model`. Same rate card as the bare `claude-haiku-4` entry.
+
+### Deferred
+
+- #583 (cmd_all argv re-parse) — needs an argparse-injection refactor; better as standalone alongside #611 (synthesize flag exclusion group).
+- #585 (Ollama re-renders prompt) — synth backend contract realignment, file as standalone.
+
 ## [1.3.52] — 2026-04-26
 
 #474 Bundle 4 — build/serve correctness (4 of 5; the 5th #594 single-pass refactor deferred as standalone).

@@ -100,6 +100,16 @@ MODEL_PRICING: dict[str, ModelRates] = {
         "cache_write": 1.00,
         "output": 4.00,
     },
+    # #py-m3 (#589): synthesize_overview actually invokes
+    # `claude-haiku-4-5-20251001` (the date-suffixed alias). Without
+    # this entry, cost-estimate code raises `ValueError: unknown model`.
+    # Same rate card as the bare claude-haiku-4 above.
+    "claude-haiku-4-5-20251001": {
+        "input": 0.80,
+        "cached_input": 0.08,
+        "cache_write": 1.00,
+        "output": 4.00,
+    },
     "claude-opus-4": {
         "input": 15.00,
         "cached_input": 1.50,

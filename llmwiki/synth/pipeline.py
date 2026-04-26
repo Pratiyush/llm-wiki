@@ -25,7 +25,10 @@ from pathlib import Path
 from typing import Any, Optional
 
 from llmwiki import REPO_ROOT
-from llmwiki.build import parse_frontmatter
+# #py-m1 (#587) / #arch-h5 (#610): import directly from _frontmatter
+# instead of via build.py. The build module pulls in 145+ transitive
+# imports; the parser sits cleanly in _frontmatter.py with no deps.
+from llmwiki._frontmatter import parse_frontmatter
 from llmwiki.synth.base import BaseSynthesizer, DummySynthesizer
 
 
@@ -545,6 +548,13 @@ def _build_source_page(
     ai_tags, clean_body = _extract_suggested_tags(synthesized_body)
 
     # Preserve any maintainer-curated tags on re-synthesize.
+    # #py-h5 (#584): the broad `except Exception` was eating real
+    # parse failures + unicode errors silently, dropping the curated
+    # tags on every regression. Narrow to the failures that are
+    # actually expected here (file read OSError, frontmatter format
+    # issues): everything else (MemoryError, KeyboardInterrupt,
+    # surprise type errors) bubbles up so the regression is visible
+    # instead of silently producing a tag-loss diff.
     existing_tags: list[str] = []
     if existing_page_path is not None and existing_page_path.exists():
         try:
@@ -552,8 +562,14 @@ def _build_source_page(
                 existing_page_path.read_text(encoding="utf-8")
             )
             existing_tags = list(existing_meta.get("tags", []) or [])
-        except Exception:
-            # Never fail synthesis on a frontmatter read error.
+        except (OSError, ValueError, UnicodeDecodeError) as e:
+            # Log loud — silent drop is what #584 was about.
+            import sys as _sys
+            print(
+                f"warning: could not preserve tags from "
+                f"{existing_page_path}: {e}",
+                file=_sys.stderr,
+            )
             existing_tags = []
 
     baseline = _derive_baseline_tags(meta)
