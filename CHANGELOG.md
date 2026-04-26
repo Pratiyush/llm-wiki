@@ -8,6 +8,14 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
+## [1.3.37] — 2026-04-26
+
+Maintenance release adding per-page performance budgets to the e2e harness (#630, parent #468).
+
+### Added
+
+- **`tests/perf-budgets.json`** + **`tests/e2e/test_perf_budgets.py`** (#630) — Playwright captures `domContentLoadedEventEnd` and `loadEventEnd` for each page-type and asserts they're under the per-page budget. Catches bundle bloat + asset regressions that don't show in static analysis. Budgets are conservative starting points (DCL 2500-4000ms, load 4000-6500ms depending on page complexity); we can graduate to LCP/INP/CLS once baseline numbers stabilise — DCL + load are deterministic enough to catch ≥500ms regressions without flaking on shared CI runners.
+
 ## [1.3.36] — 2026-04-26
 
 Maintenance release adding nightly synthetic monitoring of the deployed demo (#637, parent #468).
