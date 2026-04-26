@@ -1224,26 +1224,37 @@ def build_parser() -> argparse.ArgumentParser:
         "synthesize",
         help="Synthesize wiki source pages from raw sessions via LLM backend",
     )
-    syn.add_argument(
+    # #arch-h7 (#610): the four "what should this invocation do?" flags
+    # used to be independently set-able. argparse silently honoured the
+    # first one in `cmd_synthesize`'s if/elif chain, so e.g.
+    # `synthesize --check --estimate` ran --check and silently dropped
+    # --estimate. Use a mutually-exclusive group so the parser rejects
+    # the combination loudly with a useful error.
+    syn_mode = syn.add_mutually_exclusive_group()
+    syn_mode.add_argument(
         "--check", action="store_true",
         help="Probe backend availability and exit (exit 0 if reachable)",
     )
-    syn.add_argument(
-        "--force", action="store_true",
-        help="Ignore state file, re-synthesize all sessions",
-    )
-    syn.add_argument(
+    syn_mode.add_argument(
         "--estimate", action="store_true",
         help="Print cached-vs-fresh token + dollar estimate without calling a backend (#50)",
     )
-    # #316 — agent-delegate backend helpers.
-    syn.add_argument(
+    # #316 — agent-delegate backend helpers (mutually-exclusive with the
+    # default synthesize-all flow + with --check / --estimate above).
+    syn_mode.add_argument(
         "--list-pending", action="store_true",
         help="List pending prompts awaiting agent synthesis (agent-delegate backend, #316)",
     )
-    syn.add_argument(
+    syn_mode.add_argument(
         "--complete", metavar="UUID", default=None,
         help="Complete a pending synthesis: read body from --body or stdin, rewrite --page in place (#316)",
+    )
+    # --force is orthogonal (modifies the default re-synthesize-all flow)
+    # and stays outside the exclusion group so callers can pass
+    # `synthesize --force` for a forced full re-run.
+    syn.add_argument(
+        "--force", action="store_true",
+        help="Ignore state file, re-synthesize all sessions",
     )
     syn.add_argument(
         "--page", metavar="PATH", default=None,

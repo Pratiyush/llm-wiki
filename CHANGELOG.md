@@ -8,6 +8,14 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
+## [1.3.55] — 2026-04-26
+
+#475 #arch-h7 — synthesize subcommand argparse mutual exclusion (#610).
+
+### Fixed
+
+- **`synthesize` rejects mutually-exclusive flags loudly** (#610, #arch-h7) — `--check`, `--estimate`, `--list-pending`, `--complete` were independent flags; argparse accepted any combination. The body of `cmd_synthesize` had a quiet if/elif chain that ran the FIRST set flag and silently dropped the rest, so `synthesize --check --estimate` ran the connectivity probe and dropped the cost estimate request. Wrapped the four mode flags in `add_mutually_exclusive_group()` so argparse rejects the combination with a clear `argument --estimate: not allowed with argument --check`. `--force` is intentionally outside the group (it modifies the default flow).
+
 ## [1.3.54] — 2026-04-26
 
 #473 Bundle A — theme follow-system + kbd wikilink + iOS sticky thead (3 HIGH a11y/UX issues).
