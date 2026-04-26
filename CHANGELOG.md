@@ -8,6 +8,14 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
+## [1.3.3] — 2026-04-26
+
+Hotfix release fixing yellow chip contrast failure flagged by the Opus UI/UX audit (#480).
+
+### Fixed
+
+- **`.fresh-yellow` and `.token-ratio-value.tier-yellow` failed WCAG AA contrast** (#480) — light-mode chips used `color: #b45309` on `background: #fef3c7` = **4.49:1 contrast ratio**. Fails AA (4.5:1) for the rendered 0.72rem text. Bumped to `#92400e` (5.85:1). Dark-mode variants (`#fcd34d` on `#3a2a06`) already pass and are unchanged. Adds `tests/test_chip_contrast.py` (4 cases) computing the ratio against a hand-coded W3C luminance formula.
+
 ## [1.3.2] — 2026-04-26
 
 Hotfix release adding `viewport-fit=cover` so iOS Safari exposes safe-area insets, fixing the mobile bottom nav overlap with the iPhone home indicator (#481).
