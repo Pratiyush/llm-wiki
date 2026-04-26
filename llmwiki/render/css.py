@@ -118,7 +118,9 @@ kbd { display: inline-block; padding: 2px 6px; font-family: var(--mono); font-si
    the command palette via Cmd+K, and the mobile bottom nav below 767. */
 @media (max-width: 1023px) { .nav-links > a { display: none; } }
 
-.theme-toggle { background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text-secondary); transition: all 0.2s; padding: 0; flex-shrink: 0; }
+/* #ui-m3 (#573): bump touch target from 36×36 to 44×44 (Apple HIG +
+   WCAG 2.5.5 minimum). Visual icon stays the same; padding grows. */
+.theme-toggle { background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text-secondary); transition: all 0.2s; padding: 0; flex-shrink: 0; }
 .theme-toggle:hover { border-color: var(--accent); color: var(--accent); }
 .theme-toggle svg { width: 18px; height: 18px; }
 .theme-toggle .icon-sun { display: none; }
@@ -162,8 +164,15 @@ kbd { display: inline-block; padding: 2px 6px; font-family: var(--mono); font-si
 
 /* Code copy button */
 .code-wrap { position: relative; }
-.copy-code-btn { position: absolute; top: 8px; right: 8px; padding: 4px 10px; font-size: 0.72rem; font-weight: 500; background: var(--bg); border: 1px solid var(--border); border-radius: 4px; color: var(--text-secondary); cursor: pointer; font-family: var(--font); opacity: 0; transition: opacity 0.15s; z-index: 2; }
-.code-wrap:hover .copy-code-btn { opacity: 1; }
+/* #ui-m4 (#574): copy-code-btn used to be opacity:0 by default and
+   only became visible on `:hover` of the parent — invisible to touch
+   + keyboard users until they hovered. Now visible at low opacity by
+   default so the affordance is always discoverable; full opacity
+   on hover/focus. #ui-m3 (#573): bumped padding to land the touch
+   target at 44×44 minimum (was effectively 24×24). */
+.copy-code-btn { position: absolute; top: 8px; right: 8px; padding: 8px 12px; min-width: 44px; min-height: 36px; font-size: 0.72rem; font-weight: 500; background: var(--bg); border: 1px solid var(--border); border-radius: 4px; color: var(--text-secondary); cursor: pointer; font-family: var(--font); opacity: 0.6; transition: opacity 0.15s; z-index: 2; }
+.code-wrap:hover .copy-code-btn,
+.copy-code-btn:focus-visible { opacity: 1; }
 .copy-code-btn:hover { border-color: var(--accent); color: var(--accent); }
 .copy-code-btn.copied { background: var(--accent-bg); color: var(--accent); border-color: var(--accent); opacity: 1; }
 
