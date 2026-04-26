@@ -8,6 +8,14 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
+## [1.3.38] — 2026-04-26
+
+Maintenance release adding on-demand regeneration of `docs/images/*.png` screenshots (#632, parent #468).
+
+### Added
+
+- **`scripts/regen_docs_screenshots.py`** + **`.github/workflows/regen-screenshots.yml`** (#632) — Python script that builds the site, walks four canonical pages with Playwright at 1280×800, captures `docs/images/{home,projects,sessions,changelog}.png`, and reports a one-line diff. Idempotent — re-running with no UI changes produces no diff. The companion workflow runs on demand only (`workflow_dispatch`) with a theme input (dark/light), then opens a `chore/regen-docs-screenshots-<run-id>` PR via `peter-evans/create-pull-request@v7` so a maintainer can review the visual diff before merging. Stops the docs screenshots from drifting out of sync with the actual UI.
+
 ## [1.3.37] — 2026-04-26
 
 Maintenance release adding per-page performance budgets to the e2e harness (#630, parent #468).
