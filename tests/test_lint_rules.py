@@ -718,3 +718,108 @@ def test_tools_consistency_flags_extra_tool_count_key():
     )
     issues = run_all({"sources/s.md": page}, selected=["tools_consistency"])
     assert any("['Bash']" in i["message"] for i in issues)
+
+
+# ─── #410 — tools_used type-coercion (regression for the TypeError) ──
+
+
+def test_tools_consistency_handles_list_tools_used():
+    """Regression for #410: when frontmatter is parsed by `_frontmatter.py`'s
+    inline-list path, `tools_used` comes back as a real Python list, not a
+    string. Old code did `re.search(regex, list)` and raised TypeError —
+    silently aborting the whole rule."""
+    body = "# s"
+    page = _mk_page({}, body)
+    page["meta"] = {
+        "title": "s", "type": "source",
+        "tools_used": ["Read", "Write", "Grep"],  # list, not str
+        "tool_counts": '{"Read": 1, "Write": 2}',
+    }
+    issues = run_all({"sources/s.md": page}, selected=["tools_consistency"])
+    assert any("['Grep']" in i["message"] for i in issues), (
+        f"list-typed tools_used didn't surface the missing-key warning: {issues}"
+    )
+
+
+def test_tools_consistency_handles_quoted_list_elements():
+    """tools_used: [\"Read\", \"Write\"] — quoted elements get unquoted."""
+    body = "# s"
+    page = _mk_page({}, body)
+    page["meta"] = {
+        "title": "s", "type": "source",
+        "tools_used": ['"Read"', '"Write"'],
+        "tool_counts": '{"Read": 1, "Write": 2}',
+    }
+    issues = run_all({"sources/s.md": page}, selected=["tools_consistency"])
+    assert issues == [], (
+        f"quoted list elements caused false positives: {issues}"
+    )
+
+
+def test_tools_consistency_handles_empty_list():
+    """tools_used: [] should be treated like tools_used missing."""
+    body = "# s"
+    page = _mk_page({}, body)
+    page["meta"] = {
+        "title": "s", "type": "source",
+        "tools_used": [],
+        "tool_counts": '{"Read": 1}',
+    }
+    issues = run_all({"sources/s.md": page}, selected=["tools_consistency"])
+    assert issues == []
+
+
+def test_tools_consistency_handles_dict_tool_counts():
+    """tool_counts can be a real dict (after JSON parsing) — must work."""
+    body = "# s"
+    page = _mk_page({}, body)
+    page["meta"] = {
+        "title": "s", "type": "source",
+        "tools_used": ["Read", "Write"],
+        "tool_counts": {"Read": 1, "Write": 2, "Bash": 3},
+    }
+    issues = run_all({"sources/s.md": page}, selected=["tools_consistency"])
+    assert any("['Bash']" in i["message"] for i in issues)
+
+
+def test_tools_consistency_skips_unsupported_types():
+    """Numbers, bools, dicts in tools_used → silently skip (not crash)."""
+    for hostile in [42, True, {"unexpected": "shape"}]:
+        page = _mk_page({}, "# s")
+        page["meta"] = {
+            "title": "s", "type": "source",
+            "tools_used": hostile,
+            "tool_counts": '{"Read": 1}',
+        }
+        # Must not raise.
+        issues = run_all({"sources/s.md": page}, selected=["tools_consistency"])
+        # And must not flag — we have no idea what to compare against.
+        assert issues == [], (
+            f"unsupported tools_used={hostile!r} produced spurious issue: {issues}"
+        )
+
+
+def test_tools_consistency_unit_normalise_tools_used():
+    """Direct unit test for the helper — covers the type matrix in one shot."""
+    from llmwiki.lint.rules import _normalise_tools_used
+    assert _normalise_tools_used(None) == set()
+    assert _normalise_tools_used("") == set()
+    assert _normalise_tools_used([]) == set()
+    assert _normalise_tools_used(["Read", "Write"]) == {"Read", "Write"}
+    assert _normalise_tools_used(['"Read"', "'Write'"]) == {"Read", "Write"}
+    assert _normalise_tools_used("[Read, Write]") == {"Read", "Write"}
+    assert _normalise_tools_used('["Read", "Write"]') == {"Read", "Write"}
+    assert _normalise_tools_used("not a list") == set()
+    assert _normalise_tools_used(42) == set()
+    assert _normalise_tools_used(True) == set()
+    assert _normalise_tools_used({"unexpected": "shape"}) == set()
+
+
+def test_tools_consistency_unit_normalise_tool_counts_keys():
+    from llmwiki.lint.rules import _normalise_tool_counts_keys
+    assert _normalise_tool_counts_keys(None) == set()
+    assert _normalise_tool_counts_keys("") == set()
+    assert _normalise_tool_counts_keys({}) == set()
+    assert _normalise_tool_counts_keys({"Read": 1}) == {"Read"}
+    assert _normalise_tool_counts_keys('{"Read": 1, "Write": 2}') == {"Read", "Write"}
+    assert _normalise_tool_counts_keys(42) == set()
