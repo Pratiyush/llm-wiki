@@ -136,14 +136,30 @@ TOOLS = [
         "description": (
             "Run the session-transcript converter to pull in any new sessions "
             "from the agent's session store into raw/sessions/. Returns the "
-            "converter's summary line."
+            "converter's summary line. Defaults to dry-run; pass confirm=true "
+            "to actually write."
         ),
         "inputSchema": {
             "type": "object",
             "properties": {
+                # #sec-12 (#556): default to dry_run=true so an MCP client
+                # can't silently mutate raw/ on a misclick / hallucinated
+                # tool call. Pass `confirm: true` to actually write.
                 "dry_run": {
                     "type": "boolean",
-                    "description": "If true, preview without writing.",
+                    "description": (
+                        "If true (default), preview without writing. Set "
+                        "false ONLY together with confirm=true."
+                    ),
+                    "default": True,
+                },
+                "confirm": {
+                    "type": "boolean",
+                    "description": (
+                        "Required to actually write. Without confirm=true "
+                        "the call always runs as a dry-run regardless of "
+                        "dry_run."
+                    ),
                     "default": False,
                 },
             },
@@ -650,7 +666,14 @@ def tool_wiki_lint(args: dict[str, Any]) -> dict[str, Any]:
 
 
 def tool_wiki_sync(args: dict[str, Any]) -> dict[str, Any]:
-    dry_run = bool(args.get("dry_run", False))
+    # #sec-12 (#556): default to dry_run=true. Real writes require BOTH
+    # dry_run=false AND confirm=true. Either flag missing = dry-run.
+    dry_run = bool(args.get("dry_run", True))
+    confirm = bool(args.get("confirm", False))
+    if not dry_run and not confirm:
+        # Caller asked for live sync without confirmation — downgrade to
+        # dry-run + tell them why. Better than silently mutating raw/.
+        dry_run = True
     cmd = [sys.executable, "-m", "llmwiki", "sync"]
     if dry_run:
         cmd.append("--dry-run")
