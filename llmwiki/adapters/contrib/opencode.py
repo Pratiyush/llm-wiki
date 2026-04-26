@@ -97,8 +97,19 @@ class OpenCodeAdapter(BaseAdapter):
         return jsonl_path.parent.name
 
     def is_subagent(self, jsonl_path: Path) -> bool:
-        """OpenCode marks subagent sessions with 'subagent' in the filename."""
-        return "subagent" in jsonl_path.name
+        """OpenCode marks subagent sessions with 'subagent' in the filename.
+
+        #arch-m1 (#614): match the segment, not the substring. The
+        previous `"subagent" in name` form would mis-classify a session
+        whose user-supplied slug happens to contain the literal text
+        "subagent" anywhere — same regression #406 fixed for the main
+        adapter contract.
+        """
+        # Hyphen-bounded match — accepts the subagent identifier whether
+        # it appears as a leading, trailing, or interior segment of a
+        # `-`-delimited filename.
+        import re
+        return bool(re.search(r"(?:^|[-/])subagent(?:[-.]|$)", jsonl_path.name))
 
     def normalize_records(
         self, records: list[dict[str, Any]]

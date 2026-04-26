@@ -58,11 +58,10 @@ class FrontmatterCompleteness(LintRule):
     # System-level nav files and _context.md stubs are exempt from the
     # strict title/type requirement. Index/log/overview are auto-generated
     # or human-curated hubs and don't fit the source/entity/concept schema.
-    EXEMPT_FILES = {
-        "index.md", "overview.md", "log.md",
-        "hints.md", "hot.md", "MEMORY.md",
-        "SOUL.md", "CRITICAL_FACTS.md", "dashboard.md",
-    }
+    # #arch-l7: canonical list lives in llmwiki/_system_pages.py so
+    # graph.py + lint don't drift independently. Use the .md-filename
+    # form because lint walks page paths read off disk.
+    from llmwiki._system_pages import SYSTEM_PAGE_FILES as EXEMPT_FILES
 
     def run(self, pages, *, llm_callback=None):
         issues = []

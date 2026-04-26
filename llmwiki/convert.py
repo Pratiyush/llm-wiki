@@ -55,7 +55,12 @@ DEFAULT_CONFIG: dict[str, Any] = {
 # ─── config + state ────────────────────────────────────────────────────────
 
 def load_config(path: Path) -> dict[str, Any]:
-    cfg: dict[str, Any] = json.loads(json.dumps(DEFAULT_CONFIG))
+    # #arch-l6 (#628): the json.loads(json.dumps(...)) idiom was a
+    # round-trip deep-copy from the era before copy.deepcopy was a
+    # builtin import. copy.deepcopy is ~5× faster and avoids the
+    # implicit "JSON-serializable types only" constraint.
+    import copy
+    cfg: dict[str, Any] = copy.deepcopy(DEFAULT_CONFIG)
     if path.exists():
         try:
             user = json.loads(path.read_text(encoding="utf-8"))
@@ -979,6 +984,11 @@ def derive_session_slug(records: list[dict[str, Any]], jsonl_path: Path) -> str:
         if slug:
             return str(slug)
     stem = jsonl_path.stem
+    # #arch-l3 (#625): the 8-char vs 12-char split is intentional, not
+    # a drift. UUID stems get the stable hash because every UUID shares
+    # the same 12-char prefix per project; deliberate human-named stems
+    # get the 12-char prefix because it preserves readability. Don't
+    # collapse them — a single rule loses one of the two properties.
     if _UUID_LIKE.match(stem):
         return _source_hash8(jsonl_path)
     if not stem:

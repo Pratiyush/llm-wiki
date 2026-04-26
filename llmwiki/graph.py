@@ -35,11 +35,10 @@ WIKILINK_RE = re.compile(r"\[\[([^\]|]+)(?:\|[^\]]*)?\]\]")
 # topology) but mark `site_url = None`.
 _NO_SITE_TYPES = {"entities", "concepts", "syntheses", "questions",
                   "comparisons", "hot", "categories", "projects_meta"}
-_NO_SITE_BASENAMES = {
-    "CRITICAL_FACTS", "MEMORY", "SOUL",
-    "hints", "hot", "dashboard", "overview",
-    "log", "log-archive-2026",
-}
+# #arch-l7: canonical system-page list lives in llmwiki/_system_pages.py.
+# Graph wants the slug form (already stripped of `.md`); lint wants the
+# filename form. Same set, different shape.
+from llmwiki._system_pages import SYSTEM_PAGE_SLUGS as _NO_SITE_BASENAMES  # noqa: E402
 
 
 def _compute_site_url(text: str, rel_parts: tuple[str, ...],
