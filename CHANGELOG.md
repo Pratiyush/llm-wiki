@@ -8,6 +8,14 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
+## [1.3.19] — 2026-04-26
+
+Hotfix release wiring `--vault` through `cmd_sync` so vault-mode actually populates the vault (#470).
+
+### Fixed
+
+- **`llmwiki sync --vault PATH` silently ignored the vault** (#470) — `cmd_sync` resolved and validated the vault path, printed the `==> vault: ...` banner, then called `convert_all()` **without** `out_dir=` or `state_file=`. All sessions wrote to the repo's `raw/sessions/` instead of the vault. The summary line said `507 converted` but the vault directory was empty — silent data routing failure that broke the entire vault-overlay UX. Same pattern propagated to `auto_build` (wrote site to repo) and `auto_lint` (linted repo's wiki, not vault's). Fix: when `--vault PATH` is given, route `out_dir = vault/raw/sessions`, `state_file = vault/.llmwiki-state.json`, `auto_build` site root → `vault/site`, and `auto_lint` page-loader → `vault/wiki`. State file isolation matches the same #420 principle for synth state. Adds `tests/test_vault_sync_routing.py` (8 cases): vault sync writes raw under vault not repo; state file lives in vault not repo; vault auto-build writes site to vault; vault auto-lint loads vault's wiki; default no-vault behaviour unchanged; --vault PATH where PATH does not exist still errors as before; relative vault paths resolved correctly; --force --vault uses vault state file.
+
 ## [1.3.18] — 2026-04-26
 
 Hotfix release unifying the adapter `is_available()` contract so contrib adapters don't need to re-implement it (#496).
