@@ -15,6 +15,55 @@ The canonical per-release detail is
 [CHANGELOG.md](https://github.com/Pratiyush/llm-wiki/blob/master/CHANGELOG.md)
 — this guide focuses on "what might break".
 
+## v1.3.0 — consolidated 1.2.x patch roll-up
+
+**Released: 2026-04-26.**
+
+### Summary
+
+Drop-in upgrade from any 1.2.x. v1.3.0 consolidates 38 in-tree
+patch versions (1.2.1 → 1.2.38) under one minor release tag — no
+breaking API changes, no schema migrations, no config changes.
+
+```bash
+pip install -U llm-notebook   # → 1.3.0
+llmwiki --version             # → 1.3.0
+```
+
+### What's in it
+
+The full per-fix detail is preserved under the [1.2.x] entries in
+`CHANGELOG.md`. Two themes:
+
+1. **Opus 4.7 deep code-review backlog (#403, ~26 issues)** — every
+   correctness, perf, and observability finding got a one-issue-one-PR
+   fix. Headliners: `is_subagent` strict path check (#406),
+   `derive_session_slug` UUID-prefix collision (#424), tilde-fence
+   counting in `_close_open_fence` (#419), `wiki_query` ranking
+   length normalisation (#418), `wiki_search` cap (#413), per-vault
+   synth state (#420), `--force` sync persisting `_meta`/`_counters`
+   (#426), subprocess `claude_path` resolved via `shutil.which`
+   (#421).
+
+2. **Performance + features** — `DuplicateDetection` lint rule
+   rewritten with bucket+fingerprint+SequenceMatcher (1s vs minutes
+   on 500 pages, #412), perf-budget test suite (`-m slow`, #429),
+   `md_to_plain_text` cache (#417), auto-seeded project stubs
+   pre-populated from session metadata (#425), 2 new lint rules
+   (`frontmatter_count_consistency`, `tools_consistency`, #378),
+   `wiki-all` slash command, `_context.md` folder convention (#60).
+
+### Breaking — none
+
+Same CLI surface, same config schema, same on-disk state format.
+The only thing that changed is that the next plain `sync` after a
+forced re-sync will now correctly identify already-processed files
+as unchanged (was: re-processed every time, #426).
+
+### Schema migrations — none
+
+State files written by 1.2.x are read verbatim by 1.3.0.
+
 ## v1.2.0 — first stable on the 1.x line
 
 **Released: 2026-04-25.**
