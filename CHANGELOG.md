@@ -8,13 +8,21 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
-## [1.2.32] — 2026-04-26
+## [1.2.33] — 2026-04-26
 
 Patch release fixing the `is_subagent` mis-classification flagged by the Opus 4.7 code review (#403). Pure correctness fix — no API change.
 
 ### Fixed
 
 - **`is_subagent` heuristic mis-tagged top-level sessions whose path contains 'subagent'** (#406) — `BaseAdapter.is_subagent` returned True for any path with `"subagent"` in any segment. Combined with the renderer renaming the slug to `<slug>-subagent-<id>`, every session in any user project named e.g. `subagent-runner` was demoted to sub-agent on the project page and excluded from main-session counts. Fix: `BaseAdapter.is_subagent` now returns False (no adapter has the concept by default); `ClaudeCodeAdapter` overrides with a strict canonical-path check (parent directory must be literally named `subagents` AND filename must start with `agent-`). Same conservative fix applied to `CodexCliAdapter`. Adds `tests/test_is_subagent.py` (18 cases including a cross-product matrix of project-name × path × adapter) closing test-gap #430.
+
+## [1.2.30] — 2026-04-26
+
+Patch release fixing the tilde-fence blind spot in truncate-time fence balancing flagged by the Opus 4.7 code review (#403). Pure correctness fix — markdown allows both ` ``` ` and `~~~` fence styles, and Quarto-flavoured docs use the latter.
+
+### Fixed
+
+- **`_close_open_fence` only counted backtick fences** (#419) — `convert.py:_close_open_fence` summed lines starting with `\`\`\`` and ignored `~~~` entirely. Truncated tool results that opened a tilde fence (Quarto, some pretty-printers) left the rest of the page consumed by the build's `fenced_code` extension. Fix: count both fence styles independently and append the matching close for each. Mixed-fence inputs (one `\`\`\`` open + one `~~~` open) now get both closes. Added a regression test that exercises the previous bug pattern (one fence type can't accidentally mask the other's odd count). 10 new tests covering tilde-fence opener+autoclose via `truncate_chars` and `truncate_lines`, balanced-fence preservation, mixed-fence handling, indented fences (inside list items), and direct unit tests for the helper.
 
 ## [1.2.29] — 2026-04-26
 
