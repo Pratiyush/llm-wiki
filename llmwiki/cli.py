@@ -900,8 +900,35 @@ def synthesize_estimate_report(
     # inject simpler keys.  A session counts as "synthesized" if any
     # of those three keys already appears in state_keys.
     from llmwiki.synth.pipeline import RAW_SESSIONS as _RAW
+
+    # #py-m10 (#596): single-pass walk. The previous version walked
+    # raw_sessions twice — once to bucket new vs synthesised + collect
+    # body strings, once via a list comprehension to materialise the
+    # full-force body list — and then ran estimate_tokens(body) twice
+    # on each new session inside _bucket_usd. On a 5k-corpus that's
+    # 10k token-estimate calls + 2 full body materialisations in RAM.
+    # The pass below computes per-session tokens once, accumulates
+    # both bucket totals incrementally, and never holds more than one
+    # body string at a time.
     synthed = 0
-    new_bodies: list[str] = []
+    new = 0
+    incremental_usd = 0.0
+    full_force_usd = 0.0
+    incremental_first = True
+    full_force_first = True
+
+    def _add_to_bucket(fresh_tokens: int, first: bool) -> tuple[float, bool]:
+        """Return (cost, was_first?). Cost-of-this-call uses cache_hit=
+        not first, mirroring the old _bucket_usd semantics."""
+        est = estimate_cost(
+            cached_tokens=prefix_tokens,
+            fresh_tokens=fresh_tokens,
+            output_tokens=output_tokens_per_call,
+            model=chosen_model,
+            cache_hit=not first,
+        )
+        return est.usd, False  # second-and-later calls hit the cache
+
     for p, _meta, body in raw_sessions:
         keys_to_try: set[str] = set()
         name = getattr(p, "name", str(p))
@@ -915,37 +942,19 @@ def synthesize_estimate_report(
         matched = bool(keys_to_try & state_keys) or any(
             isinstance(k, str) and k.endswith(name) for k in state_keys
         )
+        body_tokens = estimate_tokens(body)
+        # Full-force bucket: every session contributes regardless of state.
+        ff_cost, full_force_first = _add_to_bucket(body_tokens, full_force_first)
+        full_force_usd += ff_cost
+        # Incremental bucket: only un-synthesised sessions contribute.
         if matched:
             synthed += 1
         else:
-            new_bodies.append(body)
-    new = corpus - synthed
-
-    def _bucket_usd(bodies: list[str]) -> float:
-        if not bodies:
-            return 0.0
-        first = estimate_cost(
-            cached_tokens=prefix_tokens,
-            fresh_tokens=estimate_tokens(bodies[0]),
-            output_tokens=output_tokens_per_call,
-            model=chosen_model,
-            cache_hit=False,
-        )
-        total = first.usd
-        for body in bodies[1:]:
-            est = estimate_cost(
-                cached_tokens=prefix_tokens,
-                fresh_tokens=estimate_tokens(body),
-                output_tokens=output_tokens_per_call,
-                model=chosen_model,
-                cache_hit=True,
+            new += 1
+            inc_cost, incremental_first = _add_to_bucket(
+                body_tokens, incremental_first
             )
-            total += est.usd
-        return total
-
-    incremental_usd = _bucket_usd(new_bodies)
-    full_force_bodies = [body for _p, _m, body in raw_sessions]
-    full_force_usd = _bucket_usd(full_force_bodies)
+            incremental_usd += inc_cost
 
     return {
         "corpus": corpus,
