@@ -619,7 +619,7 @@ def page_head(title: str, description: str, css_prefix: str = "") -> str:
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>{html.escape(title)}</title>
   <meta name="description" content="{html.escape(description)}">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -656,7 +656,7 @@ def page_head_article(
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>{html.escape(title)}</title>
   <meta name="description" content="{html.escape(description)}">
 {canonical_tag}{og_tags}  <link rel="preconnect" href="https://fonts.googleapis.com">
