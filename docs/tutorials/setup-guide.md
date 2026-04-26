@@ -268,11 +268,13 @@ Press `Cmd+K` (macOS) or `Ctrl+K` (Linux/Windows). Try:
 ### 4.5 Export for other tools
 
 ```bash
-llmwiki export-obsidian --vault ~/Documents/"Obsidian Vault"   # copy mode
-llmwiki export-qmd --out /tmp/my-qmd                            # hybrid search
-llmwiki export-marp --topic "my-topic"                          # slide deck
-llmwiki export llms-full-txt                                    # paste into any LLM
+llmwiki sync --vault ~/Documents/"Obsidian Vault"   # vault sync (replaces removed export-obsidian)
+llmwiki export llms-full-txt                          # paste into any LLM
+llmwiki export jsonld                                 # schema.org graph
+llmwiki export rss                                    # RSS 2.0 feed
 ```
+
+> The `export-obsidian`, `export-qmd`, and `export-marp` subcommands were removed in v1.2.0. See `docs/UPGRADING.md` for migration paths.
 
 ---
 

@@ -1,5 +1,5 @@
 {
-  "_comment": "Copy this file to ./config.json (gitignored) and edit to your taste.",
+  "_comment": "#arch-m5 (#618): despite living under examples/, this IS the canonical config llmwiki ships. Loaded by convert.load_config() when no ./config.json exists. Copy to ./config.json (gitignored) only if you need a per-checkout override.",
 
   "filters": {
     "live_session_minutes": 60,
