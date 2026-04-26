@@ -133,9 +133,12 @@ def test_template_has_cluster_toggle():
 
 def test_template_has_theme_toggle_and_localstorage():
     assert 'id="theme-toggle"' in HTML_TEMPLATE
-    # Must persist the user's choice across reloads
-    assert "localStorage.setItem('theme'" in HTML_TEMPLATE
-    assert "localStorage.getItem('theme'" in HTML_TEMPLATE
+    # Must persist the user's choice across reloads + share the same
+    # localStorage key as the rest of the site so dark/light syncs both
+    # ways (#477). The legacy bare 'theme' key is intentionally absent —
+    # see tests/test_graph_theme_sync.py for the dedicated regression set.
+    assert "localStorage.setItem('llmwiki-theme'" in HTML_TEMPLATE
+    assert "localStorage.getItem('llmwiki-theme'" in HTML_TEMPLATE
 
 
 def test_template_uses_css_vars_for_theme():
@@ -197,10 +200,11 @@ def test_write_html_escapes_closing_script_tag(tmp_path: Path):
     out = tmp_path / "g.html"
     write_html(g, out)
     text = out.read_text(encoding="utf-8")
-    # Two real </script> tags exist in the template (CDN loader +
-    # inline block). A third would mean the </script> inside the
-    # label injected out of the payload — catch that.
-    assert text.count("</script>") == 2
+    # Three real </script> tags exist in the template now (#477 added
+    # a pre-paint inline script in <head> alongside the CDN loader and
+    # the main inline block). A fourth would mean the </script> inside
+    # the label injected out of the payload — catch that.
+    assert text.count("</script>") == 3
     # And the escaped form should be present inside the JSON payload.
     assert "<\\/script>" in text
 
