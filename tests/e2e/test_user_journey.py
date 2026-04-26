@@ -83,13 +83,13 @@ def test_full_navigation_journey(page: Page, base_url: str) -> None:
     page.locator("body").click(position={"x": 1, "y": 1})
     page.keyboard.press("ControlOrMeta+k")
     page.wait_for_function(
-        "() => document.getElementById('palette')?.getAttribute('aria-hidden') === 'false'",
+        "() => document.getElementById('palette')?.classList.contains('open') === true",
         timeout=3000,
     )
     # Close it.
     page.keyboard.press("Escape")
     page.wait_for_function(
-        "() => document.getElementById('palette')?.getAttribute('aria-hidden') === 'true'",
+        "() => document.getElementById('palette')?.classList.contains('open') !== true",
         timeout=3000,
     )
 

@@ -8,6 +8,15 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
+## [1.3.29] — 2026-04-26
+
+Hotfix release fixing two related a11y violations in the command palette + help dialog (#478, #479).
+
+### Fixed
+
+- **Palette + help dialog no longer use `aria-hidden` as a visibility gate** (#478) — the markup was `<div id="palette" aria-hidden="true">` and CSS gated visibility via `[aria-hidden="false"] { display: block }`. axe-core's `aria-hidden-focus` rule flags this because focusable children inside an aria-hidden ancestor are unreachable to AT users, and toggling the attribute live also creates inconsistent screen-reader announcements. Both dialogs now toggle a `.open` class instead; aria-hidden is removed from the markup entirely.
+- **Focus is trapped inside open dialogs and restored on close** (#479) — the previous code only focused the input on open. Tab walked behind into the page chrome, ESC closed but never returned focus to the trigger button, and screen reader users could land in invisible/unrelated controls. Two new helpers `__openDialog` / `__closeDialog` (a) snapshot `document.activeElement` so it can be restored on close, (b) add `inert` to every direct body sibling so AT focus stays inside the dialog, (c) explicitly focus the first interactive child on open. A `__trapTab` handler wraps Tab + Shift+Tab inside the dialog's focusable elements. Tests: `tests/test_palette_dialog_a11y.py` (11 cases) covering markup, CSS, dialog helpers, focus trap, and the updated ESC handler.
+
 ## [1.3.28] — 2026-04-26
 
 Hotfix release adding a hamburger nav drawer so every top-level link is reachable on mobile (#460).

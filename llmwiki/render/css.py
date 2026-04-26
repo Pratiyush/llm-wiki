@@ -306,8 +306,14 @@ kbd { display: inline-block; padding: 2px 6px; font-family: var(--mono); font-si
 .synthesis p { margin: 10px 0; }
 
 /* Command palette */
+/* #478: was gated by `[aria-hidden="false"]`. axe-core flags that as
+   `aria-hidden-focus` because focusable children inside an aria-hidden
+   element are unreachable to AT users. Now toggled via `.open` class
+   that JS sets when the dialog is active; aria-hidden is removed
+   entirely while open and `inert` is applied to sibling chrome to
+   keep AT focus inside the dialog (#479). */
 .palette { position: fixed; inset: 0; z-index: 300; display: none; }
-.palette[aria-hidden="false"] { display: block; }
+.palette.open { display: block; }
 .palette-backdrop { position: absolute; inset: 0; background: rgba(15, 23, 42, 0.5); backdrop-filter: blur(4px); }
 .palette-modal { position: relative; max-width: 600px; margin: 10vh auto 0; background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow); overflow: hidden; }
 .palette-header { display: flex; align-items: center; gap: 10px; padding: 14px 16px; border-bottom: 1px solid var(--border); }
@@ -324,8 +330,10 @@ kbd { display: inline-block; padding: 2px 6px; font-family: var(--mono); font-si
 .palette-footer { display: flex; gap: 16px; padding: 10px 16px; border-top: 1px solid var(--border); font-size: 0.75rem; background: var(--bg-alt); }
 
 /* Help dialog */
+/* #478: same .open class swap as the palette — aria-hidden gating
+   was an axe-core violation for any focusable child. */
 .help-dialog { position: fixed; inset: 0; z-index: 250; display: none; }
-.help-dialog[aria-hidden="false"] { display: block; }
+.help-dialog.open { display: block; }
 .help-modal { position: relative; max-width: 420px; margin: 15vh auto 0; background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 24px; box-shadow: var(--shadow); }
 .help-modal h2 { font-size: 1.1rem; margin-bottom: 16px; }
 .help-modal table { width: 100%; font-size: 0.88rem; margin-bottom: 16px; }
