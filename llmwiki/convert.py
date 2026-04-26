@@ -333,27 +333,40 @@ class IgnoreMatcher:
 # ─── parsing ───────────────────────────────────────────────────────────────
 
 def parse_jsonl(path: Path) -> list[dict[str, Any]]:
+    """Parse a JSONL transcript into a list of dict records.
+
+    #487: any OSError opening or reading the file is **re-raised** so
+    the caller in ``convert_all`` can route the failure through the
+    same ``_quarantine_add`` + 'errored' bucket as every other I/O
+    failure. The previous ``except OSError: pass`` swallowed
+    permission errors silently, leaving the affected file invisible
+    to ``llmwiki sync --status`` and the quarantine — operators saw
+    a session counted as 'filtered' (zero records) rather than
+    'errored' (something went wrong, look at it).
+
+    Per-line ``json.JSONDecodeError`` is still caught and skipped:
+    JSONL allows partial writes from a still-running session, and a
+    single bad line shouldn't abandon the whole file. Only
+    file-level I/O failures bubble up.
+    """
     out: list[dict[str, Any]] = []
-    try:
-        # ``errors="replace"`` lets us survive the occasional corrupt byte in a
-        # session transcript (e.g. a truncated UTF-8 sequence from a killed
-        # tool). Before the fix a single bad byte would abort the whole sync.
-        with path.open(encoding="utf-8", errors="replace") as f:
-            for line_no, line in enumerate(f, 1):
-                line = line.strip()
-                if not line:
-                    continue
-                try:
-                    rec = json.loads(line)
-                except json.JSONDecodeError:
-                    continue
-                # Only keep dict-shaped records. JSONL files occasionally
-                # contain stray scalars (e.g. numbers, strings) from partial
-                # writes, which used to crash downstream filter_records.
-                if isinstance(rec, dict):
-                    out.append(rec)
-    except OSError:
-        pass
+    # ``errors="replace"`` lets us survive the occasional corrupt byte in a
+    # session transcript (e.g. a truncated UTF-8 sequence from a killed
+    # tool). Before the fix a single bad byte would abort the whole sync.
+    with path.open(encoding="utf-8", errors="replace") as f:
+        for line_no, line in enumerate(f, 1):
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                rec = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            # Only keep dict-shaped records. JSONL files occasionally
+            # contain stray scalars (e.g. numbers, strings) from partial
+            # writes, which used to crash downstream filter_records.
+            if isinstance(rec, dict):
+                out.append(rec)
     return out
 
 
@@ -1224,7 +1237,18 @@ def convert_all(
                 _bump(cls.name, "converted")
                 continue
 
-            records = parse_jsonl(path)
+            # #487: parse_jsonl now re-raises OSError so we can route I/O
+            # failures through the quarantine + 'errored' bucket the same
+            # way write failures do. Previously the helper swallowed them
+            # and the file silently became 'filtered' (zero records).
+            try:
+                records = parse_jsonl(path)
+            except OSError as e:
+                print(f"  error: {path.name}: {e}", file=sys.stderr)
+                errors += 1
+                _bump(cls.name, "errored")
+                _quarantine_add(cls.name, str(path), f"parse_jsonl I/O failed: {e}")
+                continue
             # v0.5 (#109): normalize agent-specific records into the shared
             # Claude-style format before filtering/rendering. This lets each
             # adapter translate its native schema without touching the shared
