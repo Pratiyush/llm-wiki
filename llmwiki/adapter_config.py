@@ -4,10 +4,13 @@ Consolidates the adapter enable/configure surface so users have a single
 place to check what opt-in adapters can be configured and which are active.
 
 Supported adapters:
-  - pdf          (file-based, source_dirs + min/max_pages)
   - meeting      (file-based, source_dirs + extensions)
   - jira         (network, server/email/api_token/jql)
   - web_clipper  (file-based intake, watch_dir + auto_queue)
+
+The PDF adapter that used to live here was removed in the simplification
+sweep — its dispatch path in ``convert.py`` was a phantom (no concrete
+implementation; every adapter raised ``AttributeError`` on ``convert_pdf``).
 
 All disabled by default — users must set ``<adapter>.enabled: true`` in
 ``sessions_config.json`` to activate.

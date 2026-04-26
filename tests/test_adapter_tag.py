@@ -34,7 +34,9 @@ from llmwiki.convert import _adapter_tag, render_session_markdown, Redactor, DEF
     ("obsidian", "obsidian"),
     ("jira", "jira"),
     ("meeting", "meeting"),
-    ("pdf", "pdf"),
+    # Note: "pdf" was a tag for the removed PDF adapter; dropped in the
+    # simplification sweep. _adapter_tag still passes it through verbatim
+    # if it appears in legacy frontmatter, but no live code emits it.
     # Back-compat defaults for empty / missing.
     ("", "claude-code"),
     (None, "claude-code"),

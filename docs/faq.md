@@ -17,7 +17,8 @@ The `--synthesize` flag on `llmwiki build` calls the local `claude` binary on yo
 | Cursor | `cursor` | Scaffold (SQLite parser in progress) |
 | Gemini CLI | `gemini_cli` | Scaffold (schema TBC) |
 | Obsidian | `obsidian` | Production (vault as input source) |
-| PDF | `pdf` | Production (any PDF dropped into raw/) |
+
+> The PDF adapter that used to live here was removed in the simplification sweep.
 
 See [multi-agent-setup.md](multi-agent-setup.md) for per-agent details.
 
