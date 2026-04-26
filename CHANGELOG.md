@@ -8,6 +8,14 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
+## [1.3.39] — 2026-04-26
+
+Maintenance release adding end-to-end MCP server protocol tests (#633, parent #468).
+
+### Added
+
+- **`tests/test_mcp_protocol.py`** (#633) — six tests that spawn the MCP server in a subprocess, write JSON-RPC frames to stdin, read responses from stdout, and assert the protocol contract end-to-end. Coverage: `initialize` returns a `protocolVersion`, `tools/list` returns 12 tools each with `inputSchema`, unknown method returns `-32601 Method not found`, malformed JSON returns `-32700 Parse error`, id-less notifications produce no response, `tools/call` with an unknown tool surfaces an error. Catches dispatch bugs, JSON serialization regressions, error-envelope drift, and stdio framing assumptions that the existing per-function unit tests miss.
+
 ## [1.3.38] — 2026-04-26
 
 Maintenance release adding on-demand regeneration of `docs/images/*.png` screenshots (#632, parent #468).
