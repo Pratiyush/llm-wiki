@@ -112,5 +112,6 @@ out of the way. The only third-party runtime dependency is `markdown`.
 
 ## What's new
 
-See the **[CHANGELOG](https://github.com/Pratiyush/llm-wiki/blob/master/CHANGELOG.md)**. Latest tagged release:
-[v1.2.0](https://github.com/Pratiyush/llm-wiki/releases/tag/v1.2.0).
+See the **[CHANGELOG](https://github.com/Pratiyush/llm-wiki/blob/master/CHANGELOG.md)**. Latest tagged release: **v{{__llmwiki_version__}}**.
+
+> The version above is substituted from `llmwiki/__init__.py:__version__` at build time, so this hub stays current on every release without a manual edit (#457).
