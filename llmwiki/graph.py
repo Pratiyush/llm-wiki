@@ -224,6 +224,11 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>llmwiki — Knowledge Graph</title>
+<!-- #456: pull in the same site stylesheet so the top nav we inject below
+     looks identical to every other page on the site. Loaded BEFORE the
+     graph's own <style> block so graph-specific selectors (#header, #network,
+     etc.) keep their precedence and the visualization layout is untouched. -->
+<link rel="stylesheet" href="style.css">
 <style>
   /* Theme vars — mirror the site palette so dark/light sync works. */
   :root[data-theme="dark"] {
@@ -288,7 +293,9 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
   }
   .control input::placeholder { color: var(--g-muted); }
 
-  #network { width: 100%; height: calc(100vh - 58px); position: relative; }
+  /* #456: site nav above the graph subheader takes ~56px; subheader itself
+     ~58px. Subtract both so the canvas fills the remaining viewport. */
+  #network { width: 100%; height: calc(100vh - 56px - 58px); position: relative; }
 
   /* Orphan highlight: nodes with 0 inbound links get a red stroke.
      This matches the issue's "orphan pages glow red" requirement. */
@@ -381,14 +388,10 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
 <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
 </head>
 <body>
+<a href="#main-content" class="skip-link">Skip to content</a>
+__SITE_NAV__
+<main id="main-content">
 <div id="header">
-  <!-- #268: lightweight back-to-site link so graph.html isn't a dead end -->
-  <a href="index.html" class="control" id="back-to-site"
-     aria-label="Back to the main site"
-     style="text-decoration: none; color: var(--g-muted);">
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
-    <span style="margin-left: 4px;">Home</span>
-  </a>
   <h1>llmwiki — Knowledge Graph</h1>
   <span class="crumbs" id="top-crumbs"></span>
   <span class="spacer"></span>
@@ -399,9 +402,12 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
   <button class="control" id="cluster-toggle" title="Group nodes by project / type">
     Cluster: <b id="cluster-mode">off</b>
   </button>
-  <button class="control" id="theme-toggle" title="Toggle light / dark mode">
-    Theme: <b id="theme-label">dark</b>
-  </button>
+  <!-- #456: removed the standalone back-to-site link and theme toggle —
+       both responsibilities now live in the site nav above. The site's
+       script.js wires #theme-toggle (in the nav) to data-theme +
+       localStorage.llmwiki-theme; the graph's CSS reacts to data-theme
+       via :root[data-theme=...] selectors so the visualization re-themes
+       in lockstep without needing a duplicate ID here. -->
 </div>
 
 <div id="network">
@@ -441,27 +447,24 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
     </button>
   </div>
 </div>
+</main>
+<!-- #456: load the site's script.js so the nav's command palette,
+     theme toggle, and keyboard shortcuts (g h / g p / g s / / / ?) work
+     here too. The site's theme handler reads & writes the same
+     localStorage key (`llmwiki-theme`) the pre-paint script in <head>
+     reads, so the graph's data-theme stays in sync without a local
+     handler. -->
+<script src="script.js" defer></script>
 
 <script>
 'use strict';
 const GRAPH = __GRAPH_JSON__;
 
-// ─── Theme sync with the main site (localStorage key "llmwiki-theme") ──
-// #477: standardise on "llmwiki-theme" so toggling on the graph viewer
-// persists across to the rest of the site (and vice-versa). The pre-paint
-// inline script in <head> already set data-theme; this block wires the
-// toolbar toggle.
+// #456: graph used to wire its own #theme-toggle button + #theme-label.
+// Both responsibilities now live in the site nav (script.js handles the
+// click; CSS variables react to data-theme automatically). Local handler
+// removed so two listeners don't fight over the same event.
 const root = document.documentElement;
-const savedTheme = root.getAttribute('data-theme') || 'dark';
-const themeLabel = document.getElementById('theme-label');
-if (themeLabel) themeLabel.textContent = savedTheme;
-const themeToggle = document.getElementById('theme-toggle');
-if (themeToggle) themeToggle.addEventListener('click', () => {
-  const next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
-  root.setAttribute('data-theme', next);
-  if (themeLabel) themeLabel.textContent = next;
-  try { localStorage.setItem('llmwiki-theme', next); } catch (_) { /* private mode */ }
-});
 
 // ─── Check vis-network loaded (local fallback hook) ────────────────────
 if (typeof vis === 'undefined') {
@@ -792,7 +795,16 @@ def write_html(graph: dict[str, Any], out_path: Path) -> None:
         # Extremely defensive — a wiki page title containing literal
         # `</script>` would otherwise close our block early. Escape it.
         payload = payload.replace("</script>", "<\\/script>")
-    html = HTML_TEMPLATE.replace("__GRAPH_JSON__", payload)
+    # #456: inject the site's standard nav so graph.html isn't a navigation
+    # dead end. Imported lazily to avoid a top-level circular dependency
+    # (build.py imports graph.copy_to_site).
+    from llmwiki.build import nav_bar
+    site_nav_html = nav_bar(active="graph", link_prefix="")
+    html = (
+        HTML_TEMPLATE
+        .replace("__GRAPH_JSON__", payload)
+        .replace("__SITE_NAV__", site_nav_html)
+    )
     out_path.write_text(html, encoding="utf-8")
 
 

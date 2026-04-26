@@ -8,6 +8,14 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
+## [1.3.24] — 2026-04-26
+
+Hotfix release ending the navigation dead-end on `/graph.html` — the page now ships with the same site nav, command palette, and keyboard shortcuts as every other page (#456).
+
+### Fixed
+
+- **Top nav now visible on `/graph.html`** (#456) — the graph viewer was a standalone HTML document with its own chrome, so navigating to it from the top bar made the whole nav vanish (visually a dead end). Now `write_html` injects `nav_bar(active="graph")` at render time, links the site stylesheet so the nav looks identical to every other page, and loads `script.js` so the Cmd+K palette, theme toggle, and `g h` / `g p` / `g s` / `/` / `?` keyboard shortcuts work here too. The `#268` lightweight back-to-site shim is removed (the nav has Home), and the standalone graph theme toggle is removed (the nav has one — script.js handles the click and the graph's own CSS variables react to `data-theme` automatically). Network canvas height adjusted to `calc(100vh - 56px - 58px)` to account for both the site nav (~56px) and the graph subheader (~58px). Tests: `tests/test_graph_top_nav.py` (10 cases) plus updates to `test_graph_viewer.py` and `test_graph_theme_sync.py` for the new contract.
+
 ## [1.3.23] — 2026-04-26
 
 Hotfix release giving the slug filter input the missing `<label>` wrapper so it aligns with its peers and announces correctly under screen readers (#454).
