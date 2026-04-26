@@ -8,6 +8,19 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
+## [1.3.48] — 2026-04-26
+
+#472 input-validation hardening — 6 security guards from epic-research bundle A.
+
+### Fixed
+
+- **`_PATH_SHELL_METACHARS` extended to NUL + control chars** (#550, #sec-6) — original list caught `;&|`$<>\n\r`; control chars (0x00–0x1F minus tab) get rejected too because they break log parsers / shell prompts in subtle ways. The list-form `subprocess.run` is unaffected, but the path may end up in user-facing logs.
+- **`derive_project_slug` returns a sanitised slug** (#551, #sec-7) — a session store containing a directory named `..` or `foo/bar` could traverse out of `raw/` or smuggle a sub-path. New `_safe_project_slug()` helper at the top of `adapters/base.py` replaces anything outside `[A-Za-z0-9._-]` with `_` and strips leading dots so the slug can't form a hidden directory.
+- **`parse_jsonl` enforces per-line + per-file size caps** (#552, #sec-8) — 16 MB/line + 256 MB/file. A maliciously-large or runaway transcript no longer blows up memory or stalls the parser. Limits chosen well above the largest legitimate Claude session observed (≈4 MB / 800 KB per line).
+- **`_TAG_START_RE` preprocessor also neutralises `<![CDATA[`** (#557, #sec-13) — CDATA isn't allowed in HTML but some browsers / parsers treat it as a foreign-content marker (MathML / SVG islands, legacy XHTML rendering). Now escaped to `&lt;![CDATA[` so it can't change parser state.
+- **`graph.jsonld` defends against `</script>` injection** (#554, #sec-10) — the JSON-LD graph is sometimes embedded inside `<script type="application/ld+json">` blocks on third-party pages. A wiki page title containing `</script>` would close the block early, opening an XSS via attacker-controlled content downstream. Now applies the same `<\/script>` escape `graph.py` already uses for its own embedded payload.
+- **`_load_state` validates schema before trusting it** (#560, #sec-16) — corrupted or hand-edited state file used to be returned verbatim, crashing every downstream consumer that expected `{str: float}`. Now: must be a dict, every key must be a str, every value must be int/float (coerced to float). Anything else → reset to empty so synthesis re-runs from scratch.
+
 ## [1.3.47] — 2026-04-26
 
 #474 exception narrowing — 4 issues from epic-research bundle 2.

@@ -403,6 +403,12 @@ def normalize_markdown(body: str) -> str:
 # preserved because the regex only matches `<[letter]`, not `<!`, and
 # build.py emits an `<!-- llmwiki:metadata -->` comment that AI agents parse.
 _TAG_START_RE = re.compile(r"<(/?[A-Za-z][A-Za-z0-9:_-]*)")
+# #sec-13 (#557): also neutralise raw `<![CDATA[` blocks in prose. CDATA
+# isn't allowed in HTML but some browsers / parsers treat it as a
+# start-of-foreign-content marker; surfaces in MathML / SVG islands or
+# in legacy XHTML rendering paths. Escape the leading `<` so the
+# surrounding markdown processor doesn't pass it through as-is.
+_CDATA_START_RE = re.compile(r"<!\[CDATA\[")
 _INLINE_CODE_RE = re.compile(r"`[^`]*`")
 
 
@@ -424,6 +430,9 @@ class _EscapeRawHtmlPreprocessor(Preprocessor):
             rebuilt: list[str] = []
             for kind, part in parts:
                 if kind == "text":
+                    # #sec-13: neutralise CDATA markers BEFORE the tag-
+                    # start sub so we don't accidentally double-escape.
+                    part = _CDATA_START_RE.sub(r"&lt;![CDATA[", part)
                     rebuilt.append(_TAG_START_RE.sub(r"&lt;\1", part))
                 else:
                     rebuilt.append(part)
@@ -2130,7 +2139,12 @@ from llmwiki.render.js import JS  # noqa: F401 (re-exported)
 # (we use list-form subprocess.run), but the same path may end up in
 # user-facing logs, scripts, or future code paths that *do* interpolate.
 # Reject loudly to keep hygiene tight.
-_PATH_SHELL_METACHARS = re.compile(r"[;&|`$<>\n\r]")
+# #sec-6 (#550): extended to reject NUL + control chars + unprintable
+# bytes. The original list caught the obvious shell-special characters;
+# control chars (0x00–0x1F minus tab) get rejected too because they
+# survive the rejection of `\n` and `\r` only by accident, and can
+# break log parsers / shell prompts in subtle ways.
+_PATH_SHELL_METACHARS = re.compile(r"[;&|`$<>\n\r\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
 
 
 def _resolve_claude_path(claude_path: Optional[str]) -> Optional[Path]:

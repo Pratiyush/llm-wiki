@@ -11,8 +11,22 @@ class returns.
 
 from __future__ import annotations
 
+import re as _re
 from pathlib import Path
 from typing import Any, Iterator
+
+# #sec-7 (#551): project slugs flow into raw/ + site/ paths. The same
+# sanitiser regex is used by build.py for project_slug rendering — keep
+# them aligned. Anything outside [A-Za-z0-9._-] gets replaced with `_`,
+# leading dots are stripped so the slug can't form a hidden directory.
+_PROJECT_SLUG_RE = _re.compile(r"[^A-Za-z0-9._-]")
+
+
+def _safe_project_slug(raw: str) -> str:
+    """Drop path traversal + non-portable characters from a project slug."""
+    s = _PROJECT_SLUG_RE.sub("_", raw)
+    s = s.lstrip(".")
+    return s or "unnamed"
 
 
 class BaseAdapter:
@@ -113,18 +127,28 @@ class BaseAdapter:
 
         Default: the immediate parent directory name under the store.
         Override for agents that use flat or encoded directory names.
+
+        #sec-7 (#551): the returned slug is used downstream as a path
+        component (`raw/sessions/<slug>-...md`, `site/projects/<slug>.html`).
+        A user whose session store contains a directory named `..` or
+        `foo/bar` could traverse out of `raw/` or smuggle a sub-path.
+        Sanitise via the same regex rule the rest of the build uses.
         """
         stores = self.session_store_path
         if isinstance(stores, Path):
             stores = [stores]
+        raw = None
         for store in stores:
             store = Path(store).expanduser()
             try:
                 rel = jsonl_path.relative_to(store)
-                return rel.parts[0] if rel.parts else jsonl_path.parent.name
+                raw = rel.parts[0] if rel.parts else jsonl_path.parent.name
+                break
             except ValueError:
                 continue
-        return jsonl_path.parent.name
+        if raw is None:
+            raw = jsonl_path.parent.name
+        return _safe_project_slug(raw)
 
     def is_subagent(self, jsonl_path: Path) -> bool:
         """Default: no adapter has a sub-agent concept — only Claude Code does
