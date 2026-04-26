@@ -8,6 +8,14 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
+## [1.3.20] — 2026-04-26
+
+Hotfix release adding a small muted date-range line under each home project card so users can spot fresh vs stale projects at a glance (#455).
+
+### Added
+
+- **Home project cards now show first/last activity dates** (#455) — `build.py` home-page card emitter now renders a `.card-date-range` div between the meta line and the topic chips, computed from each session's `date:` frontmatter field. Format: `2026-03-12 → 2026-04-01` for multi-day projects, single date when first == last, omitted when no dates available. CSS adds `.card-date-range { font-size: 0.72rem; color: var(--text-muted); font-variant-numeric: tabular-nums; }` so the text is visually subordinate to title + meta and tabular digits keep month columns aligned across cards. Pairs naturally with the freshness badge on `projects/index.html`. Adds `tests/test_home_card_date_range.py` (5 cases): multi-day range rendered, single-day shown once, empty-dates project produces no element, dates HTML-escaped, CSS class present in render/css.py.
+
 ## [1.3.19] — 2026-04-26
 
 Hotfix release wiring `--vault` through `cmd_sync` so vault-mode actually populates the vault (#470).

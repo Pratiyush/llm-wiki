@@ -1427,10 +1427,32 @@ def render_index(
         topics = get_project_topics(PROJECTS_META_DIR, project, proj_metas)
         topics_html = render_topic_chips(topics, max_visible=4,
                                          classname="project-topics card-topics")
+        # #455: render the activity date range under the meta line so
+        # users can spot fresh vs stale projects without clicking. Pull
+        # `date:` from frontmatter (already YYYY-MM-DD strings); ignore
+        # missing/blank values; format as `2026-03-12 → 2026-04-01` for
+        # multi-day, just `2026-04-01` if first == last.
+        dates = sorted(
+            {str(m.get("date", "")) for _, m, _ in sessions if m.get("date")}
+        )
+        if dates:
+            if dates[0] == dates[-1]:
+                date_range_html = (
+                    f'<div class="card-date-range">{html.escape(dates[0])}</div>'
+                )
+            else:
+                date_range_html = (
+                    f'<div class="card-date-range">'
+                    f'{html.escape(dates[0])} → {html.escape(dates[-1])}'
+                    f'</div>'
+                )
+        else:
+            date_range_html = ""
         cards.append(
             f"""  <a class="card card-project" href="projects/{html.escape(project)}.html">
     <div class="card-title">{html.escape(project)}</div>
     <div class="card-meta">{main_count} main · {len(sessions) - main_count} sub-agent</div>
+    {date_range_html}
     {topics_html}
   </a>"""
         )

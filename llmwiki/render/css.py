@@ -240,6 +240,8 @@ kbd { display: inline-block; padding: 2px 6px; font-family: var(--mono); font-si
 .card:hover { border-color: var(--accent); text-decoration: none; transform: translateY(-1px); box-shadow: var(--shadow-card-hover); }
 .card-title { font-weight: 600; font-size: 0.95rem; margin-bottom: 4px; color: var(--text); }
 .card-meta { font-size: 0.82rem; color: var(--text-secondary); }
+/* #455: small muted activity date range under the meta line. */
+.card-date-range { font-size: 0.72rem; color: var(--text-muted); margin-top: 2px; font-variant-numeric: tabular-nums; }
 .card-stats { font-size: 0.78rem; margin-top: 6px; }
 .card-badge { margin-top: 8px; }
 
