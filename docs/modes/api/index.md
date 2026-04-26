@@ -63,7 +63,7 @@ llmwiki build && llmwiki serve --open
 
 - Large corpora (100+ sessions) where serial Agent-mode synthesis
   would take hours.
-- Headless runs: cron, CI, `llmwiki watch` daemon.
+- Headless runs: cron, CI, `launchd` / `systemd` scheduling of `llmwiki sync`.
 - Shared server (multiple developers syncing into one wiki) — the API
   key belongs to the server, not individual laptops.
 

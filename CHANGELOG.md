@@ -8,6 +8,19 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
+## [1.3.5] — 2026-04-26
+
+Hotfix release scrubbing stale references to `llmwiki watch` and `llmwiki export-obsidian` from the README + docs (#494). Both subcommands were removed in v1.2.0 (see UPGRADING.md) but the README CLI table + 2 docs still advertised them, breaking new-user trust on first try.
+
+### Removed (docs only)
+
+- **README CLI table** dropped the `llmwiki watch` + `llmwiki export-obsidian` rows
+- **`docs/multi-agent-setup.md`** replaced "Use `llmwiki watch`" with the documented `launchd`/`systemd`/Task Scheduler path
+- **`docs/modes/api/index.md`** same replacement
+- **`llmwiki/watch.py`** docstring updated to reflect that the CLI subcommand is gone; the helper functions (`scan_mtimes`, `run_sync`) survive as a small library so `tests/test_v02.py` keeps working
+
+Adds `tests/test_cli_doc_parity.py` (1 case) — a CI guard that asserts every `llmwiki <subcommand>` line in the README CLI table corresponds to an actual subparser in `cli.py:build_parser()`. Future stale entries fail CI before they reach a release.
+
 ## [1.3.4] — 2026-04-26
 
 Hotfix release renaming `llmwiki/queue.py` → `llmwiki/ingest_queue.py` to stop shadowing the Python stdlib `queue` module (#491).

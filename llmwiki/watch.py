@@ -1,19 +1,17 @@
-"""File watcher — auto-resync when a new .jsonl lands in an agent's session store.
+"""File watcher — library helpers for auto-resync on session-store changes.
 
-Watches the session store paths that registered adapters know about, and when
-a file changes, runs `llmwiki sync` in the background. Useful as an
-alternative to the SessionStart hook.
+#494 (v1.3.5): the `llmwiki watch` CLI subcommand was removed in v1.2.0
+(see docs/UPGRADING.md). This module survives as a small library: the
+`scan_mtimes()` and `run_sync()` helpers still have legitimate callers
+(unit tests, third-party code wiring its own polling loop), but there
+is no longer a `python3 -m llmwiki watch` entry point. Schedule
+`llmwiki sync` directly via `launchd` / `systemd` / Task Scheduler if
+you need scheduled re-syncs.
 
-Uses polling (stdlib-only, no `watchdog` dep). Polls every N seconds; when a
-file's mtime changes, debounces for M seconds before running sync.
-
-Usage:
-
-    python3 -m llmwiki watch                  # default 5s poll, 10s debounce
-    python3 -m llmwiki watch --interval 2     # faster polling
-    python3 -m llmwiki watch --adapter claude_code
-
-Stop with Ctrl+C.
+Uses polling (stdlib-only, no `watchdog` dep). The CLI shim at the
+bottom of this module is preserved for the rare case where someone
+runs `python3 llmwiki/watch.py` directly — it prints a deprecation
+notice and exits.
 """
 
 from __future__ import annotations

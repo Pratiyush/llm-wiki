@@ -128,5 +128,5 @@ Override adapter paths in `config.json`:
 1. **Use `--adapter` to test one agent at a time** when debugging sync issues.
 2. **Each agent gets its own project slug** derived from its session store layout, so sessions from different agents never collide.
 3. **The wiki layer is agent-agnostic.** Once sessions are in `raw/`, the wiki ingest treats them identically regardless of which agent produced them.
-4. **Use `llmwiki watch`** to auto-sync across all agents in real time as you work.
+4. **Schedule `llmwiki sync`** via `launchd` / `systemd` / Task Scheduler for periodic auto-sync across all agents (the `llmwiki watch` daemon was removed in v1.2.0 — see `docs/UPGRADING.md`).
 5. **Combine with `.llmwikiignore`** to skip noisy agents or specific projects from any adapter.
