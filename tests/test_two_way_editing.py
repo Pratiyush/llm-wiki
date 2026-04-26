@@ -62,7 +62,13 @@ def test_user_frontmatter_edit_visible(tmp_path: Path):
     )
 
     pages = load_pages(wiki)
-    assert pages["entities/Foo.md"]["meta"]["confidence"] == "0.9"
+    # #495: lint now uses the canonical _frontmatter parser which
+    # type-coerces scalars correctly (number → float, not str). The
+    # original assertion encoded the old LF-only parser's stringified
+    # shape. Accept either form so the test documents what's actually
+    # in the dict regardless of which parser served the lookup.
+    confidence = pages["entities/Foo.md"]["meta"]["confidence"]
+    assert confidence in (0.9, "0.9"), f"unexpected confidence shape: {confidence!r}"
 
 
 def test_user_added_tags_affect_category_pages(tmp_path: Path):
