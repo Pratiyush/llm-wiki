@@ -8,6 +8,14 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
+## [1.3.66] — 2026-04-26
+
+Phase 3 (a) — synthesize-estimate single-walk perf (#596).
+
+### Fixed
+
+- **`synthesize_estimate_report` walks `raw_sessions` once, not twice** (#596, #py-m10) — the previous version walked the iterator first to bucket new vs synthesised sessions and collect the new-bucket bodies, then again via a list comprehension to materialise the full-force body list, then ran `estimate_tokens(body)` twice on each new session inside `_bucket_usd`. On a 5k-corpus that was 10k token-estimate calls + 2 full body materialisations in RAM. Single-pass version computes per-session tokens once, accumulates both bucket totals incrementally, and never holds more than one body string at a time. Cost semantics preserved (first call in each bucket pays cache_write, the rest hit the cache).
+
 ## [1.3.65] — 2026-04-26
 
 Phase 2 (d) — docs hub auto-versioning (#457 partial).
