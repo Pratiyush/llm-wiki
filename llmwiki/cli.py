@@ -200,7 +200,9 @@ def cmd_sync(args: argparse.Namespace) -> int:
         if args.auto_build and _should_run_after_sync(schedule.get("build", "on-sync")):
             print("  auto-build: regenerating site/...")
             from llmwiki.build import build_site
-            build_site(out_dir=REPO_ROOT / "site")
+            # #414: sync has explicit user opt-in to mutate wiki/, so it's
+            # the right place to seed project stubs.
+            build_site(out_dir=REPO_ROOT / "site", seed_project_stubs=True)
         if args.auto_lint and _should_run_after_sync(schedule.get("lint", "manual")):
             print("  auto-lint: running wiki lint...")
             from llmwiki.lint import load_pages, run_all, summarize
@@ -261,6 +263,7 @@ def cmd_build(args: argparse.Namespace) -> int:
         synthesize=args.synthesize,
         claude_path=args.claude,
         search_mode=args.search_mode,
+        seed_project_stubs=getattr(args, "seed_project_stubs", False),
     )
 
 
@@ -1045,6 +1048,14 @@ def build_parser() -> argparse.ArgumentParser:
         "--vault", type=Path, default=None,
         help="Vault-overlay mode (#54): build from an existing Obsidian / "
              "Logseq vault. Still writes site output to --out.",
+    )
+    build.add_argument(
+        "--seed-project-stubs", action="store_true", dest="seed_project_stubs",
+        help="(#414) Auto-create wiki/projects/<slug>.md stubs for any "
+             "newly-discovered project that doesn't have a metadata file. "
+             "Off by default — `build` is read-only on wiki/. Use `sync` "
+             "(which already mutates wiki/) for routine seeding, or pass "
+             "this flag to opt in from CI/scripts.",
     )
     build.set_defaults(func=cmd_build)
 

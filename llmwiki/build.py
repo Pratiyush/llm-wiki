@@ -1939,6 +1939,7 @@ def build_site(
     synthesize: bool = False,
     claude_path: str = "/usr/local/bin/claude",
     search_mode: str = "auto",
+    seed_project_stubs: bool = False,
 ) -> int:
     if not RAW_SESSIONS.exists():
         print(
@@ -1956,11 +1957,16 @@ def build_site(
     groups = group_by_project(sources)
     print(f"  grouped into {len(groups)} projects")
 
-    # I-12 (issues-commands.md): auto-seed wiki/projects/<slug>.md stubs
-    # so real projects get the same hero surface area as demo projects.
-    stubs_written = ensure_project_stubs(groups, PROJECTS_META_DIR)
-    if stubs_written:
-        print(f"  seeded {len(stubs_written)} new wiki/projects/ stubs")
+    # #414: stub-seeding used to be unconditional. `build` is documented
+    # as read-only on `wiki/`, but seeding wrote to `wiki/projects/` —
+    # CI users running `llmwiki build` on a curated checkout discovered
+    # surprise commits in their working tree. Now opt-in: callers that
+    # have already accepted mutation (sync, the new `--seed-project-stubs`
+    # flag) request seeding explicitly; the default `build` is pure.
+    if seed_project_stubs:
+        stubs_written = ensure_project_stubs(groups, PROJECTS_META_DIR)
+        if stubs_written:
+            print(f"  seeded {len(stubs_written)} new wiki/projects/ stubs")
 
     # Reset output dir (clear contents only — the HTTP server may be cwd'd here)
     if out_dir.exists():

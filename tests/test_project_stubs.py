@@ -131,3 +131,102 @@ def test_ensure_project_stubs_empty_groups(tmp_path: Path):
 
     meta_dir = tmp_path / "wiki" / "projects"
     assert ensure_project_stubs({}, meta_dir) == []
+
+
+# ─── #414: build_site is read-only on wiki/projects/ by default ─────
+
+
+def _seed_one_session(tmp_path: Path) -> Path:
+    """Seed a minimal raw/sessions/ corpus + REPO_ROOT layout so
+    build_site has something to walk. Returns the new REPO_ROOT."""
+    repo = tmp_path / "repo"
+    raw = repo / "raw" / "sessions" / "newproj"
+    raw.mkdir(parents=True)
+    (raw / "2026-04-26T10-00-newproj-x.md").write_text(
+        '---\ntitle: "S"\ntype: source\nproject: newproj\n---\n# S\n',
+        encoding="utf-8",
+    )
+    return repo
+
+
+def _patch_build_paths(monkeypatch, repo: Path):
+    """Point build's module-level paths at a tmp REPO_ROOT."""
+    from llmwiki import build as build_mod
+    monkeypatch.setattr(build_mod, "REPO_ROOT", repo)
+    monkeypatch.setattr(build_mod, "RAW_DIR", repo / "raw")
+    monkeypatch.setattr(build_mod, "RAW_SESSIONS", repo / "raw" / "sessions")
+    monkeypatch.setattr(
+        build_mod, "PROJECTS_META_DIR", repo / "wiki" / "projects"
+    )
+    monkeypatch.setattr(build_mod, "DEFAULT_OUT_DIR", repo / "site")
+
+
+def test_build_site_default_does_not_seed_stubs(tmp_path: Path, monkeypatch):
+    """Regression for #414: `build_site` used to unconditionally write
+    `wiki/projects/<slug>.md`. CI runs on curated wiki/ checkouts saw
+    surprise commits in their working tree. New default is read-only.
+    """
+    from llmwiki.build import build_site
+
+    repo = _seed_one_session(tmp_path)
+    projects_dir = repo / "wiki" / "projects"
+    _patch_build_paths(monkeypatch, repo)
+
+    rc = build_site(out_dir=repo / "site")
+    assert rc == 0
+
+    # No stub created; wiki/projects/ is either still missing or empty.
+    if projects_dir.exists():
+        stubs = list(projects_dir.glob("*.md"))
+        assert stubs == [], (
+            f"build_site() seeded {[p.name for p in stubs]} on default — "
+            "regression: should be opt-in via --seed-project-stubs."
+        )
+
+
+def test_build_site_with_flag_seeds_stubs(tmp_path: Path, monkeypatch):
+    """Opt-in path: explicit seed_project_stubs=True still seeds."""
+    from llmwiki.build import build_site
+
+    repo = _seed_one_session(tmp_path)
+    projects_dir = repo / "wiki" / "projects"
+    _patch_build_paths(monkeypatch, repo)
+
+    rc = build_site(out_dir=repo / "site", seed_project_stubs=True)
+    assert rc == 0
+    stub = projects_dir / "newproj.md"
+    assert stub.is_file(), (
+        f"explicit seed_project_stubs=True did not seed: {list(projects_dir.iterdir()) if projects_dir.exists() else 'no dir'}"
+    )
+
+
+def test_build_site_default_preserves_existing_stubs(tmp_path: Path, monkeypatch):
+    """Hand-authored stubs are never touched, even when seeding is off."""
+    from llmwiki.build import build_site
+
+    repo = _seed_one_session(tmp_path)
+    projects_dir = repo / "wiki" / "projects"
+    projects_dir.mkdir(parents=True)
+    curated = projects_dir / "newproj.md"
+    curated_text = (
+        "---\ntitle: \"newproj\"\ntype: entity\nentity_type: project\n"
+        "project: newproj\ntopics: [hand-edited]\n"
+        'description: "real"\nhomepage: ""\n---\n\n# newproj\n\nDo not touch.\n'
+    )
+    curated.write_text(curated_text, encoding="utf-8")
+    _patch_build_paths(monkeypatch, repo)
+
+    rc = build_site(out_dir=repo / "site")
+    assert rc == 0
+    assert curated.read_text() == curated_text
+
+
+def test_cli_build_flag_round_trips(tmp_path: Path):
+    """Sanity: the new --seed-project-stubs flag is registered on the
+    build subparser and parses to args.seed_project_stubs=True."""
+    from llmwiki.cli import build_parser
+    parser = build_parser()
+    args = parser.parse_args(["build", "--seed-project-stubs"])
+    assert getattr(args, "seed_project_stubs", False) is True
+    args_default = parser.parse_args(["build"])
+    assert getattr(args_default, "seed_project_stubs", False) is False

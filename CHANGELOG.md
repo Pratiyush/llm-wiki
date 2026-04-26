@@ -8,7 +8,7 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
-## [1.2.20] — 2026-04-26
+## [1.2.22] — 2026-04-26
 
 Patch release fixing the markdown render-cache hot-path perf flagged by the Opus 4.7 code review (#403). Pure perf — no API change beyond `md_to_html_cache_stats()` exposing additional `plain_*` counters.
 
@@ -16,6 +16,14 @@ Patch release fixing the markdown render-cache hot-path perf flagged by the Opus
 
 - **`md_to_html` cache key allocation** (#417) — used `hashlib.sha256(body).hexdigest()` per call, allocating a 64-byte hex string. On a 5000-page build this dominated the cache-lookup path. Switched to `hashlib.blake2b(body, digest_size=8).digest()` — ~3× faster and 8× less allocation per key. New `_content_key(body)` helper centralises the choice so the html and plain caches stay in sync. Birthday-collision bound at the 8-byte digest is ~4×10^9 entries, well above the 4096-entry cap.
 - **`md_to_plain_text` re-parsed cached bodies** (#417) — `build.py` calls `md_to_html` and `md_to_plain_text` on the same body in multiple places (per-page render + search-index extract + RSS summary + `.txt` sibling). The plain-text path was uncached, so every body was re-parsed 2-4× per build. New `_PLAIN_CACHE` keyed off the same `_content_key` makes the second + third + … calls free. `md_to_html_cache_stats()` now exposes `plain_hits` / `plain_misses` / `plain_size` for observability. `md_to_html_cache_clear()` resets both. Adds 9 regression tests covering the new cache (correctness, hit/miss counters, FIFO eviction, content-keyed independence from the html cache, blake2b 8-byte digest pinning, one-byte-diff distinguishability).
+
+## [1.2.19] — 2026-04-26
+
+Patch release fixing the `build` CI-surprise commit issue flagged by the Opus 4.7 code review (#403). `llmwiki build` is now read-only on `wiki/` by default — stub seeding moves to opt-in.
+
+### Fixed
+
+- **`build` mutated `wiki/projects/` (CI surprise)** (#414) — `build_site` is documented as "regenerate the static HTML site" and was supposed to be read-only on `wiki/`. As a side effect of #378, `ensure_project_stubs` was wired into the build path and wrote `wiki/projects/<slug>.md` for any newly-discovered project. Users running `llmwiki build` from CI on a curated checkout discovered surprise files in their working tree (and committed-by-CI changes if the workflow auto-pushed). Fix: `build_site()` now takes `seed_project_stubs: bool = False`; the `build` CLI subcommand exposes `--seed-project-stubs` for explicit opt-in. `cmd_sync` (which the user has already opted into mutation for) passes `seed_project_stubs=True` so routine `sync` keeps seeding. Default `build` is now pure. Adds 4 regression tests covering the read-only default, the explicit flag, hand-authored stub preservation, and the CLI flag round-trip.
 
 ## [1.2.14] — 2026-04-26
 
