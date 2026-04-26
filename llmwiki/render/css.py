@@ -260,6 +260,23 @@ kbd { display: inline-block; padding: 2px 6px; font-family: var(--mono); font-si
    sessions index table. */
 .session-description { font-size: 0.95rem; color: var(--text-secondary); margin: -8px 0 16px; line-height: 1.5; }
 .session-cell-desc { font-size: 0.78rem; color: var(--text-muted); margin-top: 2px; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* #476: richer tool-result collapsible card. Renders as
+   `[badge] preview · N lines · X chars` so the user knows what's
+   inside without expanding. The badge tints by outcome. */
+.collapsible-result { margin: 12px 0; border: 1px solid var(--border); border-radius: 6px; padding: 0; background: var(--bg-card); }
+.collapsible-result > summary { padding: 8px 12px; cursor: pointer; list-style: none; font-size: 0.85rem; line-height: 1.5; }
+.collapsible-result > summary::-webkit-details-marker { display: none; }
+.collapsible-result > summary:hover { background: var(--bg-alt); }
+.collapsible-result[open] > summary { border-bottom: 1px solid var(--border); }
+.collapsible-result > *:not(summary) { padding: 8px 12px; }
+.tool-result-badge { display: inline-block; font-size: 0.7rem; font-weight: 600; padding: 1px 6px; border-radius: 3px; text-transform: uppercase; letter-spacing: 0.04em; }
+.tool-result-ok    { background: rgba(5,150,105,0.12); color: #047857; }
+.tool-result-error { background: rgba(220,38,38,0.12); color: #991B1B; }
+:root[data-theme="dark"] .tool-result-ok    { background: rgba(52,211,153,0.18); color: #34D399; }
+:root[data-theme="dark"] .tool-result-error { background: rgba(248,113,113,0.18); color: #F87171; }
+.tool-result-preview { color: var(--text); font-family: var(--mono); font-size: 0.82rem; }
+.tool-result-meta    { font-size: 0.78rem; }
+.collapsible-result.outcome-error { border-color: rgba(220,38,38,0.4); }
 .card-stats { font-size: 0.78rem; margin-top: 6px; }
 .card-badge { margin-top: 8px; }
 
