@@ -368,10 +368,22 @@ def compile_docs_site(
     written: list[Path] = []
     all_pages = list(iter_docs_pages(docs_dir))
 
+    # #457: substitute {{__llmwiki_version__}} at build time so the docs
+    # hub never goes stale on a release. Reading the version lazily
+    # (inside the loop instead of at module load) keeps the docs_pages
+    # module cheap to import.
+    from llmwiki import __version__ as _llmwiki_version
+
     for page in all_pages:
         meta_strip = render_meta_strip(page.body) if page.is_shell else ""
         body_without_meta = (
             _strip_meta_lines(page.body) if page.is_shell else page.body
+        )
+        # #457: template substitution. Currently supports the version
+        # placeholder used by the docs hub; can be extended with more
+        # placeholders (e.g. release date, latest CHANGELOG bullet) later.
+        body_without_meta = body_without_meta.replace(
+            "{{__llmwiki_version__}}", _llmwiki_version
         )
         body_html = md_to_html(body_without_meta)
 

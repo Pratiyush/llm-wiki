@@ -8,6 +8,18 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
+## [1.3.65] — 2026-04-26
+
+Phase 2 (d) — docs hub auto-versioning (#457 partial).
+
+### Fixed
+
+- **Docs hub no longer ships a stale `Latest tagged release: v1.2.0` line** (#457) — `compile_docs_site` now substitutes `{{__llmwiki_version__}}` at build time from `llmwiki.__version__`. The hub stays current on every release without a manual edit. Same template substitution can be extended later for release dates / latest CHANGELOG bullet.
+
+### Deferred
+
+- The other half of #457 — moving the in-page TOC `<details>` to a sticky left sidebar — needs a layout-level rethink that's larger than this PR's scope. Filed as follow-up; the auto-versioning fix here closes the most user-visible drift symptom.
+
 ## [1.3.64] — 2026-04-26
 
 Phase 2 (c) — richer tool-result collapsible card (#476).
