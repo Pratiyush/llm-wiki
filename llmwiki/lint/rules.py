@@ -520,8 +520,10 @@ class IndexSync(LintRule):
                 })
 
         # Check that every content page is listed (skip nav files and _context.md)
-        nav_pages = {"index.md", "overview.md", "log.md", "hints.md", "hot.md",
-                     "MEMORY.md", "SOUL.md", "CRITICAL_FACTS.md", "dashboard.md"}
+        # #py-m5 (#591): pull from the canonical SYSTEM_PAGE_FILES list
+        # rather than redeclaring it inline (third copy of the same set
+        # in this file before the consolidation).
+        from llmwiki._system_pages import SYSTEM_PAGE_FILES as nav_pages
         for rel in pages:
             if rel in nav_pages or rel.endswith("_context.md"):
                 continue

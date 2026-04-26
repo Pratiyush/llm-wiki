@@ -8,6 +8,25 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
+## [1.3.52] — 2026-04-26
+
+#474 Bundle 4 — build/serve correctness (4 of 5; the 5th #594 single-pass refactor deferred as standalone).
+
+### Fixed
+
+- **`serve_site` no longer mutates global cwd** (#588, #py-m2) — `os.chdir(directory)` leaked process state — every test using this function had to remember to chdir back, and concurrent calls in tests would race. Switched to `SimpleHTTPRequestHandler`'s `directory=` kwarg (Python 3.7+). 404 page lookup also reads from `self.directory` instead of the cwd.
+- **`reset_output_dir` no longer silently swallows `shutil.rmtree` failures** (#598, #py-m12) — `ignore_errors=True` meant a failed remove (read-only file from a previous CI runner, etc.) silently wrote a corrupted partial site on top of stale files. Now collects errors via the `onerror` callback and raises an `OSError` listing every failure so the build halts loudly.
+- **`build.py` `except Exception` narrowed at 5 sites** (#590, #py-m4) — best-effort emission paths were catching `MemoryError` / `ImportError` silently into a warning. Narrowed to `(OSError, ValueError, RuntimeError)` (and to `(OSError, subprocess.SubprocessError)` for the claude CLI shellout) so an actual broken module crashes loud instead of shipping a half-built site with a warning line.
+- **Lint nav-page constants centralized** (#591, #py-m5) — third hand-maintained copy of the system-page list (`{"index.md", "overview.md", ...}`) was inline in `IndexSync.run()`; replaced with `from llmwiki._system_pages import SYSTEM_PAGE_FILES as nav_pages`. Single source of truth shared with `OrphanDetection` (already converted in #arch-l7) and graph.py.
+
+### Tests
+
+- `tests/test_render_split.py` ceiling bumped 2600→2700 lines for `build.py` to fit the broader except-narrowing comments.
+
+### Deferred
+
+- #594 (single-pass build refactor — collapse 3+ walks of `sources` into one) deferred as standalone; touches the entire `build_site()` orchestration function, not a fit for a 4-issue bundle.
+
 ## [1.3.51] — 2026-04-26
 
 #472 Bundle C — MCP write-safety + lint perf bail-out (2 issues; the third sub-issue #563 was closed-as-obsolete in v1.3.50 since the PDF adapter is gone).

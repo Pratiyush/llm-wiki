@@ -2277,7 +2277,10 @@ def synthesize_overview(
     except subprocess.TimeoutExpired:
         print("  warning: claude CLI timed out after 120s", file=sys.stderr)
         return None
-    except Exception as e:
+    # #py-m4 (#590): narrow `except Exception` to the families we
+    # actually expect from a subprocess call. Catching MemoryError or
+    # ImportError silently here would mask real failures.
+    except (OSError, subprocess.SubprocessError) as e:
         print(f"  warning: claude CLI failed: {e}", file=sys.stderr)
         return None
     if result.returncode != 0:
@@ -2323,15 +2326,33 @@ def build_site(
             print(f"  seeded {len(stubs_written)} new wiki/projects/ stubs")
 
     # Reset output dir (clear contents only — the HTTP server may be cwd'd here)
+    # #py-m12 (#598): drop ignore_errors=True. A failure to remove a
+    # site/ subtree means we'll write a corrupted partial site on top
+    # of stale files; users have hit this when one CI runner left a
+    # read-only directory behind. Surface OSError instead so the build
+    # halts with a clear message.
     if out_dir.exists():
+        rmtree_errors: list[str] = []
+
+        def _on_rmtree_error(func, path, exc_info):
+            err = exc_info[1] if isinstance(exc_info, tuple) else exc_info
+            rmtree_errors.append(f"{path}: {err}")
+
         for child in out_dir.iterdir():
             if child.is_dir():
-                shutil.rmtree(child, ignore_errors=True)
+                # Python 3.12+ uses onexc; pre-3.12 uses onerror. Use
+                # onerror for back-compat with the 3.9 floor.
+                shutil.rmtree(child, onerror=_on_rmtree_error)
             else:
                 try:
                     child.unlink()
-                except OSError:
-                    pass
+                except OSError as e:
+                    rmtree_errors.append(f"{child}: {e}")
+        if rmtree_errors:
+            raise OSError(
+                "could not reset site dir " + str(out_dir) + ":\n  "
+                + "\n  ".join(rmtree_errors)
+            )
     else:
         out_dir.mkdir(parents=True)
 
@@ -2398,11 +2419,16 @@ def build_site(
 
     # v0.4: AI-consumable exports (llms.txt, llms-full.txt, graph.jsonld,
     # sitemap.xml, rss.xml, robots.txt, ai-readme.md)
+    # #py-m4 (#590): narrow the catch so MemoryError, ImportError,
+    # and KeyboardInterrupt aren't silently swallowed into a warning
+    # line. ImportError in particular hides a broken module — the
+    # build should crash loud, not log "warning: AI exports failed:
+    # No module named ..." and ship a half-built site.
     try:
         from llmwiki.exporters import export_all
         ai_paths = export_all(out_dir, groups, sources)
         print(f"  wrote {len(ai_paths)} AI-consumable exports: {', '.join(sorted(ai_paths.keys()))}")
-    except Exception as e:
+    except (OSError, ValueError, RuntimeError) as e:
         print(f"  warning: AI exports failed: {e}", file=sys.stderr)
 
     # v1.1 (#118): copy the interactive knowledge graph into the site
@@ -2412,7 +2438,7 @@ def build_site(
         graph_path = copy_graph_to_site(out_dir)
         if graph_path:
             print(f"  wrote {graph_path.relative_to(out_dir.parent)} (interactive graph viewer)")
-    except Exception as e:
+    except (OSError, ValueError, RuntimeError) as e:
         print(f"  warning: graph viewer copy failed: {e}", file=sys.stderr)
 
     # v1.2 (#265): compile the editorial docs (tutorials + hub) under
@@ -2440,7 +2466,8 @@ def build_site(
                 f"  wrote site/docs/ ({len(docs_written)} editorial pages: "
                 "hub + tutorials + style guide)"
             )
-    except Exception as e:
+    # #py-m4: same narrow-catch pattern as above.
+    except (OSError, ValueError, RuntimeError) as e:
         print(f"  warning: docs compile failed: {e}", file=sys.stderr)
 
     # v0.4: Per-page sibling .txt and .json
@@ -2462,7 +2489,7 @@ def build_site(
                 write_page_json(html_path, meta_copy, body_stripped, wikilinks_out)
                 n_siblings += 2
         print(f"  wrote {n_siblings} per-page siblings (.txt + .json)")
-    except Exception as e:
+    except (OSError, ValueError, RuntimeError) as e:
         print(f"  warning: per-page siblings failed: {e}", file=sys.stderr)
 
     # v0.4: Build manifest with SHA-256 hashes
@@ -2470,7 +2497,7 @@ def build_site(
         from llmwiki.manifest import write_manifest
         manifest_path = write_manifest(out_dir)
         print(f"  wrote {manifest_path.relative_to(out_dir.parent) if manifest_path.is_relative_to(out_dir.parent) else manifest_path.name}")
-    except Exception as e:
+    except (OSError, ValueError, RuntimeError) as e:
         print(f"  warning: manifest failed: {e}", file=sys.stderr)
 
     total_files = sum(1 for _ in out_dir.rglob("*.html"))
