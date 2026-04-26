@@ -8,6 +8,15 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
+## [1.3.22] — 2026-04-26
+
+Hotfix release fixing the activity timeline label + sparkline geometry on `sessions/index.html` (#453).
+
+### Fixed
+
+- **Activity timeline label now reports calendar span, not active-day count** (#453) — `Activity timeline · 8 days · peak 1 sessions` actually meant "8 distinct dates have sessions", not "8 calendar days of activity". On a 50-sessions-over-6-months corpus the old label said "5 days" while the real span was ~180 days. The label now reads `Activity timeline · <span> days · <active> active · peak <max> sessions/day` for multi-day collections, with a single-day fallback (`1 day · peak N session(s)`).
+- **SVG sparkline bars now positioned by date offset, not array index** (#453) — bars used to be evenly spaced at `i * (innerW / dates.length)`, which hid 6-month gaps between active periods. Bars are now placed at `(date - minDate) * slotW`, so calendar gaps become visible in the chart geometry. `tests/test_activity_timeline_label.py` (7 cases) pins both the JS source contract and the calendar-span math via a Python oracle.
+
 ## [1.3.21] — 2026-04-26
 
 Hotfix release cleaning up the sessions index table — the Session column no longer duplicates the Date column, and the sticky header now stays aligned with the body as you scroll (#452).
