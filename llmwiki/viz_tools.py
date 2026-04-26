@@ -105,7 +105,7 @@ def parse_tool_counts(meta: Mapping[str, object]) -> dict[str, int]:
     if isinstance(raw, str):
         try:
             data = json.loads(raw)
-        except (ValueError, json.JSONDecodeError):
+        except ValueError:
             return {}
         if isinstance(data, dict):
             return {str(k): int(v) for k, v in data.items()

@@ -321,9 +321,27 @@ class BatchState:
 
     @classmethod
     def from_json(cls, data: dict[str, Any]) -> "BatchState":
+        # #py-l4 (#602): wrap the BatchJob(**b) construction so a
+        # corrupt entry (extra/missing keys → TypeError) doesn't leak
+        # past the callers that expect this constructor to either
+        # succeed or return a deterministic fallback. Mirror the
+        # load_batch_state() shape: print a warning, drop the bad
+        # entries, return whatever survived.
+        import sys as _sys
+        def _safe(rows):
+            kept = []
+            for b in rows:
+                try:
+                    kept.append(BatchJob(**b))
+                except TypeError as e:
+                    print(
+                        f"warning: dropping malformed batch entry {b!r}: {e}",
+                        file=_sys.stderr,
+                    )
+            return kept
         return cls(
-            pending=[BatchJob(**b) for b in data.get("pending", [])],
-            completed=[BatchJob(**b) for b in data.get("completed", [])],
+            pending=_safe(data.get("pending", [])),
+            completed=_safe(data.get("completed", [])),
         )
 
 
@@ -340,7 +358,7 @@ def load_batch_state(repo_root: Path) -> BatchState:
         return BatchState()
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
-    except (ValueError, json.JSONDecodeError):
+    except ValueError:
         return BatchState()
     return BatchState.from_json(data)
 

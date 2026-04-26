@@ -87,7 +87,7 @@ class CodexCliAdapter(BaseAdapter):
                 for line in f:
                     try:
                         r = json.loads(line.strip())
-                    except (ValueError, json.JSONDecodeError):
+                    except ValueError:
                         continue
                     if r.get("type") == "session_meta":
                         cwd = r.get("payload", {}).get("cwd", "")

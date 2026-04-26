@@ -8,6 +8,17 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
+## [1.3.47] — 2026-04-26
+
+#474 exception narrowing — 4 issues from epic-research bundle 2.
+
+### Fixed
+
+- **`(ValueError, json.JSONDecodeError)` → `ValueError`** at 9 sites (#592, #py-m6) — `JSONDecodeError` is a `ValueError` subclass; the tuple was redundant. Touched `viz_tokens.py`, `changelog_timeline.py` (×2), `cache.py`, `adapters/codex_cli.py`, `synth/pipeline.py`, `synth/ollama.py`, `viz_tools.py`, `schema.py`. Pure cleanup.
+- **`IgnoreMatcher.from_file` warns on unreadable files instead of silently returning empty** (#600, #py-l2) — silent fallback was hiding real permission / IO problems from operators. Now prints to stderr; still returns a usable empty matcher so callers don't break.
+- **`BatchState.from_json` survives malformed entries** (#602, #py-l4) — `BatchJob(**bad_dict)` raised `TypeError` past the constructor, leaking out of what callers expect to be a deterministic from-disk loader. Now wraps each row, drops the bad ones with a warning, returns whatever survived.
+- **`Redactor.__init__` skips bad user patterns instead of aborting** (#604, #py-l6) — one invalid `extra_patterns` regex used to take down the entire Redactor, leaving sync running with NO redaction (worse than partial). Now compiles each pattern individually, warns on the broken ones, keeps the good ones. Default token + username redaction still runs regardless.
+
 ## [1.3.46] — 2026-04-26
 
 #472 CI hardening — 5 supply-chain fixes from epic-research bundle B.

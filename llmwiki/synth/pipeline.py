@@ -134,7 +134,7 @@ def _load_state(state_file: Optional[Path] = None) -> dict[str, float]:
         return {}
     try:
         return json.loads(target.read_text(encoding="utf-8"))
-    except (ValueError, json.JSONDecodeError):
+    except ValueError:
         return {}
 
 
