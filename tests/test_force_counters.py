@@ -74,8 +74,22 @@ def _seed_jsonl(repo: Path, project: str, name: str, body: str = "") -> Path:
 @pytest.fixture
 def fake_repo(tmp_path, monkeypatch):
     """Stand up a tmp HOME with one Claude Code session, plus point
-    convert.DEFAULT_OUT_DIR / DEFAULT_STATE_FILE under tmp_path."""
+    convert.DEFAULT_OUT_DIR / DEFAULT_STATE_FILE under tmp_path.
+
+    `Path.home()` patching alone is insufficient because
+    `ClaudeCodeAdapter.session_store_path` is computed at class-define
+    time (import-time), so the cached path still points at the real
+    home. We override the class attribute directly so discovery walks
+    our tmp tree on every CI runner.
+    """
+    from llmwiki.adapters.claude_code import ClaudeCodeAdapter
+
     monkeypatch.setattr(Path, "home", classmethod(lambda cls: tmp_path))
+    monkeypatch.setattr(
+        ClaudeCodeAdapter,
+        "session_store_path",
+        tmp_path / ".claude" / "projects",
+    )
     out_dir = tmp_path / "raw" / "sessions"
     state_file = tmp_path / ".llmwiki-sync-state.json"
     config_file = tmp_path / "sessions_config.json"
