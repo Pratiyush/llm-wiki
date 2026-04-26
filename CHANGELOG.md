@@ -8,6 +8,17 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
+## [1.3.44] — 2026-04-26
+
+#475 architecture quick wins — 4 mechanical fixes from epic-research bundle 2.
+
+### Fixed
+
+- **`OpenCodeAdapter.is_subagent` no longer matches substrings** (#614, #arch-m1) — `"subagent" in jsonl_path.name` re-introduced the same regression #406 fixed for the main adapter contract. A user-supplied slug containing the literal text `subagent` anywhere would mis-classify the session. Replaced with a hyphen-bounded regex that matches the segment as a leading, trailing, or interior `-`-delimited token.
+- **`load_config` uses `copy.deepcopy` instead of `json.loads(json.dumps(...))`** (#628, #arch-l6) — the round-trip JSON deep-copy was a pre-`copy.deepcopy` idiom that's ~5× slower and adds an implicit "JSON-serializable types only" constraint. Pure cleanup, no behavior change.
+- **System-page list consolidated into `llmwiki/_system_pages.py`** (#arch-l7) — `graph.py._NO_SITE_BASENAMES` and `lint/rules.py.EXEMPT_FILES` carried hand-maintained overlapping sets that drifted independently. Single source of truth now lives in `_system_pages.py` with `SYSTEM_PAGE_SLUGS` (no extension, for graph) and `SYSTEM_PAGE_FILES` (with `.md`, for lint). Both call sites import from there.
+- **`derive_session_slug` 8-vs-12-char split documented as intentional** (#625, #arch-l3) — added an inline comment explaining the deliberate split (UUID stems → 8-char hash for collision safety; human-named stems → 12-char prefix for readability). Collapsing to one rule loses one of the two properties.
+
 ## [1.3.43] — 2026-04-26
 
 #474 lint sweep — 6 LOW Python correctness nits picked off in one PR (per the bundle plan from epic-research).
