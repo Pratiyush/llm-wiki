@@ -176,23 +176,39 @@ def cmd_sync(args: argparse.Namespace) -> int:
     if getattr(args, "status", False):
         return cmd_sync_status(args)
 
-    from llmwiki.convert import convert_all
+    from llmwiki.convert import convert_all, DEFAULT_OUT_DIR, DEFAULT_STATE_FILE
 
     # v1.2 (#54): vault-overlay mode — resolve the vault early so bad
     # paths fail before we spend time converting sessions.
-    if getattr(args, "vault", None):
+    # #470: actually wire the resolved vault root through to convert_all.
+    # Previously this block printed a banner and then called convert_all
+    # with no vault/out_dir argument, so all 500+ sessions wrote to the
+    # repo's raw/sessions/ instead of the vault. The summary line said
+    # "507 converted" but the vault directory was empty.
+    vault_path = getattr(args, "vault", None)
+    out_dir = DEFAULT_OUT_DIR
+    state_file = DEFAULT_STATE_FILE
+    if vault_path:
         from llmwiki.vault import describe_vault, resolve_vault
         try:
-            vault = resolve_vault(args.vault)
+            vault = resolve_vault(vault_path)
         except (FileNotFoundError, NotADirectoryError) as exc:
             print(f"error: {exc}", file=sys.stderr)
             return 2
         print(f"==> {describe_vault(vault)}")
         if args.allow_overwrite:
             print("  --allow-overwrite: existing vault pages may be clobbered")
+        # Route writes into the vault so a vault-mode sync actually
+        # populates the vault. State file co-located with the vault so
+        # two different vaults don't share idempotency state (same
+        # principle as #420 for synth state).
+        out_dir = vault.root / "raw" / "sessions"
+        state_file = vault.root / ".llmwiki-state.json"
 
     rc = convert_all(
         adapters=args.adapter,
+        out_dir=out_dir,
+        state_file=state_file,
         since=args.since,
         project=args.project,
         include_current=args.include_current,
@@ -201,18 +217,25 @@ def cmd_sync(args: argparse.Namespace) -> int:
 
     # v1.0 (#157): auto-build and auto-lint after sync.
     # --no-build and --no-lint let users opt out.
+    # #470: when --vault was given, point the auto-build at the vault's
+    # site/ tree too — otherwise the build silently writes to the
+    # repo's site/ and the user's vault stays empty.
     if rc == 0:
         schedule = _load_schedule_config()
+        site_root = (vault.root / "site") if vault_path else (REPO_ROOT / "site")
         if args.auto_build and _should_run_after_sync(schedule.get("build", "on-sync")):
             print("  auto-build: regenerating site/...")
             from llmwiki.build import build_site
             # #414: sync has explicit user opt-in to mutate wiki/, so it's
             # the right place to seed project stubs.
-            build_site(out_dir=REPO_ROOT / "site", seed_project_stubs=True)
+            build_site(out_dir=site_root, seed_project_stubs=True)
         if args.auto_lint and _should_run_after_sync(schedule.get("lint", "manual")):
             print("  auto-lint: running wiki lint...")
             from llmwiki.lint import load_pages, run_all, summarize
-            pages = load_pages()
+            # #470: lint the vault's wiki/, not the repo's, when in
+            # vault-overlay mode.
+            wiki_dir = (vault.root / "wiki") if vault_path else None
+            pages = load_pages(wiki_dir) if wiki_dir else load_pages()
             issues = run_all(pages)
             summary = summarize(issues)
             print(f"  lint: {sum(summary.values())} issues "
