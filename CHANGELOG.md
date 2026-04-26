@@ -8,6 +8,14 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
+## [1.3.35] — 2026-04-26
+
+Maintenance release adding cross-browser smoke matrix to CI (#636, parent #468).
+
+### Added
+
+- **`tests/e2e/test_cross_browser_smoke.py`** + **`.github/workflows/cross-browser.yml`** (#636) — small smoke (4 tests: homepage loads with nav, sessions index renders table, graph canvas has nonzero size, theme toggle flips data-theme) runs against chromium / firefox / webkit on every PR via a new matrix workflow. Catches engine-specific regressions in CSS variable resolution, sticky-thead behaviour, canvas + vis-network init, and localStorage. The full e2e suite stays chromium-only to keep cost down; this is a focused 4-test subset that runs in under 5 min per browser.
+
 ## [1.3.34] — 2026-04-26
 
 Maintenance release broadening axe-core a11y coverage in the e2e harness (#631, parent #468).
