@@ -1,0 +1,81 @@
+name: Nightly synthetic
+
+# #637 (#pw-x9): nightly Playwright run against the deployed demo at
+# https://pratiyush.github.io/llm-wiki/. Catches post-deploy breakage
+# we can't see in regular CI: GitHub Pages publish corruption, CDN
+# issues, browser update breakage, broken third-party scripts.
+#
+# Failure path: opens (or appends to) a single tracking issue titled
+# "Synthetic monitoring failure" so it doesn't spam the tracker on
+# repeated breaks (same dedupe pattern as link-check.yml uses for
+# its broken-links report).
+
+on:
+  schedule:
+    # 04:13 UTC every day. The off-the-hour minute keeps us out of
+    # GitHub's hourly scheduler peaks where workers can be backlogged.
+    - cron: "13 4 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  synthetic:
+    name: Probe deployed demo
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install llmwiki + e2e extras
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e '.[e2e]'
+
+      - name: Install chromium + OS deps
+        run: python -m playwright install --with-deps chromium
+
+      - name: Run cross-browser smoke against the live demo
+        id: probe
+        run: |
+          mkdir -p synthetic-report
+          # Re-use the cross-browser smoke as the synthetic check.
+          # Override base_url via env so the smoke probes the deployed
+          # site instead of spinning up its own local server. Each
+          # test in the smoke is robust to a site that lacks specific
+          # pages (uses request.get + 404-skip pattern).
+          export QA_SYNTHETIC_BASE_URL="https://pratiyush.github.io/llm-wiki"
+          python -m pytest tests/e2e/test_cross_browser_smoke.py \
+            --base-url="$QA_SYNTHETIC_BASE_URL" \
+            --browser=chromium \
+            --tracing=retain-on-failure \
+            --html=synthetic-report/index.html \
+            --self-contained-html \
+            -v
+
+      - name: Upload synthetic HTML report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: synthetic-report
+          path: synthetic-report/
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: File or update tracking issue on failure
+        if: failure()
+        uses: peter-evans/create-issue-from-file@v6
+        with:
+          title: "Synthetic monitoring failure"
+          content-filepath: .github/synthetic-failure-template.md
+          labels: bug, ci
+          # Same dedupe as link-check.yml — append to the existing
+          # tracking issue instead of spawning a new one each night.
+          update_existing: true
