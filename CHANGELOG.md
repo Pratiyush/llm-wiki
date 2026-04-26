@@ -8,6 +8,15 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
+## [1.3.61] — 2026-04-26
+
+Phase 1 housekeeping — vault helper extraction + schema-versions hoist (#620, #621).
+
+### Fixed
+
+- **`--vault` flag has a single declaration site** (#620, #arch-m8) — three subcommands (`sync`, `build`, `synthesize`) each declared `--vault` independently with subtly different help text. Extracted `_add_vault_arg(parser, role=...)` so the spelling, type, default, and metavar are unified; role-specific help strings are kept as a per-role lookup so each subcommand's help still describes its own semantics (sync writes, build reads, synthesize isolates the state file).
+- **`SUPPORTED_SCHEMA_VERSIONS` declared on `BaseAdapter`** (#621, #arch-m9) — was redeclared in `copilot_chat.py` and `copilot_cli.py` with format-drift risk. Hoisted to `BaseAdapter` with default `["v1"]`; subclasses now inherit. Future adapters that target a different schema version override (or extend) the inherited list.
+
 ## [1.3.60] — 2026-04-26
 
 #646 — drop Python-Markdown headerlink permalinks (axe `link-in-text-block` violation).
