@@ -8,6 +8,16 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
+## [1.3.54] — 2026-04-26
+
+#473 Bundle A — theme follow-system + kbd wikilink + iOS sticky thead (3 HIGH a11y/UX issues).
+
+### Fixed
+
+- **Theme toggle is now tri-state: `system → dark → light → system`** (#567, #ui-h6) — once clicked, the toggle was previously pinned forever; OS theme changes mid-session were ignored. The new cycle preserves the system-following default. Returning to `system` clears `localStorage.llmwiki-theme` so a fresh tab also follows the OS. A `matchMedia('(prefers-color-scheme: dark)').addEventListener('change', ...)` handler also re-syncs `hljs` styles when the OS flips while we're in `system` mode.
+- **Hover wikilink preview gains keyboard parity** (#570, #ui-h13) — the preview card only fired on `mouseenter`/`mouseleave`. Now also fires on `focus`/`blur` so a Tab-only user gets the same affordance, and ESC dismisses the preview immediately. WCAG 1.4.13 (Content on Hover or Focus) compliance.
+- **Sticky table header survives iOS Safari** (#569, #ui-h10) — added `-webkit-sticky` fallback, a hardware-layer `transform: translateZ(0)` so older WebKit doesn't repaint sticky cells as plain rows during scroll, and `isolation: isolate` on `.table-wrap` to give the sticky thead its own stacking context against the page nav blur.
+
 ## [1.3.53] — 2026-04-26
 
 #474 Bundle 5 — CLI/MCP HIGH (4 of 6; #583 cmd_all argv re-parse + #585 Ollama prompt re-render deferred as standalones).
