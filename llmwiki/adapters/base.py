@@ -51,8 +51,33 @@ class BaseAdapter:
 
     @classmethod
     def is_available(cls) -> bool:
-        """True if the session store exists on this machine."""
-        paths = cls.session_store_path
+        """True if the session store exists on this machine.
+
+        #496: previously read ``cls.session_store_path`` directly. That
+        worked for ``ClaudeCodeAdapter`` (class attribute) but returned
+        the *property descriptor object* for the 8 contrib adapters
+        which override ``session_store_path`` as a ``@property`` — so
+        every contrib adapter had to re-implement its own
+        ``is_available()`` classmethod reading ``cls.DEFAULT_ROOTS``.
+
+        Fix: instantiate a config-less temp instance and read
+        ``self.session_store_path`` through the same code path
+        ``discover_sessions()`` uses. Both class-attribute and
+        ``@property``-overriding patterns now flow through this single
+        method; the 8 duplicate contrib overrides go away.
+
+        Adapters with expensive ``__init__()`` should override this
+        method directly, but no current adapter needs to.
+        """
+        try:
+            inst = cls()
+        except Exception:
+            # Defensive: an adapter whose __init__ raises (e.g.
+            # missing imports surfaced eagerly) is "unavailable" by
+            # definition rather than crashing the whole `adapters`
+            # listing.
+            return False
+        paths = inst.session_store_path
         if isinstance(paths, Path):
             paths = [paths]
         return any(Path(p).expanduser().exists() for p in paths)
