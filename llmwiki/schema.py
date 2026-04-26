@@ -127,7 +127,7 @@ def _try_parse_json(value: Any) -> Any:
         if stripped.startswith(("{", "[")):
             try:
                 return json.loads(stripped)
-            except (ValueError, json.JSONDecodeError):
+            except ValueError:
                 return value
     return value
 

@@ -276,7 +276,7 @@ class OllamaSynthesizer(BaseSynthesizer):
             if 200 <= status < 300:
                 try:
                     return json.loads(body)
-                except (ValueError, json.JSONDecodeError) as exc:
+                except ValueError as exc:
                     raise OllamaError(
                         f"Ollama returned non-JSON body: {exc}"
                     ) from exc

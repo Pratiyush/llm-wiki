@@ -70,7 +70,7 @@ def parse_changelog(meta: Mapping[str, Any]) -> tuple[list[ChangelogEntry], list
     if isinstance(raw, str):
         try:
             data = json.loads(raw)
-        except (ValueError, json.JSONDecodeError):
+        except ValueError:
             return [], ["changelog must be a JSON list"]
 
     # The lightweight frontmatter parser in `build.py` (and
@@ -90,7 +90,7 @@ def parse_changelog(meta: Mapping[str, Any]) -> tuple[list[ChangelogEntry], list
             reparsed = json.loads(stitched)
             if isinstance(reparsed, list):
                 data = reparsed
-        except (ValueError, json.JSONDecodeError):
+        except ValueError:
             pass  # fall through; the element-level validator will reject
 
     if not isinstance(data, list):

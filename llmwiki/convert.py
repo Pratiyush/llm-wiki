@@ -310,7 +310,16 @@ class IgnoreMatcher:
             return cls([])
         try:
             text = path.read_text(encoding="utf-8")
-        except OSError:
+        except OSError as e:
+            # #py-l2 (#600): silent fallback to empty was hiding real
+            # permission / IO problems from operators. Print a warning
+            # to stderr so the failure is visible without breaking
+            # callers that expect a usable IgnoreMatcher.
+            import sys as _sys
+            print(
+                f"warning: could not read {path}: {e}; treating as no-ignores",
+                file=_sys.stderr,
+            )
             return cls([])
         return cls(text.splitlines())
 
@@ -540,7 +549,22 @@ class Redactor:
         red = config.get("redaction", {})
         self.real_user = red.get("real_username", "")
         self.repl_user = red.get("replacement_username", "USER")
-        self.patterns = [re.compile(p) for p in red.get("extra_patterns", [])]
+        # #py-l6 (#604): one bad user-supplied pattern used to abort
+        # construction of the entire Redactor — leaving sync running
+        # with NO redaction at all (worse than partial redaction).
+        # Compile each pattern individually; warn on the bad ones, keep
+        # the good ones. Default token patterns + username redaction
+        # still run regardless.
+        self.patterns = []
+        import sys as _sys
+        for p in red.get("extra_patterns", []):
+            try:
+                self.patterns.append(re.compile(p))
+            except re.error as e:
+                print(
+                    f"warning: invalid redaction pattern {p!r} skipped: {e}",
+                    file=_sys.stderr,
+                )
 
     def __call__(self, text: str) -> str:
         if not text:
