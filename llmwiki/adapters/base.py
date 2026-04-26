@@ -92,8 +92,18 @@ class BaseAdapter:
         return jsonl_path.parent.name
 
     def is_subagent(self, jsonl_path: Path) -> bool:
-        """Default: filenames or paths containing 'subagent' are sub-agent runs."""
-        return "subagent" in jsonl_path.parts or "subagent" in jsonl_path.name
+        """Default: no adapter has a sub-agent concept — only Claude Code does
+        (#406). Subclasses that DO have sub-agents (currently only the
+        Claude Code adapter) override this method.
+
+        Why the default returned True for any path containing the substring
+        "subagent": that was a holdover from a Claude-specific assumption
+        when the adapter abstraction was introduced. It mis-tagged every
+        session in any user project named e.g. ``subagent-runner``,
+        demoting them on the project page and excluding them from session
+        counts. Subclassing fixes the bug at the source.
+        """
+        return False
 
     def normalize_records(self, records: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """Normalize agent-specific JSONL records into the shared Claude-style

@@ -78,7 +78,14 @@ def _patch(monkeypatch, home, out_dir, state):
 
 
 def test_subagent_collision_is_resolved_with_hash_suffix(tmp_path, monkeypatch):
-    """Parent + subagent that share start-time + slug both land on disk."""
+    """Parent + subagent that share start-time + slug both land on disk.
+
+    With the #406 fix, the subagent file gets a ``-subagent-<id>`` suffix
+    on its slug at render time, so parent + subagent no longer COLLIDE
+    on the canonical name — they land at distinct filenames without
+    needing the disambiguator. The original intent of this test (both
+    files survive) still holds; just the mechanism changed.
+    """
     home, proj, out_dir, state = _seed_env(tmp_path)
 
     ts = "2026-04-16T10:00:00Z"
@@ -100,10 +107,14 @@ def test_subagent_collision_is_resolved_with_hash_suffix(tmp_path, monkeypatch):
     assert rc in (0, 1)
 
     outs = sorted(out_dir.rglob("*.md"))
-    disambig = [p for p in outs if "--" in p.name]
-    canonical = [p for p in outs if "--" not in p.name]
-    assert canonical, f"canonical name missing; got {outs}"
-    assert disambig, f"disambiguated file missing; got {outs}"
+    # Both files must land — parent at canonical name, subagent at
+    # <slug>-subagent-<agent_id>.md.
+    assert len(outs) == 2, f"expected 2 files, got {[p.name for p in outs]}"
+    names = [p.name for p in outs]
+    parent_files = [n for n in names if "subagent" not in n]
+    subagent_files = [n for n in names if "subagent" in n]
+    assert parent_files, f"parent file missing; got {names}"
+    assert subagent_files, f"subagent file missing; got {names}"
 
 
 def test_second_source_with_identical_canonical_name_gets_hash(tmp_path, monkeypatch):
