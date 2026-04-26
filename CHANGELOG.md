@@ -8,6 +8,14 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
+## [1.3.1] — 2026-04-26
+
+Hotfix release fixing the localStorage theme key mismatch between site and graph (#477). One-line correctness fix; graph page now correctly inherits the user's site theme on every visit.
+
+### Fixed
+
+- **Graph page used `localStorage["theme"]`, rest of site used `localStorage["llmwiki-theme"]`** (#477) — the graph viewer never inherited the user's site theme. Toggling theme on the graph also had no effect anywhere else. Compounded by `<html data-theme="dark">` hardcoded in the graph template, so light-mode users always saw a dark graph regardless of preference. Fix: standardise on `llmwiki-theme` in graph.py (read + write); drop the hardcoded `data-theme` attribute and replace with a pre-paint inline script that reads localStorage (then `prefers-color-scheme` fallback, then dark) before first paint to avoid a flash of wrong theme. Adds `tests/test_graph_theme_sync.py` (4 cases) covering both keys removed/standardised, pre-paint script present, and template structure.
+
 ## [1.3.0] — 2026-04-26
 
 Consolidated minor release rolling up every patch since v1.2.0 — 38 in-tree version bumps across the Opus 4.7 deep code-review backlog (#403), perf budgets, observability, and a handful of new features. No breaking API changes; all of v1.2.x is byte-identical with v1.3.0 at the code level. Per-fix detail is preserved under the [1.2.x] entries below for grep-ability.

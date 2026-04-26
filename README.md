@@ -9,7 +9,7 @@ Rebuilt on every `master` push from the synthetic sessions in [`examples/demo-se
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/)
-[![Version](https://img.shields.io/badge/version-v1.3.0-10B981.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-v1.3.1-10B981.svg)](CHANGELOG.md)
 [![Tests](https://img.shields.io/badge/tests-2363%20passing-10B981.svg)](tests/)
 [![CI](https://github.com/Pratiyush/llm-wiki/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/Pratiyush/llm-wiki/actions/workflows/ci.yml)
 [![Link check](https://github.com/Pratiyush/llm-wiki/actions/workflows/link-check.yml/badge.svg?branch=master)](https://github.com/Pratiyush/llm-wiki/actions/workflows/link-check.yml)
@@ -106,6 +106,36 @@ Site-level AI-agent entry points:
 | `/manifest.json` | Build manifest with SHA-256 hashes + perf budget |
 
 Every page also includes an `<!-- llmwiki:metadata -->` HTML comment that AI agents can parse without fetching the separate `.json` sibling.
+
+#### Recipe — query `graph.jsonld` from your terminal
+
+The JSON-LD graph isn't just for crawlers — you can ask quick questions about your wiki without leaving the shell. Example: print every session as a tree, grouped by project:
+
+```bash
+python3 examples/scripts/tree_from_graph.py
+```
+
+Output:
+
+```
+📚 8 sessions across 3 projects
+   (site/graph.jsonld v1.3.0)
+
+llmwiki/
+├── demo-blog-engine/  (4 sessions)
+│   ├── 2026-03-12  scaffolding-the-rust-blog-engine
+│   ├── 2026-03-18  adding-syntax-highlighting
+│   ├── 2026-03-25  rss-feed-and-sitemap
+│   └── 2026-04-01  dark-mode-toggle
+├── demo-ml-pipeline/  (2 sessions)
+│   ├── 2026-01-20  training-data-pipeline
+│   └── 2026-02-02  model-training-loop
+└── demo-todo-api/  (2 sessions)
+    ├── 2026-02-08  fastapi-project-bootstrap
+    └── 2026-02-15  adding-oauth-login
+```
+
+The full script is **stdlib-only** at [`examples/scripts/tree_from_graph.py`](examples/scripts/tree_from_graph.py). Same recipe pattern works for any aggregation question — count sessions per model, find the largest project by token usage, list every entity that appears in 3+ sessions, etc. The graph is yours to slice.
 
 ### Quality & governance (v1.0)
 - **4-factor confidence scoring** — source count, source quality, recency, cross-references; with Ebbinghaus-inspired decay per content-type
