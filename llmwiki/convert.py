@@ -557,6 +557,16 @@ class Redactor:
         #416: covers macOS (`/Users/<u>`), Linux (`/home/<u>`), Windows
         (`C:\\Users\\<u>` plus mixed-separator variants users hit when
         copy-pasting between shells), and WSL (`/mnt/c/Users/<u>`).
+
+        #485: extended to cover Windows non-C drives (`D:\\Users\\`,
+        `E:\\Users\\`, every drive letter), Cygwin
+        (`/cygdrive/<letter>/Users/<u>`), Windows extended-length
+        prefix (`\\\\?\\C:\\Users\\<u>`), and WSL UNC
+        (`\\\\wsl.localhost\\<distro>\\home\\<u>`,
+        `\\\\wsl$\\<distro>\\home\\<u>`). All variants users hit in
+        the wild on a multi-drive Windows box or a Cygwin/WSL
+        environment.
+
         Username can contain hyphens, underscores, and unicode.
         """
         u = re.escape(self.real_user)
@@ -566,11 +576,27 @@ class Redactor:
         # the real user. The username group is itself the only thing
         # we substitute — separators and prefix are preserved.
         prefixes = (
+            # Original (#416): macOS / Linux / Windows C: / WSL /mnt
             r"/Users/",
             r"/home/",
             r"C:\\Users\\",
             r"C:/Users/",
             r"/mnt/[a-z]/Users/",
+            # #485: Windows non-C drives (D, E, F, ...) — both backslash
+            # and forward-slash forms (Powershell prints either depending
+            # on origin).
+            r"[A-Za-z]:\\Users\\",
+            r"[A-Za-z]:/Users/",
+            # #485: Cygwin home format
+            r"/cygdrive/[a-z]/Users/",
+            # #485: Windows extended-length path prefix `\\?\C:\Users\`
+            # (used by APIs that bypass MAX_PATH; appears in some tool
+            # output).
+            r"\\\\\?\\[A-Za-z]:\\Users\\",
+            # #485: WSL UNC prefixes — both modern (`wsl.localhost`) and
+            # legacy (`wsl$`). Distro name allows letters/digits/hyphens.
+            r"\\\\wsl\.localhost\\[A-Za-z0-9_-]+\\home\\",
+            r"\\\\wsl\$\\[A-Za-z0-9_-]+\\home\\",
         )
         pattern = re.compile(
             r"(?P<prefix>" + "|".join(prefixes) + r")"
