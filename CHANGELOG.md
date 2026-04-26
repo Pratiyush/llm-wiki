@@ -8,6 +8,23 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
+## [1.3.41] — 2026-04-26
+
+UI/a11y bundle release picking off five small Opus-found issues from epic #473 in one PR (closely related single-line CSS / JS / HTML adjustments that share the same render code path).
+
+### Fixed
+
+- **Skip-link has a visible focus ring** (#565, #ui-h1) — `:focus-visible` now resets overflow + width AND emits a `3px solid white` outline with a `0 0 0 6px var(--accent)` ring shadow so keyboard users see exactly where focus landed against the accent background.
+- **localStorage access wrapped in try/catch** (#566, #ui-h4) — Safari Private Mode + sandboxed iframes throw `SecurityError` on `setItem`/`getItem`. All four call sites in `render/js.py` (pre-paint reader, theme toggle, mobile bottom nav, palette) now `try { ... } catch (e) { /* private mode */ }` so a thrown error doesn't kill the rest of the wiring.
+- **`#open-palette` and `#theme-toggle` have proper aria attributes** (#568, #ui-h8) — palette button gains `aria-haspopup="dialog"` + `aria-expanded` + `aria-controls="palette"`; theme button gains `aria-pressed` mirroring the dark-state. JS keeps both attrs in sync via a new `__syncTriggerAriaExpanded` helper inside `__openDialog`/`__closeDialog` and a `syncAriaPressed` closure on the theme listener. AT users now hear "open command palette, collapsed" / "toggle dark mode, pressed" instead of bare button labels.
+- **vis-network pinned to @9.1.9 with SHA-384 SRI hash** (#571, #ui-h14) — the bare `unpkg.com/vis-network/standalone/...` URL pulled latest on every load, exposing every visitor to upstream registry compromise. Now `unpkg.com/vis-network@9.1.9/...` with `integrity="sha384-yxKDWWf0wwdUj/gPeuL11czrnKFQROnLgY8ll7En9NYoXibgg3C6NK/UDHNtUgWJ"` so the browser refuses to execute mismatched code.
+
+### Verified (no code change)
+
+- **#564 (#ui-c5)**: `viewport-fit=cover` already in every emitted `<meta name="viewport">`. Test added so a regression can't slip in silently.
+
+Tests: `tests/test_ui_a11y_bundle_473.py` (9 cases) + `tests/test_render_split.py` ceiling bumped 900→950 lines for css.py to fit the skip-link addition.
+
 ## [1.3.40] — 2026-04-26
 
 Maintenance release adding a scripted demo recorder so the README GIF stops drifting (#638, parent #468; partial close on #248).
