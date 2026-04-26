@@ -8,6 +8,18 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
+## [1.2.21] — 2026-04-26
+
+Patch release fixing the `Redactor`'s Windows/WSL blind spot and adding default credential-token redaction flagged by the Opus 4.7 code review (#403). The CLAUDE.md security promise — redaction "before anything hits disk" — now holds across every supported platform.
+
+### Fixed
+
+- **Redactor missed Windows + WSL home-directory paths** (#416) — username substitution was hardcoded to `/Users/{user}` (macOS) and `/home/{user}` (Linux) via plain `str.replace`. Windows (`C:\Users\<u>`), Windows-with-mixed-separators (`C:/Users/<u>` from copy-paste between shells), and WSL (`/mnt/c/Users/<u>`, `/mnt/d/Users/<u>`, etc.) silently skipped redaction — meaning a Windows-authored session transcript shipped real usernames to disk. Fix: single regex with prefix alternation covering all 5 path styles, plus a `(?=$|[/\\])` lookahead so `alice` doesn't match `aliceandbob`. Usernames with hyphens, underscores, and unicode characters all round-trip.
+
+### Added
+
+- **Default credential-token redaction** (#416) — new `_DEFAULT_TOKEN_PATTERNS` runs unconditionally regardless of user `extra_patterns` config, so users who never configured redaction are still protected. Covers GitHub PATs (`ghp_*`, `gho_*`, `ghs_*`, `ghu_*`, `github_pat_*`), AWS access key IDs (`AKIA*`), and Slack tokens (`xoxb-*`, `xoxp-*`, `xoxa-*`, `xoxr-*`, `xoxs-*`). Length thresholds (≥20 chars after the prefix; AKIA-style requires exactly 16 trailing chars) prevent false positives on docs and short example strings. Adds 21 regression tests covering the full path/token matrix.
+
 ## [1.2.19] — 2026-04-26
 
 Patch release fixing the `build` CI-surprise commit issue flagged by the Opus 4.7 code review (#403). `llmwiki build` is now read-only on `wiki/` by default — stub seeding moves to opt-in.
