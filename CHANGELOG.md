@@ -8,13 +8,34 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
-## [1.2.25] — 2026-04-26
+## [1.2.29] — 2026-04-26
 
 Patch release fixing the `wiki_query` MCP-tool ranking quality regression flagged by the Opus 4.7 code review (#403). Pure ranking fix — no API change beyond floats appearing in the score field.
 
 ### Fixed
 
 - **`wiki_query` ranking had no length normalisation** (#418) — the formula was `score = 50·full_match + 10·tokens_in_body + 100·title_match + 20·title_token_match`. A 1-MB log page that contains every query token *anywhere* always beat a perfectly relevant 1-paragraph entity page. As LLM clients lean on `wiki_query`, that quality regression was user-visible. Fix: divide the body component by `log2(max(len(content), 256))` before summing — long pages still rank but no longer dominate, short pages don't get an artificial boost (the 256-byte floor caps it). Title matches are unchanged since titles are already short and high-signal. Empty bodies and frontmatter-only pages now ranked safely (no division-by-zero, no NaN). Adds 8 regression tests covering short-vs-long, title precedence, empty query, no-matches, frontmatter-only, unicode tokenisation, finite-score guarantee, and short-page floor.
+
+## [1.2.26] — 2026-04-26
+
+Patch release fixing the markdown render-cache hot-path perf flagged by the Opus 4.7 code review (#403). Pure perf — no API change beyond `md_to_html_cache_stats()` exposing additional `plain_*` counters.
+
+### Fixed
+
+- **`md_to_html` cache key allocation** (#417) — used `hashlib.sha256(body).hexdigest()` per call, allocating a 64-byte hex string. On a 5000-page build this dominated the cache-lookup path. Switched to `hashlib.blake2b(body, digest_size=8).digest()` — ~3× faster and 8× less allocation per key. New `_content_key(body)` helper centralises the choice so the html and plain caches stay in sync. Birthday-collision bound at the 8-byte digest is ~4×10^9 entries, well above the 4096-entry cap.
+- **`md_to_plain_text` re-parsed cached bodies** (#417) — `build.py` calls `md_to_html` and `md_to_plain_text` on the same body in multiple places (per-page render + search-index extract + RSS summary + `.txt` sibling). The plain-text path was uncached, so every body was re-parsed 2-4× per build. New `_PLAIN_CACHE` keyed off the same `_content_key` makes the second + third + … calls free. `md_to_html_cache_stats()` now exposes `plain_hits` / `plain_misses` / `plain_size` for observability. `md_to_html_cache_clear()` resets both. Adds 9 regression tests covering the new cache (correctness, hit/miss counters, FIFO eviction, content-keyed independence from the html cache, blake2b 8-byte digest pinning, one-byte-diff distinguishability).
+
+## [1.2.21] — 2026-04-26
+
+Patch release fixing the `Redactor`'s Windows/WSL blind spot and adding default credential-token redaction flagged by the Opus 4.7 code review (#403). The CLAUDE.md security promise — redaction "before anything hits disk" — now holds across every supported platform.
+
+### Fixed
+
+- **Redactor missed Windows + WSL home-directory paths** (#416) — username substitution was hardcoded to `/Users/{user}` (macOS) and `/home/{user}` (Linux) via plain `str.replace`. Windows (`C:\Users\<u>`), Windows-with-mixed-separators (`C:/Users/<u>` from copy-paste between shells), and WSL (`/mnt/c/Users/<u>`, `/mnt/d/Users/<u>`, etc.) silently skipped redaction — meaning a Windows-authored session transcript shipped real usernames to disk. Fix: single regex with prefix alternation covering all 5 path styles, plus a `(?=$|[/\\])` lookahead so `alice` doesn't match `aliceandbob`. Usernames with hyphens, underscores, and unicode characters all round-trip.
+
+### Added
+
+- **Default credential-token redaction** (#416) — new `_DEFAULT_TOKEN_PATTERNS` runs unconditionally regardless of user `extra_patterns` config, so users who never configured redaction are still protected. Covers GitHub PATs (`ghp_*`, `gho_*`, `ghs_*`, `ghu_*`, `github_pat_*`), AWS access key IDs (`AKIA*`), and Slack tokens (`xoxb-*`, `xoxp-*`, `xoxa-*`, `xoxr-*`, `xoxs-*`). Length thresholds (≥20 chars after the prefix; AKIA-style requires exactly 16 trailing chars) prevent false positives on docs and short example strings. Adds 21 regression tests covering the full path/token matrix.
 
 ## [1.2.19] — 2026-04-26
 

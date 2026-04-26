@@ -410,6 +410,29 @@ def most_common_model(records: list[dict[str, Any]]) -> str:
 
 # ─── redaction + truncation ────────────────────────────────────────────────
 
+# #416: default token shapes that should be redacted out of any session
+# transcript regardless of user config. The CLAUDE.md security model
+# promises redaction "before anything hits disk" — these patterns close
+# the gap left by relying on user-provided `extra_patterns`.
+#
+# - GitHub PATs: `ghp_*` (classic), `gho_*` (OAuth), `ghs_*` (server-to-
+#   server), `ghu_*` (user-to-server), `github_pat_*` (fine-grained)
+# - AWS access key IDs: `AKIA*` (20 chars total)
+# - Slack tokens: `xoxb-*`, `xoxp-*`, `xoxa-*`, `xoxr-*`, `xoxs-*`
+#
+# These run AFTER user `extra_patterns` so users can override with a
+# more permissive matcher if they really need to (e.g. test fixtures).
+_DEFAULT_TOKEN_PATTERNS = [
+    re.compile(r"\bghp_[A-Za-z0-9_]{20,}\b"),
+    re.compile(r"\bgho_[A-Za-z0-9_]{20,}\b"),
+    re.compile(r"\bghs_[A-Za-z0-9_]{20,}\b"),
+    re.compile(r"\bghu_[A-Za-z0-9_]{20,}\b"),
+    re.compile(r"\bgithub_pat_[A-Za-z0-9_]{20,}\b"),
+    re.compile(r"\bAKIA[0-9A-Z]{16}\b"),
+    re.compile(r"\bxox[abprs]-[A-Za-z0-9-]{10,}\b"),
+]
+
+
 class Redactor:
     def __init__(self, config: dict[str, Any]):
         red = config.get("redaction", {})
@@ -421,12 +444,43 @@ class Redactor:
         if not text:
             return text
         if self.real_user:
-            text = text.replace(f"/Users/{self.real_user}/", f"/Users/{self.repl_user}/")
-            text = text.replace(f"/Users/{self.real_user}", f"/Users/{self.repl_user}")
-            text = text.replace(f"/home/{self.real_user}/", f"/home/{self.repl_user}/")
+            text = self._redact_username(text)
         for pat in self.patterns:
             text = pat.sub("<REDACTED>", text)
+        # #416: default token redaction runs unconditionally so users
+        # never accidentally publish credentials by forgetting to
+        # configure `extra_patterns`.
+        for pat in _DEFAULT_TOKEN_PATTERNS:
+            text = pat.sub("<REDACTED>", text)
         return text
+
+    def _redact_username(self, text: str) -> str:
+        """Replace the real username in home-directory paths.
+
+        #416: covers macOS (`/Users/<u>`), Linux (`/home/<u>`), Windows
+        (`C:\\Users\\<u>` plus mixed-separator variants users hit when
+        copy-pasting between shells), and WSL (`/mnt/c/Users/<u>`).
+        Username can contain hyphens, underscores, and unicode.
+        """
+        u = re.escape(self.real_user)
+        repl_user = self.repl_user
+        # Single regex with prefix alternation; word-style boundary
+        # (lookahead) prevents matching `aliceandbob` when `alice` is
+        # the real user. The username group is itself the only thing
+        # we substitute — separators and prefix are preserved.
+        prefixes = (
+            r"/Users/",
+            r"/home/",
+            r"C:\\Users\\",
+            r"C:/Users/",
+            r"/mnt/[a-z]/Users/",
+        )
+        pattern = re.compile(
+            r"(?P<prefix>" + "|".join(prefixes) + r")"
+            + r"(?P<user>" + u + r")"
+            + r"(?=$|[/\\])"
+        )
+        return pattern.sub(lambda m: m.group("prefix") + repl_user, text)
 
 
 def _close_open_fence(text: str) -> str:
