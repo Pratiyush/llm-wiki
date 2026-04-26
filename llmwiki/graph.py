@@ -203,8 +203,24 @@ def write_json(graph: dict[str, Any], out_path: Path) -> None:
 
 
 HTML_TEMPLATE = r"""<!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en">
 <head>
+<script>
+  // #477: read the same localStorage key the rest of the site uses
+  // ("llmwiki-theme") BEFORE first paint to avoid a flash of the wrong
+  // theme. Falls back to system preference, then dark.
+  (function () {
+    try {
+      var t = localStorage.getItem('llmwiki-theme');
+      if (!t) {
+        t = (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) ? 'light' : 'dark';
+      }
+      document.documentElement.setAttribute('data-theme', t);
+    } catch (e) {
+      document.documentElement.setAttribute('data-theme', 'dark');
+    }
+  })();
+</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>llmwiki — Knowledge Graph</title>
@@ -430,13 +446,13 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
 'use strict';
 const GRAPH = __GRAPH_JSON__;
 
-// ─── Theme sync with the main site (localStorage key "theme") ──────────
+// ─── Theme sync with the main site (localStorage key "llmwiki-theme") ──
+// #477: standardise on "llmwiki-theme" so toggling on the graph viewer
+// persists across to the rest of the site (and vice-versa). The pre-paint
+// inline script in <head> already set data-theme; this block wires the
+// toolbar toggle.
 const root = document.documentElement;
-const savedTheme = (typeof localStorage !== 'undefined' && localStorage.getItem('theme')) || 'dark';
-root.setAttribute('data-theme', savedTheme);
-// Null-guard the chrome controls — when the graph viewer is rendered as a
-// minimal placeholder (e.g. seeded corpus with zero edges) the toolbar may
-// be omitted but this script still runs. Closes #386.
+const savedTheme = root.getAttribute('data-theme') || 'dark';
 const themeLabel = document.getElementById('theme-label');
 if (themeLabel) themeLabel.textContent = savedTheme;
 const themeToggle = document.getElementById('theme-toggle');
@@ -444,7 +460,7 @@ if (themeToggle) themeToggle.addEventListener('click', () => {
   const next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
   root.setAttribute('data-theme', next);
   if (themeLabel) themeLabel.textContent = next;
-  try { localStorage.setItem('theme', next); } catch (_) { /* private mode */ }
+  try { localStorage.setItem('llmwiki-theme', next); } catch (_) { /* private mode */ }
 });
 
 // ─── Check vis-network loaded (local fallback hook) ────────────────────
