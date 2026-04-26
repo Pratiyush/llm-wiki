@@ -127,6 +127,36 @@ def _safe_slug(value: str | None, *, fallback: str = "_unknown") -> str:
     return s
 
 
+def _is_subagent(meta: dict[str, Any], path: Path) -> bool:
+    """Return True iff a session is a sub-agent run (#492 / #406).
+
+    Prefers the adapter-written ``is_subagent`` frontmatter field
+    (canonical contract since #406). Falls back to the legacy
+    ``"subagent" in path.name`` substring check ONLY if the field is
+    missing — needed to keep pre-#406 raw files classified correctly
+    until they're re-synced.
+
+    Accepts the field as either a real bool or one of the
+    case-insensitive strings ``"true"`` / ``"false"`` since
+    frontmatter parsers historically coerced inconsistently.
+    """
+    raw = meta.get("is_subagent")
+    if isinstance(raw, bool):
+        return raw
+    if isinstance(raw, str):
+        s = raw.strip().lower()
+        if s in ("true", "yes", "1"):
+            return True
+        if s in ("false", "no", "0"):
+            return False
+    # Field absent or unrecognised — fall back to the legacy heuristic
+    # so pre-#406 raw files (no is_subagent field) still get the right
+    # answer. The renderer renames sub-agent slugs to
+    # `<slug>-subagent-<id>`, so the substring match is correct on
+    # canonically-renamed files even when meta is missing.
+    return "subagent" in path.name
+
+
 def discover_sources(root: Path) -> list[tuple[Path, dict[str, Any], str]]:
     out: list[tuple[Path, dict[str, Any], str]] = []
     if not root.exists():
@@ -1015,7 +1045,7 @@ def render_project_page(
     sessions: list[tuple[Path, dict[str, Any], str]],
     out_dir: Path,
 ) -> Path:
-    main_sessions = [s for s in sessions if "subagent" not in s[0].name]
+    main_sessions = [s for s in sessions if not _is_subagent(s[1], s[0])]
     subagent_sessions = [s for s in sessions if s not in main_sessions]
 
     def card(p: Path, meta: dict[str, Any]) -> str:
@@ -1175,7 +1205,7 @@ def render_projects_index(
 ) -> Path:
     cards = []
     for project, sessions in sorted(groups.items(), key=lambda x: -len(x[1])):
-        main_count = sum(1 for p, _, _ in sessions if "subagent" not in p.name)
+        main_count = sum(1 for p, m, _ in sessions if not _is_subagent(m, p))
         sub_count = len(sessions) - main_count
         # Freshness reflects the newest session in the project.
         newest_meta = max(
@@ -1336,7 +1366,7 @@ def render_index(
     synthesis: Optional[str] = None,
 ) -> Path:
     total = len(all_sources)
-    mains = sum(1 for p, _, _ in all_sources if "subagent" not in p.name)
+    mains = sum(1 for p, m, _ in all_sources if not _is_subagent(m, p))
     subs = total - mains
 
     synth_block = ""
@@ -1389,7 +1419,7 @@ def render_index(
 
     cards = []
     for project, sessions in sorted(groups.items(), key=lambda x: -len(x[1])):
-        main_count = sum(1 for p, _, _ in sessions if "subagent" not in p.name)
+        main_count = sum(1 for p, m, _ in sessions if not _is_subagent(m, p))
         # Project topics — explicit profile in wiki/projects/<slug>.md
         # takes precedence, falls back to aggregated session tags with
         # noise filtered out. Rendered as chips below the card meta.
@@ -2048,7 +2078,7 @@ def synthesize_overview(
     for project, sessions in sorted(groups.items()):
         brief[project] = {
             "session_count": len(sessions),
-            "main_sessions": sum(1 for p, _, _ in sessions if "subagent" not in p.name),
+            "main_sessions": sum(1 for p, m, _ in sessions if not _is_subagent(m, p)),
             "dates": sorted({str(m.get("date", "")) for _, m, _ in sessions if m.get("date")}),
             "models": sorted({str(m.get("model", "")) for _, m, _ in sessions if m.get("model")}),
             "slugs": [str(m.get("slug", p.stem)) for p, m, _ in sessions[:8]],

@@ -8,6 +8,14 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
+## [1.3.6] — 2026-04-26
+
+Hotfix release closing the renderer-side half of the `is_subagent` regression that #406 fixed at the adapter level (#492). Sub-agent classification was correct in the frontmatter but wrong in the rendered UI for any project with "subagent" in a session filename.
+
+### Fixed
+
+- **Renderer used the broken substring rule across 5 sites** (#492) — PR #406 fixed `is_subagent` at the adapter layer (strict canonical-path check, writes correct `is_subagent: true|false` into frontmatter). But `build.py` never read the frontmatter field; it re-implemented the old `'subagent' in p.name` substring check in 5 separate places (`render_project_page`, `render_projects_index`, `render_index`, project-card stats, JSON schema emit). Result: any session in any project with "subagent" in its filename was demoted from main-session counts in the UI even though the adapter classified it correctly. Fix: new `_is_subagent(meta, path)` helper that prefers the frontmatter field (`true`/`false` bool, plus `"true"/"false"` string coerce for legacy parsers), falls back to the substring check only when the field is missing (pre-#406 raw files). All 5 sites now route through the helper. Adds `tests/test_render_is_subagent.py` (8 cases) covering the frontmatter precedence, all 6 string-bool variants, the substring fallback for missing field, and a regression vs the bug pattern (project named `subagent-runner` whose sessions were misclassified).
+
 ## [1.3.5] — 2026-04-26
 
 Hotfix release scrubbing stale references to `llmwiki watch` and `llmwiki export-obsidian` from the README + docs (#494). Both subcommands were removed in v1.2.0 (see UPGRADING.md) but the README CLI table + 2 docs still advertised them, breaking new-user trust on first try.
