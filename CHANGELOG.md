@@ -8,6 +8,14 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
+## [1.3.40] — 2026-04-26
+
+Maintenance release adding a scripted demo recorder so the README GIF stops drifting (#638, parent #468; partial close on #248).
+
+### Added
+
+- **`scripts/record_demo.py`** (#638) — Playwright walkthrough that records a polished demo of the live site (home → projects → sessions filter → palette → graph → theme toggle), saves `docs/videos/llmwiki-demo.webm`, then optionally converts to `docs/demo.gif` via ffmpeg's two-pass palettegen filter. Uses headless Chromium, 1280×800 viewport, injected SVG cursor + subtitle overlays. Maintainers run it manually (`python3 scripts/record_demo.py`) when releasing a new version with visible UI changes; output paths match what the README references so the GIF can be replaced in-place. Closes the script-side of the long-running #248 ticket — the GIF re-record itself is still a manual step (intentional: video output is reviewed before commit).
+
 ## [1.3.39] — 2026-04-26
 
 Maintenance release adding end-to-end MCP server protocol tests (#633, parent #468).
