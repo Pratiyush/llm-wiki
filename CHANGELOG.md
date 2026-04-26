@@ -8,6 +8,14 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
+## [1.3.23] — 2026-04-26
+
+Hotfix release giving the slug filter input the missing `<label>` wrapper so it aligns with its peers and announces correctly under screen readers (#454).
+
+### Fixed
+
+- **Filter-by-slug input now has a `<label>Slug` wrapper** (#454) — Project, Model, From, and To filters were each wrapped in `<label>` tags that contributed a small text header above the control; the slug input was a bare `<input>` with only a placeholder. Two consequences: (a) the slug input baseline sat ~16px higher than its peers (visual misalignment) and (b) screen readers announced it as just "edit text, Filter by slug" with no programmatic label. Wrapping the input in `<label>Slug ...</label>` corrects both. `tests/test_filter_slug_label.py` (3 cases) pins the contract for the slug input plus all four neighbouring filters so the regression can't reappear.
+
 ## [1.3.22] — 2026-04-26
 
 Hotfix release fixing the activity timeline label + sparkline geometry on `sessions/index.html` (#453).

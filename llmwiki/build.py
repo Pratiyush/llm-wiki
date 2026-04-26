@@ -1333,7 +1333,9 @@ def render_sessions_index(
       <label>To
         <input type="date" id="filter-date-to">
       </label>
-      <input type="text" id="filter-text" placeholder="Filter by slug…">
+      <label>Slug
+        <input type="text" id="filter-text" placeholder="part of slug…">
+      </label>
       <button class="btn" id="filter-clear">Clear</button>
       <span class="filter-count muted" id="filter-count"></span>
     </div>
