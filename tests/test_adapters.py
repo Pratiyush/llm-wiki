@@ -17,8 +17,12 @@ def test_registry_discovers_all_adapters():
     discover_all()
     assert "claude_code" in REGISTRY
     assert "codex_cli" in REGISTRY
-    assert "copilot-chat" in REGISTRY
-    assert "copilot-cli" in REGISTRY
+    # #626: copilot adapters now register under snake_case (canonical)
+    # plus a kebab-case alias (back-compat for existing user configs).
+    assert "copilot_chat" in REGISTRY
+    assert "copilot_cli" in REGISTRY
+    assert "copilot-chat" in REGISTRY  # alias
+    assert "copilot-cli" in REGISTRY  # alias
     assert "cursor" in REGISTRY
     assert "gemini_cli" in REGISTRY
     assert "obsidian" in REGISTRY
@@ -35,9 +39,22 @@ def test_all_adapters_subclass_base():
 
 
 def test_all_adapters_have_name():
+    # #626: REGISTRY may carry alias keys that legitimately differ from
+    # ``cls.name`` (e.g. ``copilot-chat`` aliases the canonical
+    # ``copilot_chat``). Walk the unique classes once instead of asserting
+    # every key matches ``cls.name``.
     discover_all()
-    for name, cls in REGISTRY.items():
-        assert cls.name == name, f"adapter {cls.__name__} name mismatch"
+    seen: set[type] = set()
+    for cls in REGISTRY.values():
+        if cls in seen:
+            continue
+        seen.add(cls)
+        assert isinstance(cls.name, str) and cls.name, (
+            f"adapter {cls.__name__} has no name"
+        )
+        assert REGISTRY.get(cls.name) is cls, (
+            f"adapter {cls.__name__} canonical name {cls.name!r} not in REGISTRY"
+        )
 
 
 def test_all_adapters_have_description():

@@ -42,9 +42,15 @@ def _build_default_roots() -> list[Path]:
     return roots
 
 
-@register("copilot-chat")
+@register("copilot_chat", aliases=["copilot-chat"])
 class CopilotChatAdapter(BaseAdapter):
-    """GitHub Copilot Chat — reads VS Code workspaceStorage chatSessions"""
+    """GitHub Copilot Chat — reads VS Code workspaceStorage chatSessions.
+
+    #arch-l5 (#626): canonical name is ``copilot_chat`` (snake_case,
+    matching every other adapter). The kebab-case ``copilot-chat`` is
+    kept as a REGISTRY alias and still recognised in
+    ``sessions_config.json`` so existing user configs don't break.
+    """
 
     # #arch-m9 (#621): SUPPORTED_SCHEMA_VERSIONS = ["v1"] is the
     # BaseAdapter default — declaration removed here.
@@ -56,7 +62,10 @@ class CopilotChatAdapter(BaseAdapter):
 
     def __init__(self, config: dict[str, Any] | None = None):
         super().__init__(config)
-        ad_cfg = (config or {}).get("adapters", {}).get("copilot-chat", {})
+        adapters_cfg = (config or {}).get("adapters", {}) or {}
+        # #626: read snake_case config first; fall back to legacy
+        # kebab-case so existing sessions_config.json keeps working.
+        ad_cfg = adapters_cfg.get("copilot_chat") or adapters_cfg.get("copilot-chat") or {}
         paths = ad_cfg.get("roots") or []
         self.roots: list[Path] = (
             [Path(p).expanduser() for p in paths] if paths else self.DEFAULT_ROOTS

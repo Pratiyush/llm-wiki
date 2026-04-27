@@ -8,6 +8,18 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
+## [1.3.72] — 2026-04-27
+
+#arch-l5 (#626) — adapter registry name normalisation: `copilot-chat` → `copilot_chat`, `copilot-cli` → `copilot_cli`.
+
+### Changed
+
+- **Copilot adapters now register under snake_case names** (#626) — `CopilotChatAdapter` and `CopilotCliAdapter` were the only two adapters using kebab-case (`copilot-chat`, `copilot-cli`); every other adapter (`claude_code`, `codex_cli`, `gemini_cli`, etc.) is snake_case. The canonical names are now `copilot_chat` and `copilot_cli`. The kebab-case names are kept as REGISTRY aliases so existing user `sessions_config.json` files keep working unchanged. The new `aliases=` parameter on the `register` decorator handles this generically — future renames can reuse it without dropping legacy keys.
+
+### Migration
+
+- **No action required.** `sessions_config.json` keyed under `copilot-chat:` / `copilot-cli:` continues to work. Update to the snake_case keys at your leisure; if both keys are present the snake_case key wins so a partial migration is safe.
+
 ## [1.3.71] — 2026-04-27
 
 #py-m8 (#594) — single-pass build over `sources`.

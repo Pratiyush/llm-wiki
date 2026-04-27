@@ -12,8 +12,8 @@ The `--synthesize` flag on `llmwiki build` calls the local `claude` binary on yo
 |---|---|---|
 | Claude Code | `claude_code` | Production |
 | Codex CLI | `codex_cli` | Production |
-| GitHub Copilot Chat | `copilot-chat` | Production |
-| GitHub Copilot CLI | `copilot-cli` | Production |
+| GitHub Copilot Chat | `copilot_chat` | Production |
+| GitHub Copilot CLI | `copilot_cli` | Production |
 | Cursor | `cursor` | Scaffold (SQLite parser in progress) |
 | Gemini CLI | `gemini_cli` | Scaffold (schema TBC) |
 | Obsidian | `obsidian` | Production (vault as input source) |

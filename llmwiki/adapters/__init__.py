@@ -32,11 +32,20 @@ CONTRIB_ADAPTERS = {
 }
 
 
-def register(name: str):
-    """Decorator used by adapter modules to register themselves."""
+def register(name: str, aliases: list[str] | None = None):
+    """Decorator used by adapter modules to register themselves.
+
+    ``aliases`` (#arch-l5 / #626): additional REGISTRY keys that resolve
+    to the same class. Used to keep historical kebab-case names like
+    ``copilot-chat`` working after the canonical name moves to
+    snake_case (``copilot_chat``). ``cls.name`` always reflects the
+    canonical name; aliases only affect REGISTRY lookups.
+    """
     def decorator(cls):
         REGISTRY[name] = cls
         cls.name = name
+        for alias in aliases or ():
+            REGISTRY[alias] = cls
         return cls
     return decorator
 
