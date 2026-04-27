@@ -46,35 +46,70 @@ def cmd_all(args: argparse.Namespace) -> int:
       1  at least one step returned a non-zero exit status.
       2  ``--strict`` was passed and lint reported any error or warning.
     """
-    import shlex
+    # #py-h4 (#583): direct dispatch instead of round-tripping through
+    # argparse. The old version built ``["build", "--out", "..."]`` argv
+    # lists and re-parsed them via the global ``build_parser()``, which
+    # meant every flag #422 then optimised away the *per-step* re-parse,
+    # but ``cmd_all`` still depended on the global parser's full grammar
+    # — adding a flag to any unrelated subcommand could regress
+    # ``cmd_all`` if defaults shifted. Now we construct each step's
+    # Namespace directly with the defaults the relevant cmd_* expects,
+    # which is also what ``cmd_all`` was *supposed* to do per its
+    # docstring (avoid global-parser coupling).
+    def _ns(**kw: Any) -> argparse.Namespace:
+        return argparse.Namespace(**kw)
 
-    steps: list[tuple[str, list[str]]] = []
-    build_args = ["build", "--out", str(args.out)]
-    if args.search_mode:
-        build_args.extend(["--search-mode", args.search_mode])
-    steps.append(("build", build_args))
-
+    steps: list[tuple[str, str, argparse.Namespace]] = []
+    steps.append((
+        "build",
+        f"build --out {args.out} --search-mode {args.search_mode}",
+        _ns(
+            out=args.out,
+            synthesize=False,
+            claude="",
+            search_mode=args.search_mode or "auto",
+            seed_project_stubs=False,
+            vault=None,
+        ),
+    ))
     if not args.skip_graph:
-        steps.append(("graph", ["graph", "--format", "both", "--engine", args.graph_engine]))
-
-    steps.append(("export", ["export", "all", "--out", str(args.out)]))
+        steps.append((
+            "graph",
+            f"graph --format both --engine {args.graph_engine}",
+            _ns(format="both", engine=args.graph_engine),
+        ))
+    steps.append((
+        "export",
+        f"export all --out {args.out}",
+        _ns(format="all", out=args.out, topic=""),
+    ))
     # ``lint --fail-on-errors`` so error-severity issues already fail the step;
     # ``--strict`` additionally escalates warnings (checked below).
-    lint_argv = ["lint", "--fail-on-errors"] if args.strict else ["lint"]
-    steps.append(("lint", lint_argv))
+    lint_label = "lint --fail-on-errors" if args.strict else "lint"
+    steps.append((
+        "lint",
+        lint_label,
+        _ns(
+            wiki_dir=None,
+            rules=None,
+            include_llm=False,
+            json=False,
+            fail_on_errors=args.strict,
+        ),
+    ))
+
+    dispatch = {
+        "build": cmd_build,
+        "graph": cmd_graph,
+        "export": cmd_export,
+        "lint": cmd_lint,
+    }
 
     overall_rc = 0
     lint_rc: Optional[int] = None
-    # #422: build the parser ONCE and re-use for all steps. The previous
-    # version called ``build_parser()`` per step (4× per ``llmwiki all``)
-    # which (a) was wasteful argparse-tree work and (b) made every
-    # subcommand's flag set part of the global build_parser() contract
-    # — exactly the coupling cmd_all was supposed to avoid.
-    parser = build_parser()
-    for name, argv in steps:
-        print(f"\n==> llmwiki {' '.join(shlex.quote(a) for a in argv)}")
-        sub_args = parser.parse_args(argv)
-        rc = sub_args.func(sub_args)
+    for name, label, sub_args in steps:
+        print(f"\n==> llmwiki {label}")
+        rc = dispatch[name](sub_args)
         if name == "lint":
             lint_rc = rc
             continue  # lint's own exit policy is handled below

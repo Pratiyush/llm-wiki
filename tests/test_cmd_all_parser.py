@@ -1,10 +1,14 @@
-"""Tests for the `llmwiki all` orchestrator (closes #422).
+"""Tests for the `llmwiki all` orchestrator (closes #422 and #583).
 
-Pre-fix, `cmd_all` called `build_parser()` once *per step*, rebuilding
-the entire argparse tree four times for a single invocation. That was
-wasteful argparse work AND a coupling smell — each subcommand's flag
-set leaked into the cmd_all contract via the shared parser. Build the
-parser once and re-use the parsed namespace.
+#422: `cmd_all` was calling `build_parser()` once *per step* (4× per
+invocation). Wasteful argparse work AND a coupling smell.
+
+#py-h4 (#583): `cmd_all` then re-parsed argv lists via the global
+parser — semantically correct but the global parser still leaked into
+`cmd_all`'s contract. Rewritten to direct-dispatch: each step gets a
+Namespace constructed in-place with the defaults that subcommand
+expects, and we call `cmd_build` / `cmd_graph` / `cmd_export` /
+`cmd_lint` directly. No global parser involvement.
 """
 
 from __future__ import annotations
@@ -31,9 +35,15 @@ def _mk_args(**overrides) -> argparse.Namespace:
 # ─── Parser-build call counter ───────────────────────────────────────
 
 
-def test_cmd_all_builds_parser_once_only():
-    """Regression for #422: cmd_all must call build_parser() exactly
-    once across all steps. Previously called 4× (once per step)."""
+def test_cmd_all_does_not_use_global_parser():
+    """#py-h4 (#583): cmd_all must NOT call build_parser() at all.
+
+    Previously: 4× (#422 era), then 1× (post-#422). Now: 0× — direct
+    dispatch via cmd_* function references. Calling build_parser inside
+    cmd_all means the global parser's grammar leaks into cmd_all's
+    contract; adding a flag to any unrelated subcommand could regress
+    cmd_all if defaults shifted.
+    """
     from llmwiki import cli
 
     call_count = {"n": 0}
@@ -43,19 +53,16 @@ def test_cmd_all_builds_parser_once_only():
         call_count["n"] += 1
         return original_build_parser()
 
-    # Stub each command function so we don't actually execute build/etc.
     stub = MagicMock(return_value=0)
-
     with patch.object(cli, "build_parser", side_effect=counting_build_parser):
         with patch.object(cli, "cmd_build", stub):
             with patch.object(cli, "cmd_lint", stub):
-                with patch("llmwiki.exporters.export_all", stub):
-                    with patch.object(cli, "cmd_export", stub):
-                        cli.cmd_all(_mk_args())
+                with patch.object(cli, "cmd_export", stub):
+                    cli.cmd_all(_mk_args())
 
-    assert call_count["n"] == 1, (
+    assert call_count["n"] == 0, (
         f"cmd_all called build_parser() {call_count['n']} times "
-        f"(expected exactly 1 — see #422)"
+        f"(expected 0 — see #583)"
     )
 
 
@@ -139,89 +146,64 @@ def test_cmd_all_includes_graph_step_when_not_skipped():
     assert graph_stub.call_count == 1
 
 
-def test_cmd_all_strict_propagates_to_lint_argv():
-    """--strict adds --fail-on-errors to the lint step's argv."""
+def test_cmd_all_strict_propagates_fail_on_errors_to_lint():
+    """#py-h4 (#583): --strict sets fail_on_errors=True on the lint step."""
     from llmwiki import cli
 
-    received_argvs: list[list[str]] = []
-    original = cli.build_parser
+    lint_stub = MagicMock(return_value=0)
+    other = MagicMock(return_value=0)
+    with patch.object(cli, "cmd_build", other):
+        with patch.object(cli, "cmd_export", other):
+            with patch.object(cli, "cmd_lint", lint_stub):
+                cli.cmd_all(_mk_args(strict=True))
 
-    class WrapParser:
-        def __init__(self, real):
-            self._real = real
-        def parse_args(self, argv):
-            received_argvs.append(list(argv))
-            return self._real.parse_args(argv)
-
-    def fake_build_parser():
-        return WrapParser(original())
-
-    stub = MagicMock(return_value=0)
-    with patch.object(cli, "build_parser", side_effect=fake_build_parser):
-        with patch.object(cli, "cmd_build", stub):
-            with patch.object(cli, "cmd_export", stub):
-                with patch.object(cli, "cmd_lint", stub):
-                    cli.cmd_all(_mk_args(strict=True))
-
-    lint_argv = next((a for a in received_argvs if a and a[0] == "lint"), None)
-    assert lint_argv is not None
-    assert "--fail-on-errors" in lint_argv
+    assert lint_stub.call_count == 1
+    lint_ns = lint_stub.call_args[0][0]
+    assert lint_ns.fail_on_errors is True
 
 
-def test_cmd_all_out_dir_propagates_to_steps():
-    """--out flows through to build's --out argv."""
+def test_cmd_all_strict_false_keeps_lint_permissive():
+    """Without --strict, lint runs without fail_on_errors."""
     from llmwiki import cli
 
-    received_argvs: list[list[str]] = []
-    original = cli.build_parser
+    lint_stub = MagicMock(return_value=0)
+    other = MagicMock(return_value=0)
+    with patch.object(cli, "cmd_build", other):
+        with patch.object(cli, "cmd_export", other):
+            with patch.object(cli, "cmd_lint", lint_stub):
+                cli.cmd_all(_mk_args(strict=False))
 
-    class WrapParser:
-        def __init__(self, real):
-            self._real = real
-        def parse_args(self, argv):
-            received_argvs.append(list(argv))
-            return self._real.parse_args(argv)
+    lint_ns = lint_stub.call_args[0][0]
+    assert lint_ns.fail_on_errors is False
 
-    stub = MagicMock(return_value=0)
-    with patch.object(cli, "build_parser", side_effect=lambda: WrapParser(original())):
-        with patch.object(cli, "cmd_build", stub):
-            with patch.object(cli, "cmd_export", stub):
-                with patch.object(cli, "cmd_lint", stub):
-                    cli.cmd_all(_mk_args(out=Path("/custom/out")))
 
-    build_argv = next((a for a in received_argvs if a and a[0] == "build"), None)
-    assert build_argv is not None
-    assert "--out" in build_argv
-    out_idx = build_argv.index("--out")
-    assert build_argv[out_idx + 1] == "/custom/out"
+def test_cmd_all_out_dir_propagates_to_build_and_export():
+    """#py-h4 (#583): --out flows through to both build and export Namespaces."""
+    from llmwiki import cli
+
+    build_stub = MagicMock(return_value=0)
+    export_stub = MagicMock(return_value=0)
+    with patch.object(cli, "cmd_build", build_stub):
+        with patch.object(cli, "cmd_export", export_stub):
+            with patch.object(cli, "cmd_lint", MagicMock(return_value=0)):
+                cli.cmd_all(_mk_args(out=Path("/custom/out")))
+
+    assert build_stub.call_args[0][0].out == Path("/custom/out")
+    assert export_stub.call_args[0][0].out == Path("/custom/out")
 
 
 def test_cmd_all_search_mode_propagates_to_build():
-    """--search-mode flows through to build's argv."""
+    """#py-h4 (#583): --search-mode flows through to build's Namespace."""
     from llmwiki import cli
 
-    received_argvs: list[list[str]] = []
-    original = cli.build_parser
+    build_stub = MagicMock(return_value=0)
+    other = MagicMock(return_value=0)
+    with patch.object(cli, "cmd_build", build_stub):
+        with patch.object(cli, "cmd_export", other):
+            with patch.object(cli, "cmd_lint", other):
+                cli.cmd_all(_mk_args(search_mode="tree"))
 
-    class WrapParser:
-        def __init__(self, real):
-            self._real = real
-        def parse_args(self, argv):
-            received_argvs.append(list(argv))
-            return self._real.parse_args(argv)
-
-    stub = MagicMock(return_value=0)
-    with patch.object(cli, "build_parser", side_effect=lambda: WrapParser(original())):
-        with patch.object(cli, "cmd_build", stub):
-            with patch.object(cli, "cmd_export", stub):
-                with patch.object(cli, "cmd_lint", stub):
-                    cli.cmd_all(_mk_args(search_mode="tree"))
-
-    build_argv = next((a for a in received_argvs if a and a[0] == "build"), None)
-    assert build_argv is not None
-    assert "--search-mode" in build_argv
-    sm_idx = build_argv.index("--search-mode")
-    assert build_argv[sm_idx + 1] == "tree"
+    assert build_stub.call_args[0][0].search_mode == "tree"
 
 
 def test_cmd_all_runs_all_four_steps_by_default():

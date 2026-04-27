@@ -8,6 +8,14 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
+## [1.3.68] — 2026-04-27
+
+#py-h4 (#583) — `cmd_all` direct dispatch.
+
+### Fixed
+
+- **`cmd_all` no longer round-trips through the global parser** — the post-#422 version called `build_parser()` once per invocation and re-parsed argv lists like `["build", "--out", "..."]` for each step. Semantically correct but the global parser still leaked into `cmd_all`'s contract: adding a flag to any unrelated subcommand could regress `cmd_all` if defaults shifted. Now constructs each step's `Namespace` directly with the defaults the relevant `cmd_*` expects and dispatches via a `{name: cmd_*}` map. Zero `build_parser()` calls.
+
 ## [1.3.67] — 2026-04-27
 
 Post-final-review remediation — 7 HIGH findings from the multi-agent code review (python-reviewer, security-reviewer, architect, code-reviewer, typescript-reviewer). Plus the long-deferred CLI tutorial recording (#248) and a fresh full-site UI walkthrough.
