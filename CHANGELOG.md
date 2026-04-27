@@ -8,6 +8,14 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
+## [1.3.69] — 2026-04-27
+
+#py-h7 (#585) — Ollama prompt double-render fix; backends now own template rendering.
+
+### Fixed
+
+- **`OllamaSynthesizer.synthesize_source_page` no longer double-renders the prompt** (#585) — `synth/pipeline.py` was pre-rendering the prompt template (`{body}` and `{meta}` interpolated as `key: value` lines) before calling `backend.synthesize_source_page(body, meta, prompt)`, then `OllamaSynthesizer` ran `_render_prompt` over the same string a second time. The second pass was a no-op as long as the body didn't contain literal `{body}` / `{meta}` text, but the bigger problem was the *contract violation*: `BaseSynthesizer`'s docstring promised that `prompt_template` was the unrendered template with placeholders, and `OllamaSynthesizer` was tuned to render `{meta}` as a JSON dump while the pipeline was rendering it as `key: value\n` lines. Ollama users silently got the pipeline's textual format instead. Now: pipeline hands over the unrendered template; each backend renders it with the format it was designed for. The 8 KB body cap moved from the pipeline into `OllamaSynthesizer` to live next to its prompt assembly (matches the cap `agent_delegate.py` already applies).
+
 ## [1.3.68] — 2026-04-27
 
 #py-h4 (#583) — `cmd_all` direct dispatch.

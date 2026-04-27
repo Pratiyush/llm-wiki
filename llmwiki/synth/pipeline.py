@@ -677,13 +677,19 @@ def synthesize_new_sessions(
         filename = f"{date}-{slug}" if date else slug
 
         try:
-            # Call the synthesizer backend
-            prompt = prompt_template.replace("{body}", body[:8000])
-            prompt = prompt.replace(
-                "{meta}",
-                "\n".join(f"{k}: {v}" for k, v in meta.items()),
-            )
-            synthesized = backend.synthesize_source_page(body, meta, prompt)
+            # #py-h7 (#585): pass the raw template — backends own rendering.
+            # The pre-render here used to interpolate {body} and {meta}
+            # before handing the result to backends, but that fought with
+            # the BaseSynthesizer contract ("prompt_template is the
+            # contents of prompts/source_page.md with {body} and {meta}
+            # placeholders"). Worse, the pipeline pre-render formatted
+            # meta as `key: value\n` lines while OllamaSynthesizer's own
+            # _render_prompt formats meta as JSON — so Ollama users
+            # silently got the pipeline's textual format instead of the
+            # JSON its prompts were tuned for. Now: pipeline hands over
+            # the unrendered template; each backend renders it with the
+            # format it was designed against.
+            synthesized = backend.synthesize_source_page(body, meta, prompt_template)
 
             # Build the full wiki source page.
             # #351: pass the existing path so maintainer-curated tags
