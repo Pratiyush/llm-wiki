@@ -31,9 +31,15 @@ def _build_default_roots() -> list[Path]:
     return roots
 
 
-@register("copilot-cli")
+@register("copilot_cli", aliases=["copilot-cli"])
 class CopilotCliAdapter(BaseAdapter):
-    """GitHub Copilot CLI — reads ~/.copilot/session-state/*/events.jsonl"""
+    """GitHub Copilot CLI — reads ~/.copilot/session-state/*/events.jsonl.
+
+    #arch-l5 (#626): canonical name is ``copilot_cli`` (snake_case,
+    matching every other adapter). The kebab-case ``copilot-cli`` is
+    kept as a REGISTRY alias and still recognised in
+    ``sessions_config.json`` so existing user configs don't break.
+    """
 
     # #arch-m9 (#621): SUPPORTED_SCHEMA_VERSIONS = ["v1"] is the
     # BaseAdapter default — declaration removed here.
@@ -42,7 +48,10 @@ class CopilotCliAdapter(BaseAdapter):
 
     def __init__(self, config: dict[str, Any] | None = None):
         super().__init__(config)
-        ad_cfg = (config or {}).get("adapters", {}).get("copilot-cli", {})
+        adapters_cfg = (config or {}).get("adapters", {}) or {}
+        # #626: read snake_case config first; fall back to legacy
+        # kebab-case so existing sessions_config.json keeps working.
+        ad_cfg = adapters_cfg.get("copilot_cli") or adapters_cfg.get("copilot-cli") or {}
         paths = ad_cfg.get("roots") or []
         self.roots: list[Path] = (
             [Path(p).expanduser() for p in paths] if paths else self.DEFAULT_ROOTS

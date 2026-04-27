@@ -28,7 +28,7 @@ pipeline (`raw/` → `wiki/` → `site/`) but differ on *who calls the LLM*:
 
 Everything except synthesis:
 
-- Adapters (`claude_code`, `codex_cli`, `cursor`, `gemini_cli`, `copilot-chat`, `obsidian`, …) work identically.
+- Adapters (`claude_code`, `codex_cli`, `cursor`, `gemini_cli`, `copilot_chat`, `obsidian`, …) work identically.
 - The static site, graph viewer, lint rules, backlinks CLI, tag family — all mode-agnostic.
 - `sessions_config.json` is the same file; only `synthesis.backend` differs.
 

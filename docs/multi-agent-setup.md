@@ -8,8 +8,8 @@ llmwiki reads sessions from multiple coding agents simultaneously. One `llmwiki 
 |---|---|---|---|
 | Claude Code | `claude_code` | `~/.claude/projects/` | Production |
 | Codex CLI | `codex_cli` | `~/.codex/sessions/` | Production |
-| GitHub Copilot Chat | `copilot-chat` | VS Code workspaceStorage | Production |
-| GitHub Copilot CLI | `copilot-cli` | `~/.copilot/session-state/` | Production |
+| GitHub Copilot Chat | `copilot_chat` | VS Code workspaceStorage | Production |
+| GitHub Copilot CLI | `copilot_cli` | `~/.copilot/session-state/` | Production |
 | Cursor | `cursor` | Cursor IDE workspaceStorage | Scaffold (SQLite parser in progress) |
 | Gemini CLI | `gemini_cli` | `~/.gemini/` | Scaffold (schema TBC) |
 | Obsidian | `obsidian` | Configurable vault paths | Production |
@@ -36,8 +36,8 @@ Example output:
 Registered adapters:
   claude_code       available: yes  (Claude Code — reads ~/.claude/projects/*/*.jsonl)
   codex_cli         available: yes  (Codex CLI — reads ~/.codex/sessions/**/*.jsonl)
-  copilot-chat      available: no   (GitHub Copilot Chat — reads VS Code workspaceStorage chatSessions)
-  copilot-cli       available: no   (GitHub Copilot CLI — reads ~/.copilot/session-state/*/events.jsonl)
+  copilot_chat      available: no   (GitHub Copilot Chat — reads VS Code workspaceStorage chatSessions)
+  copilot_cli       available: no   (GitHub Copilot CLI — reads ~/.copilot/session-state/*/events.jsonl)
   cursor            available: yes  (Cursor IDE — reads chat history)
   gemini_cli        available: no   (Gemini CLI — reads ~/.gemini/ session history)
   obsidian          available: no   (Obsidian vault)
@@ -106,7 +106,7 @@ Override adapter paths in `config.json`:
     "codex_cli": {
       "roots": ["~/custom/codex/sessions"]
     },
-    "copilot-chat": {
+    "copilot_chat": {
       "roots": ["/path/to/vscode/workspaceStorage"]
     },
     "gemini_cli": {

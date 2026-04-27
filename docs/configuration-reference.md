@@ -257,8 +257,8 @@ Each adapter can be configured in the `adapters` section of `config.json`. The k
 |---|---|---|---|
 | Claude Code | `claude_code` | yes (default on) | `roots` |
 | Codex CLI | `codex_cli` | yes (default on) | `roots` |
-| Copilot Chat | `copilot-chat` | yes (default on) | `roots` |
-| Copilot CLI | `copilot-cli` | yes (default on) | `roots` |
+| Copilot Chat | `copilot_chat` | yes (default on) | `roots` |
+| Copilot CLI | `copilot_cli` | yes (default on) | `roots` |
 | Cursor | `cursor` | yes (default on) | `roots` |
 | Gemini CLI | `gemini_cli` | yes (default on) | `roots` |
 | OpenCode / OpenClaw | `opencode` | yes (default on) | `roots` |
@@ -274,7 +274,7 @@ Example:
 ```json
 {
   "adapters": {
-    "copilot-chat": {
+    "copilot_chat": {
       "roots": ["/custom/path/to/vscode/workspaceStorage"]
     }
   }
