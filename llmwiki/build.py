@@ -2426,13 +2426,62 @@ def build_site(
         if synthesis:
             print(f"  synthesis: {len(synthesis)} chars")
 
-    # Render pages
+    # Render pages — single pass over `sources` (#py-m8 / #594).
+    # Pre-fix this loop only called render_session; a second walk later
+    # re-iterated `sources` to write the .txt + .json siblings, with a
+    # post-hoc html_path.exists() guard. Now we do both per-source in
+    # one iteration: render the HTML, then immediately write the two
+    # siblings while we still have meta + body in scope. Exporter
+    # imports stay lazy + try/except-wrapped so a missing exporter
+    # module degrades to "no siblings" instead of crashing the build.
+    siblings_failed = False
+    siblings_error: Optional[BaseException] = None
     n_sessions = 0
+    n_siblings = 0
+    try:
+        from llmwiki.exporters import write_page_json, write_page_txt
+    except (ImportError, OSError, ValueError, RuntimeError) as e:
+        siblings_failed = True
+        siblings_error = e
+        write_page_txt = None  # type: ignore[assignment]
+        write_page_json = None  # type: ignore[assignment]
+
+    _wikilink_re = re.compile(r"\[\[([^\]|]+)(?:\|[^\]]*)?\]\]")
     for path, meta, body in sources:
         project = str(meta.get("project") or path.parent.name)
         render_session(path, meta, body, out_dir, project)
         n_sessions += 1
+
+        if siblings_failed or write_page_txt is None:
+            continue
+        # render_session writes site/sessions/<project>/<stem>.html;
+        # mirror its path here so the siblings land alongside it.
+        html_path = out_dir / "sessions" / project / f"{path.stem}.html"
+        if not html_path.exists():
+            continue
+        try:
+            body_stripped = strip_leading_h1(body)
+            wikilinks_out = _wikilink_re.findall(body_stripped)
+            write_page_txt(html_path, body_stripped)
+            meta_copy = dict(meta)
+            meta_copy.setdefault("slug", str(meta.get("slug", path.stem)))
+            meta_copy.setdefault("project", project)
+            write_page_json(html_path, meta_copy, body_stripped, wikilinks_out)
+            n_siblings += 2
+        except (OSError, ValueError, RuntimeError) as e:
+            # First failure is reported once; subsequent siblings skipped.
+            if not siblings_failed:
+                siblings_error = e
+            siblings_failed = True
+
     print(f"  wrote {n_sessions} session pages")
+    if siblings_failed and siblings_error is not None:
+        print(
+            f"  warning: per-page siblings failed: {siblings_error}",
+            file=sys.stderr,
+        )
+    else:
+        print(f"  wrote {n_siblings} per-page siblings (.txt + .json)")
 
     for project, sessions in groups.items():
         render_project_page(project, sessions, out_dir)
@@ -2511,27 +2560,10 @@ def build_site(
     except (OSError, ValueError, RuntimeError) as e:
         print(f"  warning: docs compile failed: {e}", file=sys.stderr)
 
-    # v0.4: Per-page sibling .txt and .json
-    try:
-        from llmwiki.exporters import write_page_txt, write_page_json
-        n_siblings = 0
-        for path, meta, body in sources:
-            project = str(meta.get("project") or path.parent.name)
-            slug = str(meta.get("slug", path.stem))
-            html_path = out_dir / "sessions" / project / f"{path.stem}.html"
-            if html_path.exists():
-                body_stripped = strip_leading_h1(body)
-                wikilinks_out = [m for m in re.findall(r"\[\[([^\]|]+)(?:\|[^\]]*)?\]\]", body_stripped)]
-                write_page_txt(html_path, body_stripped)
-                # Inject slug/title back into meta if missing
-                meta_copy = dict(meta)
-                meta_copy.setdefault("slug", slug)
-                meta_copy.setdefault("project", project)
-                write_page_json(html_path, meta_copy, body_stripped, wikilinks_out)
-                n_siblings += 2
-        print(f"  wrote {n_siblings} per-page siblings (.txt + .json)")
-    except (OSError, ValueError, RuntimeError) as e:
-        print(f"  warning: per-page siblings failed: {e}", file=sys.stderr)
+    # v0.4 per-page sibling .txt and .json — collapsed into the
+    # render_session loop above (#py-m8 / #594). The duplicate walk and
+    # html_path.exists() guard are gone; siblings now write inside the
+    # same iteration that produced the HTML.
 
     # v0.4: Build manifest with SHA-256 hashes
     try:

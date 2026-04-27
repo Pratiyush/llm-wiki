@@ -8,6 +8,14 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
+## [1.3.71] — 2026-04-27
+
+#py-m8 (#594) — single-pass build over `sources`.
+
+### Changed
+
+- **`build_site` walks `sources` once, not twice** (#594) — pre-fix the function ran two separate `for path, meta, body in sources` loops in `build.py`: the first rendered each session's HTML page, then ~85 lines of unrelated work happened (project pages, indexes, search index, AI exports, graph copy, docs compile), then a second walk re-iterated `sources` to write the `.txt` + `.json` siblings, with a `html_path.exists()` guard to confirm the HTML had already been written. Now: render the HTML and write the two siblings inside the same iteration. Removes the second walk + the existence-check + the redundant `meta` / `body` dereferences. The exporter import and per-iteration error handling stay scoped so a missing exporter degrades to "no siblings" instead of crashing the build.
+
 ## [1.3.70] — 2026-04-27
 
 #arch-m3 (#615) — split `lint/rules.py` (968 LOC, 16 rules) into a `lint/rules/` package with one module per rule.
