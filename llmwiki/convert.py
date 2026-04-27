@@ -237,7 +237,7 @@ def _migrate_legacy_state(
 
 def load_state(
     path: Path, adapter_names: Optional[Iterable[str]] = None
-) -> dict[str, float]:
+) -> dict[str, Any]:
     """Load ``.llmwiki-state.json`` and migrate legacy absolute-path keys.
 
     Older state files used absolute paths as keys (``/Users/…/foo.jsonl``).
@@ -265,7 +265,12 @@ def load_state(
     return migrated
 
 
-def save_state(path: Path, state: dict[str, float]) -> None:
+def save_state(path: Path, state: dict[str, Any]) -> None:
+    # #426 (post-final-review): values are heterogeneous. Per-file
+    # entries are floats (mtime), but the function also persists
+    # `_meta` (dict) and `_counters` (dict) sentinel keys. The old
+    # `dict[str, float]` annotation lied to type-checkers and to the
+    # multi-agent review that flagged it.
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(state, indent=2, sort_keys=True), encoding="utf-8")
 

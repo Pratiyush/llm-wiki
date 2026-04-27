@@ -8,6 +8,24 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
+## [1.3.67] — 2026-04-27
+
+Post-final-review remediation — 7 HIGH findings from the multi-agent code review (python-reviewer, security-reviewer, architect, code-reviewer, typescript-reviewer). Plus the long-deferred CLI tutorial recording (#248) and a fresh full-site UI walkthrough.
+
+### Fixed
+
+- **`cmd_synthesize` no longer crashes on `vault / "raw"`** — `Vault` is a frozen dataclass with no `__truediv__`, so `vault / "raw" / "sessions"` raised `TypeError` the moment a non-default vault was passed. `cmd_sync` had the right pattern (`vault.root / ...`); this site was the missed copy. Caught by the multi-agent review.
+- **`</script>` escape now case-insensitive in `exporters.py` + `graph.py`** — HTML parsers tokenise tag names case-insensitively, so `</SCRIPT>` and `</Script>` would still close an embedded `<script>` block. Switched both call sites from a literal `str.replace` to `re.sub(..., flags=re.IGNORECASE)`. Closes the same XSS class the original guard was defending against.
+- **Mobile theme button cycles through the tri-state** (`system → dark → light → system`) — the mobile menu's theme toggle was a binary `dark ↔ light` flip, which silently moved a "system" user out of system mode on first tap with no way back from the mobile menu. Mirrors the desktop `#theme-toggle` cycle exactly so behaviour stays consistent across viewports.
+- **44×44 minimum touch targets** for `.copy-code-btn` and `.nav-hamburger` — both had a `36px` minimum which fails WCAG 2.1 AAA target-size and violates Apple HIG / Material guidance for thumb taps. Bumped to `44px` on both axes. The visible pill stays the same; only the hit area grows.
+- **Timeline sparkline SVG escapes `data-date` + `data-count`** — the per-bar `<rect>` interpolated `d` and `count` directly into HTML attributes. Values come from controlled frontmatter dates so XSS is unlikely in practice, but the multi-agent review correctly flagged it for defense-in-depth. Added a local attribute escaper inside the timeline IIFE (the palette IIFE's `escapeHtml` is out of scope).
+- **`save_state` / `load_state` type annotations no longer lie** — `convert.py:save_state` declared `dict[str, float]` but `convert_all` writes `state["_meta"]` (dict) and `state["_counters"]` (dict) sentinel keys alongside the per-file mtime floats. Switched both signatures to `dict[str, Any]` so type-checkers see the actual heterogeneous shape.
+
+### Added
+
+- **`docs/videos/cli-tutorial.{mp4,gif,tape}`** — VHS-recorded 31-second terminal walkthrough of the README "every command in 90 seconds" tutorial: `init` → `adapters` → `sync --help` → `build` → `lint` → `all` → `serve` + `curl` smoke test → closer. Reproducible via `vhs docs/videos/cli-tutorial.tape`.
+- **`docs/videos/demo.mp4` + `docs/demo.gif`** (#248) — 70-second polished UI walkthrough recorded against real data (515 sessions, 36 projects, 14.2B tokens). Eight stages: home → projects index → project detail → sessions index with filters + sticky scroll → session detail → palette → knowledge graph → tri-state theme toggle. Replaces the long-deferred placeholder on issue #248.
+
 ## [1.3.66] — 2026-04-26
 
 Phase 3 (a) — synthesize-estimate single-walk perf (#596).

@@ -172,7 +172,7 @@ kbd { display: inline-block; padding: 2px 6px; font-family: var(--mono); font-si
    reveal — and de-emphasised the button via lower-contrast neutral
    border + muted text instead of opacity. WCAG-clean. #ui-m3 (#573):
    padding bumped so the hit area lands at the 44×44 minimum. */
-.copy-code-btn { position: absolute; top: 8px; right: 8px; padding: 8px 12px; min-width: 44px; min-height: 36px; font-size: 0.72rem; font-weight: 500; background: var(--bg); border: 1px solid var(--border); border-radius: 4px; color: var(--text); cursor: pointer; font-family: var(--font); transition: border-color 0.15s, color 0.15s; z-index: 2; }
+.copy-code-btn { position: absolute; top: 8px; right: 8px; padding: 8px 12px; min-width: 44px; min-height: 44px; font-size: 0.72rem; font-weight: 500; background: var(--bg); border: 1px solid var(--border); border-radius: 4px; color: var(--text); cursor: pointer; font-family: var(--font); transition: border-color 0.15s, color 0.15s; z-index: 2; }
 .copy-code-btn:hover, .copy-code-btn:focus-visible { border-color: var(--accent); color: var(--accent); }
 .copy-code-btn.copied { background: var(--accent-bg); color: var(--accent); border-color: var(--accent); }
 
@@ -745,7 +745,7 @@ mark { background: var(--accent-bg); color: var(--accent); padding: 0 2px; borde
 .nav-hamburger {
   display: none;  /* shown only when nav-links row is hidden */
   background: var(--bg-card); border: 1px solid var(--border);
-  border-radius: 6px; width: 36px; height: 36px;
+  border-radius: 6px; width: 44px; height: 44px;
   align-items: center; justify-content: center;
   cursor: pointer; color: var(--text-secondary);
   padding: 0; margin-left: auto;
