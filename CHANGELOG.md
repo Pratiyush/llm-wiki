@@ -8,6 +8,14 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
+## [1.3.70] — 2026-04-27
+
+#arch-m3 (#615) — split `lint/rules.py` (968 LOC, 16 rules) into a `lint/rules/` package with one module per rule.
+
+### Changed
+
+- **`llmwiki/lint/rules.py` → `llmwiki/lint/rules/<name>.py` package** (#615) — the monolithic 968-LOC file with 16 `@register`'d rule classes is now a directory with one module per rule plus a shared `_helpers.py` for the cross-cutting helpers (`_basename`, `_page_slug`, `_resolve_index_href`, the regex constants, and the `_normalise_*` coercers). The package's `__init__.py` re-exports every helper and every rule class in the original registration order so existing import sites (`from llmwiki.lint import rules`, `from llmwiki.lint.rules import _basename, _page_slug, FrontmatterCompleteness`) keep working unchanged. No behaviour change — pure code-organisation refactor.
+
 ## [1.3.69] — 2026-04-27
 
 #py-h7 (#585) — Ollama prompt double-render fix; backends now own template rendering.
