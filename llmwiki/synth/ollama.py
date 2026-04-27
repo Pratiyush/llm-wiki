@@ -229,7 +229,14 @@ class OllamaSynthesizer(BaseSynthesizer):
         OllamaHTTPError
             The server returned a non-2xx response after all retries.
         """
-        prompt = _render_prompt(prompt_template, raw_body=raw_body, meta=meta)
+        # #py-h7 (#585): pipeline used to pre-render the prompt for us
+        # (with `body[:8000]` truncation + a `key: value` meta format),
+        # but that violated the BaseSynthesizer contract. Now we own the
+        # render. Mirror the previous 8 KB body cap so very long sessions
+        # don't blow Ollama's context window — agent_delegate uses the
+        # same cap; centralise here so the limit lives next to the prompt.
+        truncated_body = raw_body[:8000] if raw_body else ""
+        prompt = _render_prompt(prompt_template, raw_body=truncated_body, meta=meta)
         payload = {
             "model": self.config.model,
             "prompt": prompt,
