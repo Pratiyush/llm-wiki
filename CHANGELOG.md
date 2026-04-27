@@ -8,6 +8,14 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
+## [1.3.76] — 2026-04-27
+
+#463 — Playwright stack decision: Path A (TS agents alongside Python pytest-playwright).
+
+### Added
+
+- **`docs/maintainers/ADR-001-playwright-stack.md`** (#463) — Architecture Decision Record adopting Path A: keep the existing Python `tests/e2e/` suite as the gating contract, add Test Agents (`@playwright/test`) under a parallel `tests/agents/` once #464 unblocks (currently gated on Node-install approval). Re-evaluate full migration to Path B after one release of healer-in-CI experience. Records the layout, CI shape, and out-of-scope items for downstream PRs in the family (#464–#467).
+
 ## [1.3.75] — 2026-04-27
 
 #682 — README claim audit + regression test for badge drift.
