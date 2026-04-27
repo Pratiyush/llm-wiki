@@ -798,10 +798,10 @@ def write_html(graph: dict[str, Any], out_path: Path) -> None:
     # safe because ``json.dumps`` escapes ``</`` sequences; we also double-
     # check that there's no ``</script>`` in the rendered text below.
     payload = json.dumps(graph, ensure_ascii=False)
-    if "</script>" in payload:
-        # Extremely defensive — a wiki page title containing literal
-        # `</script>` would otherwise close our block early. Escape it.
-        payload = payload.replace("</script>", "<\\/script>")
+    # Post-final-review: HTML parsers are case-insensitive on tag names,
+    # so `</SCRIPT>` and `</Script>` would still close our block early.
+    # Match all variants — same fix in exporters.py.
+    payload = re.sub(r"</script\b", "<\\/script", payload, flags=re.IGNORECASE)
     # #456: inject the site's standard nav so graph.html isn't a navigation
     # dead end. Imported lazily to avoid a top-level circular dependency
     # (build.py imports graph.copy_to_site).

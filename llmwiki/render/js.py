@@ -311,14 +311,30 @@ JS = r"""// llmwiki viewer — theme + copy + search palette + keyboard shortcut
       }
       _mbnSyncPressed();
       themeBtn.addEventListener("click", function () {
+        // Post-final-review: mirror the desktop tri-state cycle
+        // (system → dark → light → system) instead of a binary
+        // dark/light flip. The old binary path would silently move
+        // the user out of "system" mode on the first tap and there
+        // was no way back from the mobile menu — desktop and mobile
+        // diverged behaviorally. Cycle source-of-truth is desktop.
         const root = document.documentElement;
-        let current = root.getAttribute("data-theme");
-        if (!current) {
-          current = (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) ? "dark" : "light";
+        let stored = null;
+        try { stored = localStorage.getItem("llmwiki-theme"); } catch (e) { /* private mode */ }
+        let next;
+        if (stored !== "dark" && stored !== "light") {
+          next = "dark";
+        } else if (stored === "dark") {
+          next = "light";
+        } else {
+          next = null; // back to system
         }
-        const next = current === "dark" ? "light" : "dark";
-        root.setAttribute("data-theme", next);
-        try { localStorage.setItem("llmwiki-theme", next); } catch (e) { /* #ui-h4: private mode */ }
+        if (next === null) {
+          root.removeAttribute("data-theme");
+          try { localStorage.removeItem("llmwiki-theme"); } catch (e) { /* private mode */ }
+        } else {
+          root.setAttribute("data-theme", next);
+          try { localStorage.setItem("llmwiki-theme", next); } catch (e) { /* private mode */ }
+        }
         if (window.__llmwikiSyncHljsTheme) window.__llmwikiSyncHljsTheme();
         _mbnSyncPressed();
       });
@@ -1042,6 +1058,17 @@ document.addEventListener("DOMContentLoaded", function () {
 // Render a compact sparkline above the sessions table showing session count
 // per day over the last 60 days.
 (function () {
+  // Post-final-review: local attribute escaper. The timeline SVG below
+  // string-concatenates `data-date` and `data-count` into HTML; while
+  // the values come from controlled `data-date` row attributes (built
+  // in build.py from frontmatter dates), defense-in-depth escapes them
+  // anyway. The palette IIFE has its own `escapeHtml` but it's out of
+  // scope here, hence the local copy.
+  function escAttr(s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
   document.addEventListener("DOMContentLoaded", function () {
     const tbody = document.getElementById("sessions-tbody");
     if (!tbody) return;
@@ -1090,7 +1117,7 @@ document.addEventListener("DOMContentLoaded", function () {
       const barH = (count / maxCount) * (h - 16);
       const y = h - barH - 4;
       return '<rect x="' + x + '" y="' + y + '" width="' + barW + '" height="' + barH +
-             '" fill="var(--accent)" opacity="0.7" data-date="' + d + '" data-count="' + count + '"></rect>';
+             '" fill="var(--accent)" opacity="0.7" data-date="' + escAttr(d) + '" data-count="' + escAttr(count) + '"></rect>';
     }).join("");
 
     const svg =

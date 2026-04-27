@@ -734,9 +734,13 @@ def cmd_synthesize(args: argparse.Namespace) -> int:
         except (FileNotFoundError, NotADirectoryError) as exc:
             print(f"error: {exc}", file=sys.stderr)
             return 2
-        raw_dir = vault / "raw" / "sessions"
-        wiki_sources_dir = vault / "wiki" / "sources"
-        state_file = vault / ".llmwiki-synth-state.json"
+        # Post-final-review: Vault is a frozen dataclass with no
+        # __truediv__ — `vault / "raw"` raises TypeError. cmd_sync at
+        # line 205 correctly uses `vault.root / "raw"`; this site was
+        # the missed copy. Caught by the multi-agent code review.
+        raw_dir = vault.root / "raw" / "sessions"
+        wiki_sources_dir = vault.root / "wiki" / "sources"
+        state_file = vault.root / ".llmwiki-synth-state.json"
 
     summary = synthesize_new_sessions(
         backend=backend,

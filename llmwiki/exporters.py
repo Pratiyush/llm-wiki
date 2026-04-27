@@ -339,8 +339,10 @@ def write_graph_jsonld(
     # Apply the same `<\/` defense graph.py uses for its own embedded
     # payload.
     payload = json.dumps(doc, indent=2, ensure_ascii=False)
-    if "</script>" in payload:
-        payload = payload.replace("</script>", "<\\/script>")
+    # Post-final-review: HTML parsers are case-insensitive on tag names,
+    # so `</SCRIPT>` and `</Script>` would still close an embedded
+    # script block. Match all variants. Same fix in graph.py.
+    payload = re.sub(r"</script\b", "<\\/script", payload, flags=re.IGNORECASE)
     out_path = out_dir / "graph.jsonld"
     out_path.write_text(payload, encoding="utf-8")
     return out_path
