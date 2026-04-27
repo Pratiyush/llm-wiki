@@ -8,6 +8,29 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
+## [1.3.78] — 2026-04-27
+
+Multi-agent code review remediation — 6 HIGH fixes from a 5-agent review of the consolidated v1.3.66 → v1.3.77 diff (python-reviewer, security-reviewer, architect, code-reviewer, typescript-reviewer). Plus follow-up issues #691 (deeper cli.py extraction) and #692 (ADR-001 drift ownership amendment) filed for the architect's larger findings.
+
+### Fixed
+
+- **REGISTRY no longer carries alias keys** (#v1378-review) — `register(name, aliases=[...])` was inserting every alias directly into `REGISTRY`, which made `cmd_adapters` print duplicate rows (one for `copilot_chat`, one for `copilot-chat`) and made `adapter_status` look up the wrong config key on the alias row. Aliases now live in a separate `REGISTRY_ALIASES: dict[str, str]` map and the new `resolve_adapter_name()` helper handles canonical lookups. A collision guard now raises `ValueError` if an alias would shadow an existing canonical adapter.
+- **`build_site` per-source sibling-failure isolation** (#v1378-review) — pre-fix, the first `OSError` / `ValueError` / `RuntimeError` from a single source's sibling write set a process-wide `siblings_failed` flag and silently dropped sibling output for **every subsequent session in the loop**. On a 500-session corpus with one bad body, that meant 497 silently missing `.txt` + `.json` sibling files. Each source's sibling write is now wrapped individually; failures are collected into a `sibling_failures` list and reported once at the end without poisoning the rest of the loop. Warning lines now print BEFORE the success line so CI log scanners don't miss them.
+- **`cli.py` no longer has E402 mid-module imports** (#v1378-review) — the two re-export lines (`from llmwiki.adapters.status import adapter_status as _adapter_status`, `from llmwiki.synth.estimate import synthesize_estimate_report`) were stuck in the middle of the file between function definitions. Hoisted to the top with the rest of the imports.
+- **Timeline SVG label uses `textContent`, not `innerHTML`** (#v1378-review) — `tl.innerHTML = '<div...>' + labelText + '</div>' + svg` interpolated `labelText` (currently number-only — safe today) into HTML without escaping. Defense-in-depth: rebuilt as `createElement` + `textContent` so a future change feeding a user-derived string into the label can't introduce XSS. The svg portion still uses `insertAdjacentHTML` since every `data-*` interpolation already goes through `escAttr()`.
+- **`#nav-hamburger` aria-label updates with drawer state** (#v1378-review) — the static `aria-label="Open navigation menu"` stayed the same when the drawer was open. Screen reader users heard the wrong action. Now toggled by `setOpen()` alongside `aria-expanded`.
+- **Theme toggle `aria-label` reflects the tri-state, not just dark/not-dark** (#v1378-review) — `aria-pressed` collapsed three states (system / dark / light) into two ("true" / "false"); both system and light mapped to "false" so a screen reader user couldn't distinguish them. Both `#theme-toggle` (desktop) and `#mbn-theme` (mobile) now set a dynamic `aria-label` describing the current state plus the next-tap action ("Theme: dark — click for light", etc.). `aria-pressed` is kept for back-compat.
+- **`.nav-hamburger` has a forced-colors fallback** (#v1378-review) — Windows High Contrast Mode overrides our custom palette; without an explicit `@media (forced-colors: active)` rule the button visually disappeared against the nav background. Added system-named `ButtonText` border and `Highlight` focus outline.
+
+### Added
+
+- **`tests/test_v1378_remediation.py`** — 9 regression tests pinning each of the 6 fixes (canonical-only REGISTRY + alias resolution, alias-collision guard, sibling-failure isolation, no-E402 imports, timeline `textContent`, hamburger dynamic `aria-label`, theme `aria-label` tri-state, forced-colors CSS). Catches all six rot modes if a future PR re-introduces them.
+
+### Filed
+
+- **#691** — follow-up: extract `cmd_all`, `cmd_sync_status`, `_load_schedule_config` + `_synthesize_*` helpers from `cli.py` (the architect-agent flagged that #611 stopped about 300 LOC short of the stated "CLI = argparse + dispatch only" goal).
+- **#692** — follow-up: amend ADR-001 with a drift-ownership section + concrete deprecation trigger metric for evaluating Path B.
+
 ## [1.3.77] — 2026-04-27
 
 #465 + #466 — Playwright Test Agents Planner deliverable + regression locks for UI bugs #452–#460.

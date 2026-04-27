@@ -1367,11 +1367,17 @@ def convert_all(
     discover_adapters()
     selected: list[type] = []
     if adapters:
+        # #v1378-review: aliases now live in REGISTRY_ALIASES, not
+        # REGISTRY itself, so resolve through resolve_adapter_name to
+        # support both canonical names and historical kebab-case
+        # aliases (e.g. `--adapter copilot-chat`).
+        from llmwiki.adapters import resolve_adapter_name
         for name in adapters:
-            if name not in REGISTRY:
+            canonical = resolve_adapter_name(name)
+            if canonical is None:
                 print(f"error: unknown adapter {name!r}. Try: {', '.join(REGISTRY)}", file=sys.stderr)
                 return 2
-            selected.append(REGISTRY[name])
+            selected.append(REGISTRY[canonical])
     else:
         # #326: default-fire only AI-session adapters. Non-AI adapters
         # (obsidian, jira, meeting, pdf) must be explicitly enabled via

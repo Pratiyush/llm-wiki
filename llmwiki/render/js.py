@@ -68,14 +68,32 @@ JS = r"""// llmwiki viewer — theme + copy + search palette + keyboard shortcut
     syncHljsTheme();
     const btn = document.getElementById("theme-toggle");
     if (!btn) return;
-    // #ui-h8 (#568): aria-pressed mirrors the dark-state so AT users
-    // hear "toggle dark mode, pressed" vs "not pressed" instead of an
-    // ambiguous toggle.
-    function syncAriaPressed() {
-      const t = root.getAttribute("data-theme") ||
-        ((window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) ? "dark" : "light");
-      btn.setAttribute("aria-pressed", t === "dark" ? "true" : "false");
+    // #ui-h8 (#568): aria state mirrors the current cycle position so
+    // assistive tech announces what's pinned, not just "pressed".
+    // #v1378-review: aria-pressed collapses 3 states (system / dark /
+    // light) to 2 (true|false) — both "system" and "light" mapped to
+    // "false", so a screen-reader user couldn't tell which state they
+    // were in. Switched to a dynamic aria-label describing the
+    // current theme + the next-tap action. aria-pressed is also kept
+    // for back-compat with anything reading the binary signal.
+    function syncAriaState() {
+      let stored = null;
+      try { stored = localStorage.getItem("llmwiki-theme"); } catch (e) {}
+      const isDark = (root.getAttribute("data-theme") || (
+        (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) ? "dark" : "light"
+      )) === "dark";
+      btn.setAttribute("aria-pressed", isDark ? "true" : "false");
+      const labels = {
+        dark: "Theme: dark — click for light",
+        light: "Theme: light — click for system default",
+      };
+      const systemLabel = "Theme: follows system — click for dark";
+      btn.setAttribute(
+        "aria-label",
+        labels[stored] || systemLabel,
+      );
     }
+    const syncAriaPressed = syncAriaState; // alias kept for older call sites
     syncAriaPressed();
     btn.addEventListener("click", function () {
       // #ui-h6 (#567): tri-state toggle. The cycle is:
@@ -124,6 +142,13 @@ JS = r"""// llmwiki viewer — theme + copy + search palette + keyboard shortcut
     if (!btn || !drawer) return;
     function setOpen(open) {
       btn.setAttribute("aria-expanded", open ? "true" : "false");
+      // #v1378-review: aria-label was static "Open navigation menu"
+      // even when the drawer was already open; screen readers
+      // announced the wrong action. Toggle it alongside aria-expanded.
+      btn.setAttribute(
+        "aria-label",
+        open ? "Close navigation menu" : "Open navigation menu",
+      );
       if (open) drawer.removeAttribute("hidden");
       else drawer.setAttribute("hidden", "");
     }
@@ -301,13 +326,23 @@ JS = r"""// llmwiki viewer — theme + copy + search palette + keyboard shortcut
     // Wire the theme button to toggle
     const themeBtn = document.getElementById("mbn-theme");
     if (themeBtn) {
-      // Post-review: keep aria-pressed in sync with the dark-state on
-      // the mobile theme button so VoiceOver / TalkBack hear the right
-      // state. Mirrors what #theme-toggle does on desktop.
+      // #v1378-review: same dynamic aria-label treatment as the
+      // desktop button — aria-pressed alone collapses the tri-state
+      // (system / dark / light) into a binary signal. The label
+      // describes the current state plus the next-tap action.
       function _mbnSyncPressed() {
-        const t = document.documentElement.getAttribute("data-theme") ||
-          ((window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) ? "dark" : "light");
-        themeBtn.setAttribute("aria-pressed", t === "dark" ? "true" : "false");
+        let stored = null;
+        try { stored = localStorage.getItem("llmwiki-theme"); } catch (e) { /* private mode */ }
+        const isDark = (document.documentElement.getAttribute("data-theme") || (
+          (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) ? "dark" : "light"
+        )) === "dark";
+        themeBtn.setAttribute("aria-pressed", isDark ? "true" : "false");
+        const labels = {
+          dark: "Theme: dark — tap for light",
+          light: "Theme: light — tap for system default",
+        };
+        const systemLabel = "Theme: follows system — tap for dark";
+        themeBtn.setAttribute("aria-label", labels[stored] || systemLabel);
       }
       _mbnSyncPressed();
       themeBtn.addEventListener("click", function () {
@@ -1132,11 +1167,21 @@ document.addEventListener("DOMContentLoaded", function () {
       : 'Activity timeline · ' + spanDays + ' days · ' + dates.length +
         ' active · peak ' + maxCount + (maxCount === 1 ? ' session/day' : ' sessions/day');
 
-    // Create the timeline block
+    // Create the timeline block. #v1378-review: previously assigned
+    // the label + svg via innerHTML, which interpolated `labelText`
+    // (currently number-only — safe today) into HTML without escaping.
+    // Defense-in-depth: build the label as a real element with
+    // textContent so a future change feeding a user-derived string
+    // into the label can't introduce XSS. The svg string itself is
+    // already escaped via escAttr() at every data-* interpolation
+    // and uses only static structural markup elsewhere.
     const tl = document.createElement("div");
     tl.className = "timeline-block";
-    tl.innerHTML =
-      '<div class="timeline-label muted">' + labelText + '</div>' + svg;
+    const labelEl = document.createElement("div");
+    labelEl.className = "timeline-label muted";
+    labelEl.textContent = labelText;
+    tl.appendChild(labelEl);
+    tl.insertAdjacentHTML("beforeend", svg);
 
     // Insert above the filter bar
     const filter = container.querySelector(".filter-bar");

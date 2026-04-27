@@ -753,6 +753,15 @@ mark { background: var(--accent-bg); color: var(--accent); padding: 0 2px; borde
 }
 .nav-hamburger:hover { border-color: var(--accent); color: var(--accent); }
 @media (max-width: 1023px) { .nav-hamburger { display: inline-flex; } }
+/* #v1378-review: forced-colors (Windows High Contrast) mode overrides
+   our custom palette with the system one. Without this, the hamburger
+   button's border (var(--border)) is ignored and the button visually
+   disappears against the nav background. Use system-named colors so
+   it stays visible. */
+@media (forced-colors: active) {
+  .nav-hamburger { border: 2px solid ButtonText; }
+  .nav-hamburger:focus-visible { outline: 3px solid Highlight; outline-offset: 2px; }
+}
 .nav-drawer {
   display: none;
   position: absolute; left: 0; right: 0; top: 100%;

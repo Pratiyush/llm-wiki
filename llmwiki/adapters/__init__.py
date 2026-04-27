@@ -25,6 +25,12 @@ from llmwiki.adapters.base import BaseAdapter
 
 REGISTRY: dict[str, type[BaseAdapter]] = {}
 
+# #v1378-review: aliases tracked separately so REGISTRY stays
+# canonical-only. `cmd_adapters` and any other consumer that walks
+# every adapter exactly once can iterate REGISTRY directly without
+# de-duping. Lookup-by-alias still works via `resolve_adapter_name`.
+REGISTRY_ALIASES: dict[str, str] = {}
+
 # Contrib adapters that can be loaded on demand.
 CONTRIB_ADAPTERS = {
     "chatgpt", "copilot_chat", "copilot_cli",
@@ -35,19 +41,57 @@ CONTRIB_ADAPTERS = {
 def register(name: str, aliases: list[str] | None = None):
     """Decorator used by adapter modules to register themselves.
 
-    ``aliases`` (#arch-l5 / #626): additional REGISTRY keys that resolve
-    to the same class. Used to keep historical kebab-case names like
+    ``aliases`` (#arch-l5 / #626): historical lookup-only names that
+    resolve to the same class. Used to keep kebab-case names like
     ``copilot-chat`` working after the canonical name moves to
     snake_case (``copilot_chat``). ``cls.name`` always reflects the
-    canonical name; aliases only affect REGISTRY lookups.
+    canonical name.
+
+    #v1378-review: aliases live in a SEPARATE ``REGISTRY_ALIASES`` map
+    so iterating ``REGISTRY`` walks each adapter exactly once. The
+    previous version inserted aliases into ``REGISTRY`` directly,
+    which made ``cmd_adapters`` print duplicate rows (one for the
+    canonical name, one for the alias) and made ``adapter_status``
+    look up the wrong config key on the alias row.
+
+    A collision guard prevents an alias from shadowing an existing
+    canonical adapter — e.g. ``register("copilot_chat",
+    aliases=["claude_code"])`` would raise ValueError, not silently
+    replace the real ``claude_code`` entry.
     """
     def decorator(cls):
         REGISTRY[name] = cls
         cls.name = name
         for alias in aliases or ():
-            REGISTRY[alias] = cls
+            if alias in REGISTRY:
+                raise ValueError(
+                    f"adapter alias {alias!r} would shadow existing "
+                    f"canonical adapter {REGISTRY[alias].name!r}"
+                )
+            existing = REGISTRY_ALIASES.get(alias)
+            if existing is not None and existing != name:
+                raise ValueError(
+                    f"adapter alias {alias!r} already mapped to "
+                    f"{existing!r}; cannot remap to {name!r}"
+                )
+            REGISTRY_ALIASES[alias] = name
         return cls
     return decorator
+
+
+def resolve_adapter_name(name: str) -> str | None:
+    """Return the canonical adapter name for ``name``, or None.
+
+    ``name`` may be the canonical name (returned as-is) or a registered
+    alias (returned as the canonical it maps to). Anything else returns
+    None, letting callers raise their own user-facing error.
+    """
+    if name in REGISTRY:
+        return name
+    canonical = REGISTRY_ALIASES.get(name)
+    if canonical and canonical in REGISTRY:
+        return canonical
+    return None
 
 
 def discover_adapters() -> None:
