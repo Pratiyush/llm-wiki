@@ -9,8 +9,8 @@ Rebuilt on every `master` push from the synthetic sessions in [`examples/demo-se
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/)
-[![Version](https://img.shields.io/badge/version-v1.3.74-10B981.svg)](CHANGELOG.md)
-[![Tests](https://img.shields.io/badge/tests-2363%20passing-10B981.svg)](tests/)
+[![Version](https://img.shields.io/badge/version-v1.3.75-10B981.svg)](CHANGELOG.md)
+[![Tests](https://img.shields.io/badge/tests-2651%20passing-10B981.svg)](tests/)
 [![CI](https://github.com/Pratiyush/llm-wiki/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/Pratiyush/llm-wiki/actions/workflows/ci.yml)
 [![Link check](https://github.com/Pratiyush/llm-wiki/actions/workflows/link-check.yml/badge.svg?branch=master)](https://github.com/Pratiyush/llm-wiki/actions/workflows/link-check.yml)
 [![Wiki checks](https://github.com/Pratiyush/llm-wiki/actions/workflows/wiki-checks.yml/badge.svg?branch=master)](https://github.com/Pratiyush/llm-wiki/actions/workflows/wiki-checks.yml)
@@ -33,7 +33,7 @@ Every Claude Code, Codex CLI, Copilot, Cursor, and Gemini CLI session writes a f
 ./build.sh && ./serve.sh           # build + serve at http://127.0.0.1:8765
 ```
 
-<!-- TODO: re-record demo GIF for v1.3 (#248). Removed broken ref to docs/demo.gif. -->
+![llmwiki — 70-second demo](docs/demo.gif)
 
 
 **Contributing in one line:** read [`CONTRIBUTING.md`](CONTRIBUTING.md), keep PRs focused (one concern each), use `feat:` / `fix:` / `docs:` / `chore:` / `test:` commit prefixes, never commit real session data (`raw/` is gitignored), no new runtime deps. CI must be green to merge.
@@ -159,9 +159,11 @@ The full script is **stdlib-only** at [`examples/scripts/tree_from_graph.py`](ex
 - **Pending ingest queue** — SessionStart hook converts + queues; `/wiki-sync` processes queue
 - **No servers, no database, no npm** — Python stdlib + `markdown`. Syntax highlighting loads from a highlight.js CDN at view time.
 
-## Tutorial — every command in 60 seconds
+## Tutorial — every command in 90 seconds
 
 A guided tour. Run these in order and you'll have a fully working wiki at `http://127.0.0.1:8765/` by the end. Each command is idempotent and prints what it did.
+
+A scripted recording of the same flow ships at [`docs/videos/cli-tutorial.gif`](docs/videos/cli-tutorial.gif) (31 seconds against an 8-session sandbox). The reproducible source is [`docs/videos/cli-tutorial.tape`](docs/videos/cli-tutorial.tape) — re-render anytime with `vhs docs/videos/cli-tutorial.tape`.
 
 ```bash
 # 1. One-time scaffold (≈1 sec). Creates raw/, wiki/, site/, seed nav files.
@@ -297,9 +299,10 @@ setup.bat
 
 ```bash
 pip install -e .                # basic — everything you need
-pip install -e '.[pdf]'         # + PDF ingestion
+pip install -e '.[graph]'       # + graphifyy AI-powered graph engine
 pip install -e '.[dev]'         # + pytest + ruff
-pip install -e '.[all]'         # all of the above
+pip install -e '.[e2e]'         # + Playwright + pytest-bdd + pytest-html (E2E)
+pip install -e '.[all]'         # graph + everything
 ```
 
 Syntax highlighting is now powered by [highlight.js](https://highlightjs.org/), loaded from a CDN at view time — no optional deps required.
@@ -337,7 +340,7 @@ Four Claude Code slash commands automate the common ops:
 
 ## Running E2E tests
 
-The unit suite (`pytest tests/` — 472 tests) runs in milliseconds and
+The unit suite (`pytest tests/` — 2,651 tests) runs in seconds and
 covers every module. The **end-to-end suite** under `tests/e2e/` is
 separate: it builds a minimal demo site, serves it on a random port,
 drives a real browser via [Playwright](https://playwright.dev/python),
@@ -348,7 +351,7 @@ Why both? Unit tests lock the contract at the module boundary;
 E2E locks the contract at the **user's browser**. A diff that passes
 unit tests but breaks the Cmd+K palette will fail E2E.
 
-Install the extras (one-time, ~300 MB for Chromium):
+Install the extras (one-time, several hundred MB for the Chromium binary):
 
 ```bash
 pip install -e '.[e2e]'
@@ -536,7 +539,7 @@ See [docs/architecture.md](docs/architecture.md) for the full breakdown and how 
 
 ## Design principles
 
-- **Stdlib first** — only mandatory runtime dep is `markdown`. `pypdf` is an optional extra for PDF ingestion.
+- **Stdlib first** — only mandatory runtime dep is `markdown`. Optional extras (`graph`, `dev`, `e2e`) layer in graph engines, lint/test tooling, and Playwright on top.
 - **Works offline** — no Google fonts, no external CSS. Syntax highlighting loads from a highlight.js CDN but degrades gracefully without it.
 - **Redact by default** — username, API keys, tokens, emails all get redacted before entering the wiki.
 - **Idempotent everything** — re-running any command is safe and cheap.

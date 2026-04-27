@@ -121,6 +121,47 @@ def test_test_count_badge_is_a_reasonable_number(readme_text: str):
     )
 
 
+# #682: pin the badge within ±15% of the actually-collected test count
+# so it can't silently drift hundreds of tests behind reality (the bug
+# this audit caught: badge said 2363, real count was 2651).
+def test_test_count_badge_within_window_of_actual():
+    """Run pytest --collect-only and compare to the badge number.
+
+    Tolerance ±15% — we don't expect every PR to bump the badge, but a
+    drift of more than 15% means the badge has been stale through
+    multiple PR cycles. Refresh it.
+    """
+    import subprocess
+    import sys
+
+    badge_match = TEST_COUNT_RE.search(README.read_text(encoding="utf-8"))
+    assert badge_match is not None
+    badge_count = int(badge_match.group(1))
+
+    proc = subprocess.run(
+        [sys.executable, "-m", "pytest", "tests/", "--collect-only"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    # Output contains a line like "<N> tests collected in <T>s"
+    text = proc.stdout + proc.stderr
+    m = re.search(r"(\d+) tests collected", text)
+    if m is None:
+        pytest.skip(f"could not parse pytest --collect-only output: {text[-200:]!r}")
+    actual = int(m.group(1))
+
+    # Allow ±15% drift before failing.
+    lower = int(actual * 0.85)
+    upper = int(actual * 1.15)
+    assert lower <= badge_count <= upper, (
+        f"test-count badge says {badge_count} but pytest currently "
+        f"collects {actual}; outside the ±15% drift window "
+        f"[{lower}, {upper}]. Refresh the badge."
+    )
+
+
 # ─── #271: no hard-coded "11 lint rules" references in user-facing docs ─
 
 
