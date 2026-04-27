@@ -8,6 +8,16 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
+## [1.3.73] — 2026-04-27
+
+#arch-h8 (#611) — extract business logic out of `cli.py` into domain modules.
+
+### Changed
+
+- **`synthesize_estimate_report` moved to `llmwiki/synth/estimate.py`** (#611) — the G-07 / #293 incremental-vs-full-force cost-model walk is non-trivial business logic that doesn't belong in a CLI shim. New module sits next to the rest of the synth pipeline. Re-exported from `llmwiki.cli` so the existing `from llmwiki.cli import synthesize_estimate_report` import path keeps working.
+- **`_adapter_status` moved to `llmwiki/adapters/status.py`** (#611) — same reasoning: the configured / will_fire label decision is adapter-domain logic, not CLI presentation. Renamed to `adapter_status` (no leading underscore) at the new module path; cli.py re-exports as `_adapter_status` for back-compat.
+- **`cli.py` shrunk from 1,395 → 1,234 LOC** — the file is still a CLI but is now closer to argparse-setup + dispatch, not a kitchen-sink module.
+
 ## [1.3.72] — 2026-04-27
 
 #arch-l5 (#626) — adapter registry name normalisation: `copilot-chat` → `copilot_chat`, `copilot-cli` → `copilot_cli`.
