@@ -8,6 +8,14 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
+## [1.3.74] — 2026-04-27
+
+#arch-h9 (#612) — `convert_all` no longer calls `derive_project_slug` on every session before the mtime check.
+
+### Fixed
+
+- **No-op `llmwiki sync` is O(0) file opens, not O(N)** (#612) — `convert_all`'s per-session loop used to call `adapter.derive_project_slug(path)` BEFORE the mtime check. On Codex CLI that helper opens every `.jsonl` to read the `session_meta` `cwd` field, so a no-op sync of a 5k-session corpus paid 5k needless file opens. Reordered the loop: `path.stat()` (cheap) and the state-mtime comparison run first; slug derivation, project filter, and ignore filter only run for sessions that actually need conversion. New regression test `test_no_op_sync_does_not_call_derive_project_slug` asserts the helper is not called when state already matches mtime.
+
 ## [1.3.73] — 2026-04-27
 
 #arch-h8 (#611) — extract business logic out of `cli.py` into domain modules.

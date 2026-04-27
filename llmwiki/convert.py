@@ -1425,15 +1425,14 @@ def convert_all(
         })
         counters[cls.name]["discovered"] = len(sessions)
         for path in sessions:
-            project_slug = adapter.derive_project_slug(path)
-            if project and project not in project_slug:
-                filtered += 1
-                _bump(cls.name, "filtered")
-                continue
-            if ignore and ignore.is_ignored(project=project_slug, filename=path.name):
-                ignored_count += 1
-                _bump(cls.name, "ignored")
-                continue
+            # #arch-h9 (#612): mtime check FIRST. The previous order
+            # called `adapter.derive_project_slug(path)` before the
+            # mtime check, which on Codex CLI opens every .jsonl to
+            # read the session_meta cwd field. On a 5k-session corpus
+            # that's 5k needless file opens per no-op sync (~10x scale
+            # projection). Stat is cheap; slug derivation can be
+            # expensive — so check mtime first and skip the expensive
+            # slug + ignore + project-filter work when nothing changed.
             try:
                 mtime = path.stat().st_mtime
             except OSError as e:
@@ -1445,6 +1444,20 @@ def convert_all(
             if state.get(key) == mtime:
                 unchanged += 1
                 _bump(cls.name, "unchanged")
+                continue
+
+            # Now we know we have to look at the file content — derive
+            # slug + run filters. Anything that bails after this point
+            # has had to pay the slug cost, but that's true for every
+            # session that actually gets converted.
+            project_slug = adapter.derive_project_slug(path)
+            if project and project not in project_slug:
+                filtered += 1
+                _bump(cls.name, "filtered")
+                continue
+            if ignore and ignore.is_ignored(project=project_slug, filename=path.name):
+                ignored_count += 1
+                _bump(cls.name, "ignored")
                 continue
 
             # Markdown-source adapters (e.g. Obsidian) route through a simple
