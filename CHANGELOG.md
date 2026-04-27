@@ -8,6 +8,24 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
+## [1.3.75] — 2026-04-27
+
+#682 — README claim audit + regression test for badge drift.
+
+### Fixed
+
+- **README test-count badge corrected** (#682) — read `tests-2363 passing` while pytest actually collects 2,651. Bumped to the real number.
+- **`pip install -e '.[pdf]'` reference removed** (#682) — the `[pdf]` extra was deleted in the simplification sweep but the install table still advertised it. Replaced with the real extras (`[graph]`, `[dev]`, `[e2e]`, `[all]`).
+- **`pypdf` claim removed from "Stdlib first" design principle** (#682) — same root cause; the line now mentions the real optional extras (`graph`, `dev`, `e2e`).
+- **"472 tests" inline mention bumped to 2,651** (#682) — the E2E section claimed 472, contradicting the badge.
+- **Tutorial heading "every command in 60 seconds" → "90 seconds"** (#682) — the new VHS recording at `docs/videos/cli-tutorial.gif` runs 31 seconds against an 8-session sandbox; "90 seconds" is the realistic narration time. Also added a link to the recording + tape source so readers can re-render it.
+- **Demo GIF re-embedded** (#682) — `<!-- TODO: re-record demo GIF for v1.3 (#248) -->` was leftover from before v1.3.67 shipped the recording. The README now displays `docs/demo.gif` directly.
+- **Chromium download size claim softened** (#682) — "~300 MB for Chromium" was a stale snapshot; the actual size shifts every Playwright release. Now reads "several hundred MB for the Chromium binary".
+
+### Added
+
+- **`test_test_count_badge_within_window_of_actual`** (#682) — runs `pytest --collect-only` inside the existing `tests/test_readme_badges.py` and fails when the badge drifts more than ±15% from the actually-collected count. Catches the exact rot mode that triggered this audit (badge silently ~290 tests behind reality through several PR cycles).
+
 ## [1.3.74] — 2026-04-27
 
 #arch-h9 (#612) — `convert_all` no longer calls `derive_project_slug` on every session before the mtime check.
