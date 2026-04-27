@@ -8,6 +8,21 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
+## [1.3.77] — 2026-04-27
+
+#465 + #466 — Playwright Test Agents Planner deliverable + regression locks for UI bugs #452–#460.
+
+### Added
+
+- **`specs/` directory with 10 page-type specs** (#465) — `home.md`, `projects-index.md`, `project-detail.md`, `sessions-index.md`, `session-detail.md`, `docs-hub.md`, `docs-page.md`, `graph.md`, `theme-toggle.md`, plus `README.md` documenting the format. Each spec follows the same structure (Goal / URL pattern / Must / Should / Won't / Cross-references) and captures the invariants the Generator agent (post-#464 bootstrap) needs to consume. Until the agents bootstrap unblocks, the specs are **documentation-quality**: a reviewer can scan the relevant `Must` lines when reviewing a UI PR and catch regressions without running tests.
+- **`tests/e2e/features/regression.feature`** (#466) — 10 Gherkin scenarios covering each of the 9 closed UI bugs (#452 sessions column layout, #453 timeline label, #454 filter-by-slug labelling, #455 home card date range, #456 graph-page nav, #457 docs hub version, #458 theme persistence on `/docs/`, #459 WCAG contrast in both themes, #460 mobile nav). The file ships without a `test_*.py` wrapper so pytest-bdd doesn't try to execute the scenarios before step defs land — the scenarios are the contract the Generator agent will consume in a follow-up PR.
+
+### Deferred
+
+- **#464 bootstrap** — `npx playwright init-agents --loop=claude` requires Node-install OK, which is currently denied in this development sandbox. Pinged on #462 as a blocker; Path-A from ADR-001 documents how this lands when unblocked.
+- **#467 healer-in-CI** — gated on #464 bootstrap landing.
+- **Step definitions for `regression.feature`** — will ship via #466 generator pass once #464 unblocks. The Gherkin scenarios are intentionally inert until then.
+
 ## [1.3.76] — 2026-04-27
 
 #463 — Playwright stack decision: Path A (TS agents alongside Python pytest-playwright).
