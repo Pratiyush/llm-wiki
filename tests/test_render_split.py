@@ -107,13 +107,15 @@ def test_build_py_is_smaller():
       * 2,300 (#417 plain_text cache + content_key helper)
       * 2,400 (#425 stub-defaults pre-population helpers)
       * 2,500 (#492 _is_subagent helper for renderer-side classification)
+      * 2,800 (#v1378-review per-source sibling-failure isolation
+        + warnings-before-success ordering bumped the function by ~30 LOC)
     Next refactor target: extract md_to_html + preprocessor to
     llmwiki/render/markdown.py (tracked in the deep-audit epic #286).
     """
     from llmwiki import REPO_ROOT
     build_py = REPO_ROOT / "llmwiki" / "build.py"
     line_count = len(build_py.read_text(encoding="utf-8").splitlines())
-    assert line_count < 2700, f"build.py is {line_count} lines (ceiling 2700)"
+    assert line_count < 2800, f"build.py is {line_count} lines (ceiling 2800)"
 
 
 def test_css_module_under_800_lines():

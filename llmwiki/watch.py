@@ -33,9 +33,13 @@ def scan_mtimes(adapters: list[str] | None) -> dict[str, float]:
     discover_adapters()
     selected_cls = []
     if adapters:
+        # #v1378-review: alias-aware resolution; aliases no longer
+        # live in REGISTRY itself.
+        from llmwiki.adapters import resolve_adapter_name
         for name in adapters:
-            if name in REGISTRY:
-                selected_cls.append(REGISTRY[name])
+            canonical = resolve_adapter_name(name)
+            if canonical is not None:
+                selected_cls.append(REGISTRY[canonical])
     else:
         selected_cls = [c for c in REGISTRY.values() if c.is_available()]
 

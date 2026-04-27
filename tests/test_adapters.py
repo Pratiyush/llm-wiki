@@ -21,8 +21,13 @@ def test_registry_discovers_all_adapters():
     # plus a kebab-case alias (back-compat for existing user configs).
     assert "copilot_chat" in REGISTRY
     assert "copilot_cli" in REGISTRY
-    assert "copilot-chat" in REGISTRY  # alias
-    assert "copilot-cli" in REGISTRY  # alias
+    # #v1378-review: aliases moved to REGISTRY_ALIASES so REGISTRY
+    # stays canonical-only. Alias resolution is via resolve_adapter_name.
+    from llmwiki.adapters import REGISTRY_ALIASES, resolve_adapter_name
+    assert REGISTRY_ALIASES.get("copilot-chat") == "copilot_chat"
+    assert REGISTRY_ALIASES.get("copilot-cli") == "copilot_cli"
+    assert resolve_adapter_name("copilot-chat") == "copilot_chat"
+    assert resolve_adapter_name("copilot-cli") == "copilot_cli"
     assert "cursor" in REGISTRY
     assert "gemini_cli" in REGISTRY
     assert "obsidian" in REGISTRY

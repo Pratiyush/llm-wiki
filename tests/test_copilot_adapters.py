@@ -64,9 +64,14 @@ class TestCopilotChatContract:
         assert len(desc) > 0
 
     def test_registered_as_copilot_chat(self):
+        # #v1378-review: REGISTRY is canonical-only; aliases live in
+        # REGISTRY_ALIASES and resolve via resolve_adapter_name.
+        from llmwiki.adapters import REGISTRY_ALIASES, resolve_adapter_name
         discover_all()
-        assert "copilot-chat" in REGISTRY
-        assert REGISTRY["copilot-chat"] is CopilotChatAdapter
+        assert "copilot_chat" in REGISTRY
+        assert REGISTRY["copilot_chat"] is CopilotChatAdapter
+        assert REGISTRY_ALIASES.get("copilot-chat") == "copilot_chat"
+        assert resolve_adapter_name("copilot-chat") == "copilot_chat"
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -268,9 +273,12 @@ class TestCopilotCliContract:
         assert len(desc) > 0
 
     def test_registered_as_copilot_cli(self):
+        from llmwiki.adapters import REGISTRY_ALIASES, resolve_adapter_name
         discover_all()
-        assert "copilot-cli" in REGISTRY
-        assert REGISTRY["copilot-cli"] is CopilotCliAdapter
+        assert "copilot_cli" in REGISTRY
+        assert REGISTRY["copilot_cli"] is CopilotCliAdapter
+        assert REGISTRY_ALIASES.get("copilot-cli") == "copilot_cli"
+        assert resolve_adapter_name("copilot-cli") == "copilot_cli"
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -414,14 +422,20 @@ class TestCopilotCrossAdapter:
     def test_both_in_registry(self):
         # #626: canonical names are snake_case; kebab-case still resolves
         # via the alias mechanism so existing user configs don't break.
+        # #v1378-review: aliases moved out of REGISTRY into
+        # REGISTRY_ALIASES so a canonical iteration of REGISTRY hits
+        # each adapter once. Lookup-by-alias goes through resolve_adapter_name.
+        from llmwiki.adapters import REGISTRY_ALIASES, resolve_adapter_name
         discover_all()
         assert "copilot_chat" in REGISTRY
         assert "copilot_cli" in REGISTRY
-        # Legacy kebab-case alias still resolves to the same class.
-        assert "copilot-chat" in REGISTRY
-        assert "copilot-cli" in REGISTRY
-        assert REGISTRY["copilot_chat"] is REGISTRY["copilot-chat"]
-        assert REGISTRY["copilot_cli"] is REGISTRY["copilot-cli"]
+        # Legacy kebab-case is no longer a REGISTRY key but resolves correctly.
+        assert "copilot-chat" not in REGISTRY
+        assert "copilot-cli" not in REGISTRY
+        assert REGISTRY_ALIASES["copilot-chat"] == "copilot_chat"
+        assert REGISTRY_ALIASES["copilot-cli"] == "copilot_cli"
+        assert REGISTRY[resolve_adapter_name("copilot-chat")] is REGISTRY["copilot_chat"]
+        assert REGISTRY[resolve_adapter_name("copilot-cli")] is REGISTRY["copilot_cli"]
 
     def test_names_set_by_register(self):
         # #626: cls.name reflects the canonical (snake_case) name only;

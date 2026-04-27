@@ -2427,32 +2427,38 @@ def build_site(
             print(f"  synthesis: {len(synthesis)} chars")
 
     # Render pages — single pass over `sources` (#py-m8 / #594).
-    # Pre-fix this loop only called render_session; a second walk later
-    # re-iterated `sources` to write the .txt + .json siblings, with a
-    # post-hoc html_path.exists() guard. Now we do both per-source in
-    # one iteration: render the HTML, then immediately write the two
-    # siblings while we still have meta + body in scope. Exporter
-    # imports stay lazy + try/except-wrapped so a missing exporter
-    # module degrades to "no siblings" instead of crashing the build.
-    siblings_failed = False
-    siblings_error: Optional[BaseException] = None
-    n_sessions = 0
-    n_siblings = 0
+    # Sibling writes (.txt + .json) happen inside the same iteration so
+    # we don't re-walk `sources` later. The exporter import is hoisted
+    # ABOVE the loop with try/except: a missing module degrades to "no
+    # siblings on any session" (the import-fail case is truly fatal —
+    # no sense retrying it per-source).
+    #
+    # #v1378-review (architect + python-reviewer): per-source write
+    # failures are now isolated. The previous version set a single
+    # `siblings_failed` flag on the first OSError/ValueError/
+    # RuntimeError and silently dropped sibling writes for EVERY
+    # subsequent session in the loop — a single bad body on session 3
+    # of 500 produced 497 silently missing siblings. Now each source's
+    # sibling write is wrapped individually and collects errors into
+    # a list; the build proceeds and we print a summary at the end.
+    sibling_writers_loaded = True
+    sibling_import_error: Optional[BaseException] = None
     try:
         from llmwiki.exporters import write_page_json, write_page_txt
     except (ImportError, OSError, ValueError, RuntimeError) as e:
-        siblings_failed = True
-        siblings_error = e
-        write_page_txt = None  # type: ignore[assignment]
-        write_page_json = None  # type: ignore[assignment]
+        sibling_writers_loaded = False
+        sibling_import_error = e
 
+    n_sessions = 0
+    n_siblings = 0
+    sibling_failures: list[tuple[str, BaseException]] = []
     _wikilink_re = re.compile(r"\[\[([^\]|]+)(?:\|[^\]]*)?\]\]")
     for path, meta, body in sources:
         project = str(meta.get("project") or path.parent.name)
         render_session(path, meta, body, out_dir, project)
         n_sessions += 1
 
-        if siblings_failed or write_page_txt is None:
+        if not sibling_writers_loaded:
             continue
         # render_session writes site/sessions/<project>/<stem>.html;
         # mirror its path here so the siblings land alongside it.
@@ -2463,24 +2469,36 @@ def build_site(
             body_stripped = strip_leading_h1(body)
             wikilinks_out = _wikilink_re.findall(body_stripped)
             write_page_txt(html_path, body_stripped)
+            n_siblings += 1
             meta_copy = dict(meta)
             meta_copy.setdefault("slug", str(meta.get("slug", path.stem)))
             meta_copy.setdefault("project", project)
             write_page_json(html_path, meta_copy, body_stripped, wikilinks_out)
-            n_siblings += 2
+            n_siblings += 1
         except (OSError, ValueError, RuntimeError) as e:
-            # First failure is reported once; subsequent siblings skipped.
-            if not siblings_failed:
-                siblings_error = e
-            siblings_failed = True
+            # Isolate to this source — the next iteration still attempts
+            # both writes. n_siblings increments only after each
+            # successful write so the count never over-reports.
+            sibling_failures.append((str(html_path), e))
 
-    print(f"  wrote {n_sessions} session pages")
-    if siblings_failed and siblings_error is not None:
+    # Print warnings BEFORE the success line so a CI log scanner sees
+    # them in the right order (architect-review feedback).
+    if not sibling_writers_loaded:
         print(
-            f"  warning: per-page siblings failed: {siblings_error}",
+            f"  warning: per-page siblings disabled (exporter import failed): "
+            f"{sibling_import_error}",
             file=sys.stderr,
         )
-    else:
+    if sibling_failures:
+        first_path, first_err = sibling_failures[0]
+        print(
+            f"  warning: per-page sibling write failed on "
+            f"{len(sibling_failures)} of {n_sessions} sessions; "
+            f"first failure: {first_path}: {first_err}",
+            file=sys.stderr,
+        )
+    print(f"  wrote {n_sessions} session pages")
+    if sibling_writers_loaded:
         print(f"  wrote {n_siblings} per-page siblings (.txt + .json)")
 
     for project, sessions in groups.items():

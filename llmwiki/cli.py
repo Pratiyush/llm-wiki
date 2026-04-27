@@ -27,6 +27,12 @@ from typing import Any, Optional
 
 from llmwiki import __version__, REPO_ROOT
 from llmwiki.adapters import REGISTRY, discover_adapters
+# #v1378-review (#691 follow-up): hoist these re-exports from mid-module
+# to here so the file passes E402 cleanly. They re-export business
+# logic that lives in the proper domain modules now (#611) — kept here
+# for any caller still importing from llmwiki.cli.
+from llmwiki.adapters.status import adapter_status as _adapter_status  # noqa: F401
+from llmwiki.synth.estimate import synthesize_estimate_report  # noqa: F401
 
 
 def cmd_version(args: argparse.Namespace) -> int:
@@ -335,12 +341,6 @@ def cmd_serve(args: argparse.Namespace) -> int:
     """Serve the built site via a local HTTP server."""
     from llmwiki.serve import serve_site
     return serve_site(directory=args.dir, port=args.port, host=args.host, open_browser=args.open)
-
-
-# #arch-h8 (#611): adapter status computation moved to llmwiki/adapters/status.py.
-# Re-exported here as `_adapter_status` so any external caller doing
-# `from llmwiki.cli import _adapter_status` keeps working.
-from llmwiki.adapters.status import adapter_status as _adapter_status  # noqa: F401
 
 
 def cmd_adapters(args: argparse.Namespace) -> int:
@@ -838,12 +838,6 @@ def _synthesize_complete(args: argparse.Namespace) -> int:
 
     print(f"completed: {page_path}")
     return 0
-
-
-# #arch-h8 (#611): synthesize_estimate_report moved to llmwiki/synth/estimate.py.
-# Re-exported here so any test or caller doing
-# `from llmwiki.cli import synthesize_estimate_report` keeps working.
-from llmwiki.synth.estimate import synthesize_estimate_report  # noqa: F401
 
 
 def _synthesize_estimate() -> int:
