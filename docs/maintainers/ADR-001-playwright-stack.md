@@ -78,6 +78,58 @@ disrupting the contract that's already shipped. After one full epic
 cycle (i.e. after #467 healer-in-CI has run for a release or two) we
 can re-evaluate whether B is worth the porting effort.
 
+## Drift ownership
+
+When two parallel test suites cover the same surface, drift is
+inevitable: the Python suite asserts X, the TS suite asserts X' where
+X ≠ X', and a real UI change disagrees with one of them. Without an
+explicit owner, both suites silently rot.
+
+The rule for this project:
+
+- **The Python `tests/e2e/` suite is the gating contract.** CI fails
+  on master if it fails. It owns the truth about expected behaviour.
+- **The TS Test Agents suite (post-#464) is advisory** until #467
+  (healer-in-CI) has run for one full release cycle and the team
+  trusts the Generator + Healer outputs.
+- **When the two suites disagree on the same area, the Python suite
+  wins.** The TS scenario gets rewritten to match.
+- **When a UI change requires updating tests,** update the Python
+  scenario first, then re-run the Generator to bring the TS suite
+  back into sync.
+- **Reviewers** of any UI PR check the Python suite update first.
+  The TS suite update is a follow-up PR if the Generator doesn't
+  auto-produce it.
+
+This rule has a sunset: once Path B (full TS migration) is adopted
+under the deprecation trigger below, the TS suite becomes the gating
+contract and the Python suite is removed.
+
+## Path-B deprecation trigger
+
+Reconsider Path B when **both** of the following are true for a full
+release cycle:
+
+1. **Coverage parity:** the agents-generated TS suite covers ≥ **80%**
+   of the pytest-bdd scenario count (measured by scenario name +
+   Given/When/Then count, not LOC). A single TS `*.spec.ts` covering
+   the same flow as a Python Background+Scenario block counts as 1:1.
+2. **Healer-CI acceptance rate:** ≥ **50%** of PRs auto-patched by
+   the Healer merge without further human edits to the patched test.
+   "Further human edits" means a follow-up commit on the same PR
+   that touches the auto-patched test file.
+
+When both thresholds hit, file a Path-B migration RFC. The migration
+involves: (a) freezing new pytest-bdd scenario authoring, (b) porting
+the remaining 20% of Python coverage to TS, (c) deleting
+`tests/e2e/` and the `[e2e]` extra in `pyproject.toml`, (d) marking
+ADR-001 superseded by ADR-002.
+
+If either threshold isn't hit after **three full release cycles**
+running both suites, file a Path-C RFC (drop the TS suite entirely).
+"Temporary parallel system" anti-patterns become permanent by inertia
+without a hard sunset; this trigger is the sunset.
+
 ## Constraints
 
 - The TS bootstrap (#464) requires `npm install` and `npx playwright
