@@ -189,7 +189,7 @@ def test_sync_status_empty_state(tmp_path, monkeypatch, capsys):
     import llmwiki.cli as cli_mod
     import llmwiki.convert as convert_mod
     monkeypatch.setattr(convert_mod, "DEFAULT_STATE_FILE", tmp_path / "state.json")
-    monkeypatch.setattr(cli_mod, "REPO_ROOT", tmp_path)
+    monkeypatch.setattr(cli_mod, "REPO_ROOT", tmp_path); import llmwiki.sync.status as sync_status_mod; monkeypatch.setattr(sync_status_mod, "REPO_ROOT", tmp_path)
     args = _mk_sync_status_args()
     rc = cli_mod.cmd_sync_status(args)
     assert rc == 0
@@ -221,7 +221,7 @@ def test_sync_status_renders_counters_table(tmp_path, monkeypatch, capsys):
     import llmwiki.cli as cli_mod
     import llmwiki.convert as convert_mod
     monkeypatch.setattr(convert_mod, "DEFAULT_STATE_FILE", state_file)
-    monkeypatch.setattr(cli_mod, "REPO_ROOT", tmp_path)
+    monkeypatch.setattr(cli_mod, "REPO_ROOT", tmp_path); import llmwiki.sync.status as sync_status_mod; monkeypatch.setattr(sync_status_mod, "REPO_ROOT", tmp_path)
     rc = cli_mod.cmd_sync_status(_mk_sync_status_args())
     assert rc == 0
     out = capsys.readouterr().out
@@ -244,7 +244,7 @@ def test_sync_status_surfaces_quarantine(tmp_path, monkeypatch, capsys):
     import llmwiki.convert as convert_mod
     monkeypatch.setattr(convert_mod, "DEFAULT_STATE_FILE", state_file)
     monkeypatch.setattr(q, "DEFAULT_QUARANTINE_FILE", quar_file)
-    monkeypatch.setattr(cli_mod, "REPO_ROOT", tmp_path)
+    monkeypatch.setattr(cli_mod, "REPO_ROOT", tmp_path); import llmwiki.sync.status as sync_status_mod; monkeypatch.setattr(sync_status_mod, "REPO_ROOT", tmp_path)
 
     rc = cli_mod.cmd_sync_status(_mk_sync_status_args())
     assert rc == 0
@@ -261,7 +261,7 @@ def test_sync_status_with_recent_logs_events(tmp_path, monkeypatch, capsys):
     import llmwiki.cli as cli_mod
     import llmwiki.convert as convert_mod
     monkeypatch.setattr(convert_mod, "DEFAULT_STATE_FILE", state_file)
-    monkeypatch.setattr(cli_mod, "REPO_ROOT", tmp_path)
+    monkeypatch.setattr(cli_mod, "REPO_ROOT", tmp_path); import llmwiki.sync.status as sync_status_mod; monkeypatch.setattr(sync_status_mod, "REPO_ROOT", tmp_path)
     rc = cli_mod.cmd_sync_status(_mk_sync_status_args(recent=2))
     assert rc == 0
     out = capsys.readouterr().out
@@ -277,7 +277,7 @@ def test_sync_status_corrupt_state_file_is_tolerated(tmp_path, monkeypatch, caps
     import llmwiki.cli as cli_mod
     import llmwiki.convert as convert_mod
     monkeypatch.setattr(convert_mod, "DEFAULT_STATE_FILE", state_file)
-    monkeypatch.setattr(cli_mod, "REPO_ROOT", tmp_path)
+    monkeypatch.setattr(cli_mod, "REPO_ROOT", tmp_path); import llmwiki.sync.status as sync_status_mod; monkeypatch.setattr(sync_status_mod, "REPO_ROOT", tmp_path)
     rc = cli_mod.cmd_sync_status(_mk_sync_status_args())
     assert rc == 0
 
