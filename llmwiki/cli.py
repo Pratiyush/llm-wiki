@@ -33,6 +33,22 @@ from llmwiki.adapters import REGISTRY, discover_adapters
 # for any caller still importing from llmwiki.cli.
 from llmwiki.adapters.status import adapter_status as _adapter_status  # noqa: F401
 from llmwiki.synth.estimate import synthesize_estimate_report  # noqa: F401
+# #691 / #arch-h8: extracted business logic moves out of cli.py.
+# cli.py keeps thin re-export wrappers for back-compat with anyone
+# doing `from llmwiki.cli import cmd_all, cmd_sync_status, ...`.
+from llmwiki.config_schedule import (  # noqa: F401
+    load_schedule_config as _load_schedule_config,
+    should_run_after_sync as _should_run_after_sync,
+)
+from llmwiki.pipeline import run_pipeline as _run_pipeline
+from llmwiki.sync.status import (  # noqa: F401
+    cmd_sync_status,
+    resolve_key_exists as _resolve_key_exists,
+)
+from llmwiki.synth.cli_helpers import (  # noqa: F401
+    complete as _synthesize_complete,
+    list_pending as _synthesize_list_pending,
+)
 
 
 def cmd_version(args: argparse.Namespace) -> int:
@@ -43,113 +59,9 @@ def cmd_version(args: argparse.Namespace) -> int:
 def cmd_all(args: argparse.Namespace) -> int:
     """Run the full wiki pipeline end-to-end: build → graph → export all → lint.
 
-    This is the convenience entry point advertised as ``wiki-all`` in docs and
-    slash commands. It executes the usual post-sync steps in the canonical
-    order so a single command reproduces a CI-ready site.
-
-    Exit codes:
-      0  every step succeeded (lint warnings are informational).
-      1  at least one step returned a non-zero exit status.
-      2  ``--strict`` was passed and lint reported any error or warning.
+    Thin shim — the implementation lives in ``llmwiki.pipeline`` (#691).
     """
-    # #py-h4 (#583): direct dispatch instead of round-tripping through
-    # argparse. The old version built ``["build", "--out", "..."]`` argv
-    # lists and re-parsed them via the global ``build_parser()``, which
-    # meant every flag #422 then optimised away the *per-step* re-parse,
-    # but ``cmd_all`` still depended on the global parser's full grammar
-    # — adding a flag to any unrelated subcommand could regress
-    # ``cmd_all`` if defaults shifted. Now we construct each step's
-    # Namespace directly with the defaults the relevant cmd_* expects,
-    # which is also what ``cmd_all`` was *supposed* to do per its
-    # docstring (avoid global-parser coupling).
-    def _ns(**kw: Any) -> argparse.Namespace:
-        return argparse.Namespace(**kw)
-
-    steps: list[tuple[str, str, argparse.Namespace]] = []
-    steps.append((
-        "build",
-        f"build --out {args.out} --search-mode {args.search_mode}",
-        _ns(
-            out=args.out,
-            synthesize=False,
-            claude="",
-            search_mode=args.search_mode or "auto",
-            seed_project_stubs=False,
-            vault=None,
-        ),
-    ))
-    if not args.skip_graph:
-        steps.append((
-            "graph",
-            f"graph --format both --engine {args.graph_engine}",
-            _ns(format="both", engine=args.graph_engine),
-        ))
-    steps.append((
-        "export",
-        f"export all --out {args.out}",
-        _ns(format="all", out=args.out, topic=""),
-    ))
-    # ``lint --fail-on-errors`` so error-severity issues already fail the step;
-    # ``--strict`` additionally escalates warnings (checked below).
-    lint_label = "lint --fail-on-errors" if args.strict else "lint"
-    steps.append((
-        "lint",
-        lint_label,
-        _ns(
-            wiki_dir=None,
-            rules=None,
-            include_llm=False,
-            json=False,
-            fail_on_errors=args.strict,
-        ),
-    ))
-
-    dispatch = {
-        "build": cmd_build,
-        "graph": cmd_graph,
-        "export": cmd_export,
-        "lint": cmd_lint,
-    }
-
-    overall_rc = 0
-    lint_rc: Optional[int] = None
-    for name, label, sub_args in steps:
-        print(f"\n==> llmwiki {label}")
-        rc = dispatch[name](sub_args)
-        if name == "lint":
-            lint_rc = rc
-            continue  # lint's own exit policy is handled below
-        if rc != 0:
-            overall_rc = rc if overall_rc == 0 else overall_rc
-            if args.fail_fast:
-                print(f"error: step '{name}' exited {rc}; stopping (--fail-fast).", file=sys.stderr)
-                return rc
-
-    if args.strict:
-        # ``--strict`` escalates *any* lint signal — errors OR warnings —
-        # into a pipeline failure. Re-read the lint report directly so we
-        # don't depend on lint's own exit code, which by design only fires
-        # on error-severity issues.
-        from llmwiki.lint import load_pages, run_all, summarize
-        wiki_dir = REPO_ROOT / "wiki"
-        if wiki_dir.is_dir():
-            pages = load_pages(wiki_dir)
-            issues = run_all(pages)
-            counts = summarize(issues) if issues else {}
-            errors = counts.get("error", 0)
-            warnings = counts.get("warning", 0)
-            if errors or warnings:
-                print(
-                    f"error: --strict: lint reported "
-                    f"{errors} error(s) + {warnings} warning(s).",
-                    file=sys.stderr,
-                )
-                return 2
-
-    if lint_rc not in (None, 0) and overall_rc == 0:
-        overall_rc = lint_rc
-
-    return overall_rc
+    return _run_pipeline(args)
 
 
 def cmd_init(args: argparse.Namespace) -> int:
@@ -285,32 +197,8 @@ def cmd_sync(args: argparse.Namespace) -> int:
     return rc
 
 
-def _load_schedule_config() -> dict[str, str]:
-    """Load build/lint schedule config from sessions_config.json."""
-    import json as _json
-    from llmwiki import REPO_ROOT
-    config_path = REPO_ROOT / "examples" / "sessions_config.json"
-    if not config_path.is_file():
-        return {"build": "on-sync", "lint": "manual"}
-    try:
-        data = _json.loads(config_path.read_text(encoding="utf-8"))
-    except (ValueError, OSError):
-        return {"build": "on-sync", "lint": "manual"}
-    schedule = data.get("schedule", {})
-    return {
-        "build": schedule.get("build", "on-sync"),
-        "lint": schedule.get("lint", "manual"),
-    }
-
-
-def _should_run_after_sync(schedule: str) -> bool:
-    """Return True if the schedule value indicates running after sync.
-
-    Accepted values: "on-sync", "daily", "weekly", "manual", "never".
-    Only "on-sync" triggers from cmd_sync. "daily"/"weekly" run from a
-    scheduled task; "manual" and "never" never auto-run.
-    """
-    return schedule.lower() == "on-sync"
+# _load_schedule_config + _should_run_after_sync moved to
+# llmwiki/config_schedule.py and re-exported at top of file (#691).
 
 
 def cmd_build(args: argparse.Namespace) -> int:
@@ -470,106 +358,8 @@ def cmd_graph(args: argparse.Namespace) -> int:
     return build_and_report(write_json_flag=write_json, write_html_flag=write_html)
 
 
-def cmd_sync_status(args: argparse.Namespace) -> int:
-    """Report sync observability — last run, per-adapter counters, quarantined sources.
-
-    G-03 (#289): emits a one-screen status report so operators can see
-    *what synced / what didn't / why*.  Reads ``.llmwiki-state.json``
-    for the last-sync timestamp + per-adapter counters (written there
-    by ``convert_all``) and ``.llmwiki-quarantine.json`` for the failing
-    sources.
-    """
-    # #py-l10 (#608): Path is already imported at module top (line 25 as
-    # `from pathlib import Path`); re-importing as `_Path` here was
-    # legacy from an earlier rename. Just reuse the module-level name.
-    import json as _json
-    from datetime import datetime, timezone
-
-    from llmwiki import quarantine as _q
-    from llmwiki.convert import DEFAULT_STATE_FILE
-
-    state: dict = {}
-    if DEFAULT_STATE_FILE.is_file():
-        try:
-            state = _json.loads(DEFAULT_STATE_FILE.read_text(encoding="utf-8"))
-        except (ValueError, OSError):
-            state = {}
-
-    meta = state.pop("_meta", {}) if isinstance(state, dict) else {}
-    counters = state.pop("_counters", {}) if isinstance(state, dict) else {}
-
-    last_sync = meta.get("last_sync")
-    if last_sync:
-        try:
-            ts = datetime.fromisoformat(last_sync.replace("Z", "+00:00"))
-            delta = datetime.now(timezone.utc) - ts
-            human = f"{int(delta.total_seconds() // 3600)}h ago"
-            print(f"Last sync: {last_sync} ({human})")
-        except ValueError:
-            print(f"Last sync: {last_sync}")
-    else:
-        print("Last sync: never (or pre-upgrade state file)")
-
-    print()
-    if counters:
-        print("Adapters:")
-        header = (
-            f"  {'adapter':<16}  {'discovered':>10}  {'converted':>9}  "
-            f"{'unchanged':>9}  {'live':>5}  {'filtered':>8}  {'errored':>7}"
-        )
-        print(header)
-        print("  " + "-" * (len(header) - 2))
-        for name, c in sorted(counters.items()):
-            print(
-                f"  {name:<16}  {c.get('discovered', 0):>10}  "
-                f"{c.get('converted', 0):>9}  "
-                f"{c.get('unchanged', 0):>9}  "
-                f"{c.get('live', 0):>5}  "
-                f"{c.get('filtered', 0):>8}  "
-                f"{c.get('errored', 0):>7}"
-            )
-    else:
-        print("No per-adapter counters recorded (run `llmwiki sync` first).")
-
-    print()
-    orphans = [
-        k for k in state.keys()
-        if isinstance(k, str) and k.startswith(tuple(f"{n}::" for n in counters))
-        and not _resolve_key_exists(k)
-    ]
-    if orphans:
-        print(f"Orphan state entries: {len(orphans)} (source path no longer on disk)")
-
-    # Read the module-level default at call time so monkeypatches take effect.
-    quar_counts = _q.count_by_adapter(_q.DEFAULT_QUARANTINE_FILE)
-    if quar_counts:
-        total = sum(quar_counts.values())
-        print(f"Quarantined sources: {total} "
-              f"({', '.join(f'{k}:{v}' for k, v in sorted(quar_counts.items()))})")
-    else:
-        print("Quarantined sources: 0")
-
-    if args.recent:
-        from llmwiki.log_reader import recent_events
-        log_path = REPO_ROOT / "wiki" / "log.md"
-        events = recent_events(log_path, limit=args.recent, operations={"sync", "synthesize"})
-        if events:
-            print()
-            print(f"Recent activity (last {len(events)}):")
-            for e in events:
-                print(f"  [{e.date.isoformat()}] {e.operation:<12} {e.title}")
-
-    return 0
-
-
-def _resolve_key_exists(key: str) -> bool:
-    """Check whether a portable state-file key points at an extant file."""
-    # #py-l10 (#608): Path is already imported at module top.
-    if "::" not in key:
-        return Path(key).exists()
-    _, rel = key.split("::", 1)
-    candidate = Path.home() / rel
-    return candidate.exists() or Path(rel).exists()
+# cmd_sync_status + _resolve_key_exists moved to llmwiki/sync/status.py
+# and re-exported at top of file (#691).
 
 
 def cmd_export(args: argparse.Namespace) -> int:
@@ -760,84 +550,8 @@ def cmd_synthesize(args: argparse.Namespace) -> int:
 
 
 # ─── #316 agent-delegate CLI helpers ─────────────────────────────────
-
-
-def _synthesize_list_pending() -> int:
-    """Print the pending-prompts table for ``--list-pending``.
-
-    Two-column layout: uuid │ slug · project · date · prompt-path.
-    Exit 0 even when empty — the slash-command layer treats "nothing
-    pending" as a success signal.
-    """
-    from llmwiki.synth.agent_delegate import list_pending
-
-    rows = list_pending()
-    if not rows:
-        print("No pending prompts.")
-        return 0
-    # Max-width uuid column for alignment.
-    uuid_w = max(len(r["uuid"]) for r in rows)
-    print(f"{'UUID':<{uuid_w}}  SLUG · PROJECT · DATE")
-    print(f"{'-' * uuid_w}  " + "-" * 40)
-    for r in rows:
-        meta = " · ".join(
-            part for part in (r["slug"], r["project"], r["date"]) if part
-        )
-        print(f"{r['uuid']:<{uuid_w}}  {meta}")
-    print(f"\n{len(rows)} pending prompt(s).")
-    return 0
-
-
-def _synthesize_complete(args: argparse.Namespace) -> int:
-    """Rewrite a placeholder wiki page with the agent's synthesis.
-
-    Reads the synthesized body from ``args.body`` (file) or stdin, calls
-    :func:`llmwiki.synth.agent_delegate.complete_pending` to replace the
-    sentinel + prompt-file pair with the real content.  Exit codes:
-
-    * ``0`` — success
-    * ``1`` — missing --page, uuid mismatch, missing sentinel, or I/O
-      error
-    """
-    from llmwiki.synth.agent_delegate import complete_pending
-
-    if not args.page:
-        print("error: --complete requires --page <path>", file=sys.stderr)
-        return 1
-
-    page_path = Path(args.page)
-    if not page_path.is_absolute():
-        page_path = REPO_ROOT / page_path
-
-    if args.body:
-        body_path = Path(args.body)
-        if not body_path.is_absolute():
-            body_path = REPO_ROOT / body_path
-        try:
-            body = body_path.read_text(encoding="utf-8")
-        except OSError as e:
-            print(f"error: reading --body {body_path}: {e}", file=sys.stderr)
-            return 1
-    else:
-        body = sys.stdin.read()
-        if not body:
-            print(
-                "error: --complete expects a body on stdin or via --body",
-                file=sys.stderr,
-            )
-            return 1
-
-    try:
-        complete_pending(args.complete, body, page_path)
-    except FileNotFoundError as e:
-        print(f"error: {e}", file=sys.stderr)
-        return 1
-    except ValueError as e:
-        print(f"error: {e}", file=sys.stderr)
-        return 1
-
-    print(f"completed: {page_path}")
-    return 0
+# _synthesize_list_pending + _synthesize_complete moved to
+# llmwiki/synth/cli_helpers.py and re-exported at top of file (#691).
 
 
 def _synthesize_estimate() -> int:

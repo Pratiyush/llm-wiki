@@ -8,6 +8,22 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
+## [1.3.80] — 2026-04-27
+
+#691 / #arch-h8 — second pass extracting business logic from `cli.py`. Builds on #611 (which moved `synthesize_estimate_report` + `_adapter_status`).
+
+### Changed
+
+- **`cmd_all` moved to `llmwiki/pipeline.py:run_pipeline`** (#691) — the 110-LOC pipeline orchestrator was domain logic, not CLI glue. `cli.py:cmd_all` is now a one-liner that calls `_run_pipeline(args)`. The `cmd_*` step targets are lazy-imported inside `run_pipeline` to avoid a circular import.
+- **`cmd_sync_status` + `_resolve_key_exists` moved to `llmwiki/sync/status.py`** (#691) — sync observability (state-file parsing, quarantine counts, orphan detection) belongs in the sync subpackage. New `llmwiki/sync/` package with `__init__.py` re-exporting both. Renamed to `cmd_sync_status` + `resolve_key_exists` (no leading underscore at the new home; `cli.py` re-exports under the underscored name for back-compat).
+- **`_load_schedule_config` + `_should_run_after_sync` moved to `llmwiki/config_schedule.py`** (#691) — config-policy concerns. Renamed without underscores at the new home; `cli.py` re-exports.
+- **`_synthesize_list_pending` + `_synthesize_complete` moved to `llmwiki/synth/cli_helpers.py`** (#691) — these were inconsistently extracted: `synthesize_estimate_report` already lived in `synth/estimate.py` but its two siblings stayed in `cli.py`. Now consistent.
+- **`cli.py` shrunk from 1,228 → 942 LOC (-286)** — closing in on the architect-flagged "<900 LOC" target. Closer to argparse-setup + dispatch only; the remaining LOC is mostly the parser definition + small `cmd_*` wrappers.
+
+### Filed
+
+- The `synth/estimate.py` private-API reach (`_discover_raw_sessions`, `_load_state`) flagged in the same review is **out of scope** for this PR; promoting those to public is a follow-up that touches synth/pipeline.py's public surface.
+
 ## [1.3.79] — 2026-04-27
 
 #692 — ADR-001 amendment: drift ownership + Path-B deprecation trigger.
