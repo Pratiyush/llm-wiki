@@ -8,6 +8,16 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
+## [1.3.79] — 2026-04-27
+
+#692 — ADR-001 amendment: drift ownership + Path-B deprecation trigger.
+
+### Changed
+
+- **`docs/maintainers/ADR-001-playwright-stack.md` gains two new sections** (#692) — the v1.3.76 ADR adopted Path A (Python suite gates, TS Test Agents alongside) but punted on what happens when the two suites disagree and how long Path A is allowed to stay the steady state. The amendment closes both gaps:
+  - **Drift ownership** — the Python `tests/e2e/` suite is the gating contract; the TS suite is advisory until #467 has run for one release cycle. When the suites disagree, the Python suite wins and the TS scenario gets rewritten. Reviewers check the Python update first. Sunset: when Path B is adopted under the deprecation trigger below.
+  - **Path-B deprecation trigger** — reconsider full TS migration only when both (a) agents-generated TS coverage exceeds 80% of pytest-bdd scenario count, and (b) Healer-CI auto-patch acceptance rate exceeds 50%, sustained for one full release cycle. If either threshold isn't hit after three release cycles, file a Path-C RFC (drop the TS suite). "Temporary parallel system" anti-patterns become permanent by inertia without a hard sunset.
+
 ## [1.3.78] — 2026-04-27
 
 Multi-agent code review remediation — 6 HIGH fixes from a 5-agent review of the consolidated v1.3.66 → v1.3.77 diff (python-reviewer, security-reviewer, architect, code-reviewer, typescript-reviewer). Plus follow-up issues #691 (deeper cli.py extraction) and #692 (ADR-001 drift ownership amendment) filed for the architect's larger findings.
