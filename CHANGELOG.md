@@ -8,6 +8,24 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
+## [1.3.82] — 2026-04-30
+
+#467 — healer-in-CI auto-patch comment workflow. Closes the Playwright Test Agents epic (#462).
+
+### Added
+
+- **`scripts/healer-comment.js`** (~180 LOC) — parses a Playwright JSON report, finds locator-failure entries, posts each as a PR review comment with a suggested-changes block. Heuristics: skips passing tests, skips plain assertion failures (only locator/selector/timeout errors qualify as drift), extracts a "use locator(…)" suggestion from Playwright's hint, coalesces duplicates by `(file, line, specTitle)` so flaky tests don't spam. Ships with a `--check <path>` mode that prints the failures JSON without calling the GitHub API — used by the regression tests.
+- **`.github/workflows/agents-healer.yml`** — fires on `workflow_run` after `Playwright Test Agents (TS)` completes with `failure` on a `pull_request`. Downloads the agents-e2e HTML report (which now includes `results.json`), resolves the PR number, runs `node scripts/healer-comment.js` with the right env, posts comments with `pull-requests: write` permission. Advisory-only — Path A from ADR-001 keeps the Python suite as the gating contract.
+- **`tests/test_healer_comment.py`** (8 tests) — pins the parsing contract: empty reports, passing-only reports, locator-timeout collection, plain assertion failures ignored, suggested-locator extraction from Playwright hints, nested suites walked recursively, missing report exits 1, invalid JSON exits 1.
+
+### Changed
+
+- **`playwright.config.ts`** — added a third reporter `["json", { outputFile: "playwright-report/results.json" }]`. The JSON output is the agents-healer workflow's input.
+
+### Closed epic
+
+- **#462 — Playwright Test Agents site-wide** — all sub-issues now closed: #463 (ADR-001), #464 (bootstrap, v1.3.81), #465 (specs, v1.3.77), #466 (Gherkin regression scenarios, v1.3.77), #467 (healer-in-CI, this release). Drift ownership and Path-B deprecation trigger documented in ADR-001 (v1.3.79).
+
 ## [1.3.81] — 2026-04-30
 
 #464 — Playwright Test Agents bootstrap (ADR-001 Path A). Operator authorized the one-time Node toolchain addition; #467 (healer-in-CI) ships separately as v1.3.82.
