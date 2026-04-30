@@ -8,6 +8,28 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
+## [1.3.81] — 2026-04-30
+
+#464 — Playwright Test Agents bootstrap (ADR-001 Path A). Operator authorized the one-time Node toolchain addition; #467 (healer-in-CI) ships separately as v1.3.82.
+
+### Added
+
+- **`package.json` + `package-lock.json`** — first Node deps in this repo. Pinned `@playwright/test@1.58.0` as a `devDependency`. Operator-approved per ADR-001's Constraints clause (the "Node install gets denied" memory rule was lifted at the same time).
+- **`playwright.config.ts`** — TS runner config; `testDir: tests/agents/`, chromium-only project, HTML reporter, trace on first retry, screenshot + video on failure. `baseURL` reads from `LLMWIKI_BASE_URL` env or defaults to `http://127.0.0.1:8765`.
+- **`tests/agents/seed.spec.ts`** — three smoke scenarios prove the harness works against a built demo site: home renders the hero, nav carries the canonical links, graph page renders with site nav (the closed-#456 regression lock). Generated specs from #466's Generator pass land on top of this seed.
+- **`.github/workflows/agents-e2e.yml`** — runs `npx playwright test` on every PR touching `llmwiki/build.py`, `llmwiki/render/`, `tests/agents/`, or the playwright config. Builds the demo site, serves on `localhost:8765`, runs Chromium, uploads HTML report (14-day retention) + traces (failure only).
+- **`docs/maintainers/playwright-agents-bootstrap.md`** — historical record of the bootstrap commands + config decisions + Path-C escape (one `git rm` rolls everything back).
+
+### Changed
+
+- **`.gitignore`** — added `node_modules/`, `playwright-report/`, `test-results/`, `.playwright/`.
+- **Memory rule "Node install gets denied" lifted** for this repo. Scope: the agents work under `tests/agents/`. Don't pull in Node deps for unrelated tasks.
+
+### Verified
+
+- `npx playwright test` passed all 3 seed scenarios locally against the existing built site.
+- Python `tests/e2e/` suite is **unchanged** and stays the gating contract per ADR-001 until the Path-B deprecation trigger hits.
+
 ## [1.3.80] — 2026-04-27
 
 #691 / #arch-h8 — second pass extracting business logic from `cli.py`. Builds on #611 (which moved `synthesize_estimate_report` + `_adapter_status`).
