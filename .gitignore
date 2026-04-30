@@ -200,3 +200,11 @@ _marketing-playbook.md
 _progress.md
 idea-brief.md
 tasks.md
+
+
+# ─── Playwright Test Agents (#464) ────────────────────────────────────────
+node_modules/
+playwright-report/
+test-results/
+.playwright/
+

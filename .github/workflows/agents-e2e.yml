@@ -1,0 +1,78 @@
+name: Playwright Test Agents (TS)
+
+on:
+  pull_request:
+    paths:
+      - "llmwiki/build.py"
+      - "llmwiki/render/**"
+      - "tests/agents/**"
+      - "playwright.config.ts"
+      - "package.json"
+      - "package-lock.json"
+  push:
+    branches: [master]
+    paths:
+      - "llmwiki/build.py"
+      - "llmwiki/render/**"
+      - "tests/agents/**"
+      - "playwright.config.ts"
+
+permissions:
+  contents: read
+
+jobs:
+  agents-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install Python deps
+        run: pip install -e .
+
+      - name: Install Node deps
+        run: npm ci
+
+      - name: Install Chromium for Playwright
+        run: npx playwright install chromium --with-deps
+
+      - name: Build the demo site
+        run: |
+          python3 -m llmwiki init
+          python3 -m llmwiki build
+
+      - name: Serve site in the background
+        run: |
+          python3 -m llmwiki serve --port 8765 &
+          for i in {1..30}; do
+            curl -fsS http://127.0.0.1:8765/ > /dev/null && break
+            sleep 1
+          done
+
+      - name: Run Playwright Test Agents
+        run: npx playwright test
+        env:
+          LLMWIKI_BASE_URL: http://127.0.0.1:8765
+
+      - name: Upload HTML report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: agents-html-report
+          path: playwright-report
+          retention-days: 14
+
+      - name: Upload traces
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: agents-traces
+          path: test-results
+          retention-days: 14

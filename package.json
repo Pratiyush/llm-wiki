@@ -1,0 +1,28 @@
+{
+  "name": "llmwiki",
+  "version": "1.0.0",
+  "description": "> **LLM-powered knowledge base from your Claude Code, Codex CLI, Cursor, Gemini CLI, and Obsidian sessions.** > Built on [Andrej Karpathy's LLM Wiki pattern](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f).",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs",
+    "example": "examples",
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Pratiyush/llm-wiki.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Pratiyush/llm-wiki/issues"
+  },
+  "homepage": "https://github.com/Pratiyush/llm-wiki#readme",
+  "devDependencies": {
+    "@playwright/test": "^1.58.0"
+  }
+}
