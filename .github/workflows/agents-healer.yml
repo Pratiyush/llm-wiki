@@ -1,0 +1,64 @@
+name: Playwright Healer (auto-patch suggestions)
+
+# #467 healer-in-CI: when the agents-e2e workflow fails on a PR,
+# pull its JSON report and post locator-update suggestions as PR
+# comments. The TS agents suite is advisory per ADR-001 until the
+# Path-B deprecation trigger hits, so these comments are
+# advisory-only — they don't block the PR.
+
+on:
+  workflow_run:
+    workflows: ["Playwright Test Agents (TS)"]
+    types: [completed]
+
+permissions:
+  pull-requests: write
+  contents: read
+  actions: read
+
+jobs:
+  comment:
+    if: ${{ github.event.workflow_run.conclusion == 'failure' && github.event.workflow_run.event == 'pull_request' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Download agents-e2e HTML report (contains results.json)
+        uses: actions/download-artifact@v4
+        with:
+          run-id: ${{ github.event.workflow_run.id }}
+          name: agents-html-report
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: playwright-report
+
+      - name: Resolve PR number from workflow_run
+        id: pr
+        run: |
+          # workflow_run.pull_requests is empty when the originating
+          # PR is from a fork; fall back to scanning by SHA in that case.
+          PR=$(jq -r '.workflow_run.pull_requests[0].number // empty' "$GITHUB_EVENT_PATH")
+          if [ -z "$PR" ]; then
+            SHA="${{ github.event.workflow_run.head_sha }}"
+            PR=$(gh pr list --search "$SHA" --json number --jq '.[0].number // empty')
+          fi
+          if [ -z "$PR" ]; then
+            echo "Could not resolve PR number; nothing to comment on"
+            exit 0
+          fi
+          echo "number=$PR" >> "$GITHUB_OUTPUT"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Post Healer suggestions
+        if: steps.pr.outputs.number != ''
+        run: node scripts/healer-comment.js
+        env:
+          REPORT_PATH: playwright-report/results.json
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ steps.pr.outputs.number }}

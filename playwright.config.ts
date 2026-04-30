@@ -17,6 +17,9 @@ export default defineConfig({
   reporter: [
     ["html", { open: "never", outputFolder: "playwright-report" }],
     ["list"],
+    // #467 healer-in-CI: JSON report consumed by scripts/healer-comment.js
+    // to post locator-update suggestions as PR comments on failure.
+    ["json", { outputFile: "playwright-report/results.json" }],
   ],
   use: {
     baseURL,
