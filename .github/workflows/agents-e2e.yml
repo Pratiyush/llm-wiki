@@ -46,6 +46,13 @@ jobs:
       - name: Build the demo site
         run: |
           python3 -m llmwiki init
+          # Seed raw/sessions/ from examples/demo-sessions/ so build
+          # has something to work with (mirrors pages.yml). Without
+          # this `llmwiki build` exits 2 with "no sources found".
+          if [ -d examples/demo-sessions ] && [ "$(ls -A examples/demo-sessions 2>/dev/null)" ]; then
+            cp -r examples/demo-sessions/* raw/sessions/
+            echo "Seeded raw/sessions/ from examples/demo-sessions/"
+          fi
           python3 -m llmwiki build
 
       - name: Serve site in the background
