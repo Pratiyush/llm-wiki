@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>llmwiki</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css?v=6">
+  <!-- highlight.js for code blocks -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css" id="hljs-light">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css" id="hljs-dark" disabled>
+</head>
+<body>
+  <nav class="nav">
+    <div class="nav-brand">
+      <span class="nav-logo">W</span>
+      <span class="nav-title">llmwiki</span>
+    </div>
+    <div class="nav-tabs">
+      <button class="tab-btn" data-tab="wiki">Wiki</button>
+      <button class="tab-btn active" data-tab="qa">&#10022; 问答</button>
+      <button class="tab-btn" data-tab="upload">上传</button>
+      <button class="tab-btn" data-tab="graph">图谱</button>
+      <button class="tab-btn" data-tab="manage">管理</button>
+    </div>
+    <div class="nav-actions">
+      <button class="theme-toggle" id="theme-toggle" title="切换主题">
+        <span class="theme-icon">&#9788;</span>
+      </button>
+      <button class="btn-login" id="nav-login-btn">登录</button>
+      <div class="nav-user-info" id="nav-user-info" style="display:none">
+        <span class="nav-username" id="nav-username"></span>
+        <button class="btn-logout" id="nav-logout-btn">退出</button>
+      </div>
+    </div>
+  </nav>
+
+  <main id="app">
+    <!-- Wiki Browser -->
+    <div id="tab-wiki" class="tab-content">
+      <div class="wiki-layout">
+        <aside class="wiki-sidebar" id="wiki-sidebar">
+          <div class="sidebar-search">
+            <input type="text" id="wiki-search" placeholder="搜索页面..." autocomplete="off">
+          </div>
+          <div class="sidebar-tree" id="wiki-tree">
+            <div class="loading">加载中...</div>
+          </div>
+        </aside>
+        <div class="wiki-content" id="wiki-content">
+          <div class="empty-state">
+            <div class="empty-icon">&#128218;</div>
+            <p>从左侧选择一个页面开始浏览</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Q&A Chat -->
+    <div id="tab-qa" class="tab-content active">
+      <div class="chat-layout">
+        <aside class="thread-sidebar" id="thread-sidebar">
+          <div class="thread-sidebar-header">
+            <span>对话列表</span>
+            <button class="thread-new-btn" id="thread-new-sidebar">+ 新对话</button>
+          </div>
+          <div class="thread-list" id="thread-list">
+            <div class="loading">加载中...</div>
+          </div>
+        </aside>
+        <div class="chat-main">
+          <div class="chat-messages" id="chat-messages">
+            <div class="chat-welcome">
+              <h2><span class="accent-dot"></span>知识库问答</h2>
+              <p>基于已入库的企业知识，为你提供精准答案</p>
+              <div class="model-selector">
+                <label>模型：</label>
+                <select id="model-select">
+                  <option value="deepseek-v4-flash" data-mode="agent" selected>DeepSeek V4 Flash（推荐）</option>
+                  <option value="deepseek-v3.2" data-mode="agent">DeepSeek V3.2</option>
+                  <option value="deepseek-v4-pro" data-mode="agent">DeepSeek V4 Pro</option>
+                  <option value="kimi-k2.5" data-mode="agent">Kimi K2.5</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          <div class="chat-thread-bar" id="chat-thread-bar" style="display:none">
+            <span class="thread-label">&#128172; 当前对话中</span>
+            <div class="thread-actions">
+              <button class="thread-del-btn" onclick="QA._deleteCurrentThread()">删除</button>
+              <button class="thread-new-btn" onclick="QA._newThread()">+ 新对话</button>
+            </div>
+          </div>
+          <div class="chat-input-area">
+            <div class="chat-input-wrap">
+              <textarea id="chat-input" placeholder="输入你的问题..." rows="1"></textarea>
+              <button class="chat-send" id="chat-send" title="发送">&#10148;</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Upload -->
+    <div id="tab-upload" class="tab-content">
+      <div class="upload-layout">
+        <div class="upload-warning" id="upload-warning">
+          <strong>&#9888; 重要提醒：</strong>请确保上传的文件为<strong>最新版本</strong>的规章制度。过时文件将影响整个知识库的准确性，并导致基于该文件生成的所有回答和知识产生错误。
+        </div>
+        <div class="upload-dropzone" id="upload-dropzone">
+          <div class="dropzone-icon">&#128196;</div>
+          <p>拖拽文件到此处上传</p>
+          <p class="muted">支持 .doc .docx .pdf .md .txt 格式</p>
+          <input type="file" id="upload-input" multiple accept=".doc,.docx,.pdf,.md,.txt" hidden>
+          <button class="btn btn-primary" id="upload-btn">选择文件</button>
+        </div>
+        <div class="upload-results" id="upload-results"></div>
+      </div>
+    </div>
+
+    <!-- Graph -->
+    <div id="tab-graph" class="tab-content">
+      <div class="graph-layout">
+        <div class="graph-controls">
+          <input type="text" id="graph-search" placeholder="搜索节点...">
+        </div>
+        <div class="graph-canvas" id="graph-canvas">
+          <div class="loading">加载图谱中...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Manage -->
+    <div id="tab-manage" class="tab-content">
+      <div class="manage-layout">
+        <div class="manage-cards" id="manage-cards">
+          <div class="stat-card">
+            <div class="stat-value" id="stat-pages">-</div>
+            <div class="stat-label">Wiki 页面</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="stat-sources">-</div>
+            <div class="stat-label">源文件</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="stat-entities">-</div>
+            <div class="stat-label">实体</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="stat-concepts">-</div>
+            <div class="stat-label">概念</div>
+          </div>
+        </div>
+        <div class="manage-actions">
+          <label class="lint-llm-toggle">
+            <input type="checkbox" id="lint-include-llm">
+            <span>含 LLM 深度检查</span>
+          </label>
+          <button class="btn btn-primary" id="btn-lint">运行 Lint 检查</button>
+          <button class="btn btn-primary" id="btn-fix-wiki">修复 Wiki 数据</button>
+          <button class="btn btn-primary" id="btn-build">重新生成站点</button>
+          <button class="btn btn-primary" id="btn-sync">同步会话</button>
+        </div>
+        <div class="manage-output" id="manage-output"></div>
+
+        <!-- Deploy log section -->
+        <div id="deploy-log-section">
+          <h3 class="section-title">维护日志 <span class="version-badge" id="version-badge"></span></h3>
+          <div id="deploy-log-content" class="deploy-log-content">
+            <div class="loading">加载中...</div>
+          </div>
+        </div>
+
+        <!-- Approval section -->
+        <div id="approval-section" style="display:none">
+          <h3 class="section-title">待审批知识</h3>
+          <div id="approval-list" class="approval-list">
+            <div class="loading">加载中...</div>
+          </div>
+        </div>
+
+        <!-- Knowledge audit section -->
+        <div id="audit-section" style="display:none">
+          <h3 class="section-title">知识审计 — 文件版本管理</h3>
+          <div id="audit-file-list" class="audit-file-list">
+            <div class="loading">加载中...</div>
+          </div>
+
+          <!-- Pending flags (admin only) -->
+          <div id="pending-flags-section" style="display:none">
+            <h3 class="section-title">过时标记申请</h3>
+            <div id="pending-flags-list" class="audit-file-list"></div>
+          </div>
+
+          <h3 class="section-title" id="audit-queue-title" style="display:none">待审核 — 关联知识</h3>
+          <div id="audit-queue-list" class="audit-file-list"></div>
+        </div>
+
+        <!-- Wiki content management (admin only) -->
+        <div id="wiki-manage-section" style="display:none">
+          <h3 class="section-title">知识库内容管理</h3>
+          <div class="wiki-search-bar">
+            <div class="wiki-search-input-wrap">
+              <span class="wiki-search-icon">&#128269;</span>
+              <input type="text" id="wiki-global-search" placeholder="搜索全部知识库（源文件、合成答案、实体、概念）..." autocomplete="off">
+              <button class="wiki-search-clear-btn" id="wiki-search-clear" title="清空" style="display:none">&times;</button>
+            </div>
+            <select id="wiki-cat-select" class="model-selector select">
+              <option value="">全部分类</option>
+              <option value="sources">源文件 (制度原文)</option>
+              <option value="syntheses">合成答案 (问答)</option>
+              <option value="entities">实体</option>
+              <option value="concepts">概念</option>
+            </select>
+          </div>
+          <div class="wiki-search-history" id="wiki-search-history" style="display:none">
+            <div class="wiki-search-history-header">
+              <span>搜索历史</span>
+              <button onclick="Manager.clearSearchHistory()">清空历史</button>
+            </div>
+            <div id="wiki-search-history-list"></div>
+          </div>
+          <div class="wiki-manage-split">
+            <div class="wiki-manage-list" id="wiki-page-list">
+              <div class="loading">加载中...</div>
+            </div>
+            <div class="wiki-manage-content" id="wiki-page-detail">
+              <div class="empty-state"><p>点击左侧页面查看内容</p></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Login Modal -->
+  <div class="modal-overlay" id="login-modal" style="display:none">
+    <div class="modal-box">
+      <div class="modal-header">
+        <span>登录</span>
+        <button class="modal-close" id="login-close">&times;</button>
+      </div>
+      <!-- Login Form -->
+      <form id="login-form" class="modal-body">
+        <div class="form-group">
+          <label>用户名</label>
+          <input type="text" id="login-username" autocomplete="username" required>
+        </div>
+        <div class="form-group">
+          <label>密码</label>
+          <input type="password" id="login-password" autocomplete="current-password" required>
+        </div>
+        <div id="login-error" class="form-error"></div>
+        <button type="submit" class="btn btn-primary" style="width:100%">登录</button>
+        <div class="form-footer">
+          <span>没有账号？</span>
+          <a href="#" id="switch-to-register">注册新用户</a>
+        </div>
+      </form>
+      <!-- Register Form -->
+      <form id="register-form" class="modal-body" style="display:none">
+        <div class="form-group">
+          <label>用户名</label>
+          <input type="text" id="reg-username" autocomplete="username" required>
+        </div>
+        <div class="form-group">
+          <label>密码</label>
+          <input type="password" id="reg-password" autocomplete="new-password" required>
+        </div>
+        <div class="form-group">
+          <label>真实姓名</label>
+          <input type="text" id="reg-fullname" required>
+        </div>
+        <div class="form-group">
+          <label>部门</label>
+          <input type="text" id="reg-department" required>
+        </div>
+        <div id="register-error" class="form-error"></div>
+        <button type="submit" class="btn btn-primary" style="width:100%">注册</button>
+        <div class="form-footer">
+          <span>已有账号？</span>
+          <a href="#" id="switch-to-login">返回登录</a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Upload Confirm Modal -->
+  <div class="modal-overlay" id="upload-confirm-modal" style="display:none">
+    <div class="modal-box">
+      <div class="modal-header">
+        <span>上传确认</span>
+        <button class="modal-close" id="upload-confirm-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="upload-confirm-warning">
+          &#9888; 请确保此文件为<strong>最新版本</strong>。过时文件将影响知识库的准确性。
+        </div>
+        <div class="form-group">
+          <label>版本备注 <span style="color:#e74c3c">*</span></label>
+          <input type="text" id="upload-version-note" placeholder="例如：2026年4月修订版" required>
+        </div>
+        <div id="upload-confirm-file-info" class="muted" style="margin-bottom:12px"></div>
+        <button class="btn btn-primary" style="width:100%" id="upload-confirm-btn">确认上传</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/components/router.js"></script>
+  <script src="/static/api.js"></script>
+  <script src="/static/components/auth.js?v=3"></script>
+  <script src="/static/components/browser.js"></script>
+  <script src="/static/components/qa.js?v=5"></script>
+  <script src="/static/components/threads.js?v=1"></script>
+  <script src="/static/components/uploader.js"></script>
+  <script src="/static/components/graph-viewer.js"></script>
+  <script src="/static/components/manager.js"></script>
+  <script src="/static/app.js"></script>
+</body>
+</html>

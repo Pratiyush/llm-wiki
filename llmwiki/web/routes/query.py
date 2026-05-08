@@ -482,6 +482,10 @@ async def fork_thread(body: dict):
     token = body.get("token", "")
     if not token or not thread_id or not fork_from_msg_id:
         return {"status": "error", "message": "缺少参数"}
+    try:
+        fork_from_msg_id = int(fork_from_msg_id)
+    except (ValueError, TypeError):
+        return {"status": "error", "message": "参数无效"}
     db = None
     try:
         from llmwiki.web.routes.auth import get_current_user
@@ -495,8 +499,15 @@ async def fork_thread(body: dict):
         ).first()
         if not conv:
             return {"status": "error", "message": "对话线程不存在"}
-        # Create new thread
-        new_conv = Conversation(user_id=user.id, title=conv.title + " (分叉)")
+        # Verify fork point belongs to this thread
+        fork_msg = db.query(ChatHistory).filter(
+            ChatHistory.id == fork_from_msg_id,
+            ChatHistory.thread_id == thread_id,
+        ).first()
+        if not fork_msg:
+            return {"status": "error", "message": "分叉消息不存在"}
+        # Create new thread (truncate title to fit DB column)
+        new_conv = Conversation(user_id=user.id, title=conv.title[:195] + " (分叉)")
         db.add(new_conv)
         db.flush()
         # Copy messages up to and including fork point
@@ -506,7 +517,6 @@ async def fork_thread(body: dict):
             .order_by(ChatHistory.created_at.asc())
             .all()
         )
-        copied = 0
         for msg in messages:
             db.add(ChatHistory(
                 user_id=user.id,
@@ -515,7 +525,6 @@ async def fork_thread(body: dict):
                 answer=msg.answer,
                 model=msg.model,
             ))
-            copied += 1
             if msg.id == fork_from_msg_id:
                 break
         db.commit()
