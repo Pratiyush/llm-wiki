@@ -414,11 +414,6 @@ a:hover { color: var(--accent-hover); }
   background: var(--accent-bg); box-shadow: var(--qa-glow);
 }
 
-/* Fork button in message actions */
-.msg-actions .btn-fork {
-  margin-left: 6px; padding-left: 10px; border-left: 1px solid var(--border-subtle);
-}
-
 /* ═══════════════════════════════════════════════════════════════════════════
    Upload
    ═══════════════════════════════════════════════════════════════════════════ */

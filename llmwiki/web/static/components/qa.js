@@ -469,18 +469,6 @@ const QA = {
     reaskWrap.appendChild(reaskBtn);
     actions.appendChild(reaskWrap);
 
-    // Fork button (only if we have a message ID)
-    var msgId = msgEl.dataset.msgId;
-    if (msgId) {
-      var forkBtn = document.createElement('button');
-      forkBtn.textContent = '分叉';
-      forkBtn.className = 'btn-fork';
-      forkBtn.addEventListener('click', function() {
-        self._forkAtMessage(parseInt(msgId));
-      });
-      actions.appendChild(forkBtn);
-    }
-
     msgEl.appendChild(actions);
   },
 
@@ -592,40 +580,6 @@ const QA = {
           self._newThread();
         }
       });
-  },
-
-  /* --- Fork thread at a specific message --- */
-  _forkAtMessage(msgId) {
-    if (!msgId) return;
-    if (!confirm('确认从此消息处创建分叉对话？')) return;
-    var self = this;
-    var token = Auth.getToken();
-    fetch('/api/query/fork', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        token: token,
-        fork_from_msg_id: msgId,
-      }),
-    })
-    .then(function(r) { return r.json(); })
-    .then(function(data) {
-      if (data.status === 'ok') {
-        self.threadId = data.thread_id;
-        self._updateThreadIndicator();
-        if (typeof Threads !== 'undefined') {
-          Threads.setActive(data.thread_id);
-          Threads.refresh();
-        }
-        self.messagesEl.innerHTML = '<div class="chat-welcome"><h2>分叉对话</h2><p>基于 "' + self.escapeHtml(data.title) + '" 创建。继续提问即可。</p></div>';
-      } else {
-        alert('分叉失败: ' + (data.message || '未知错误'));
-      }
-    })
-    .catch(function(err) {
-      console.error('[QA] fork error:', err);
-      alert('分叉失败: ' + err.message);
-    });
   },
 
   /* --- Show/hide thread indicator bar --- */

@@ -474,67 +474,6 @@ async def rename_thread(thread_id: int, body: dict):
             db.close()
 
 
-@router.post("/fork")
-async def fork_thread(body: dict):
-    """Fork a thread at a specific message — create new thread with history up to that point."""
-    fork_from_msg_id = body.get("fork_from_msg_id")
-    token = body.get("token", "")
-    if not token or not fork_from_msg_id:
-        return {"status": "error", "message": "缺少参数"}
-    try:
-        fork_from_msg_id = int(fork_from_msg_id)
-    except (ValueError, TypeError):
-        return {"status": "error", "message": "参数无效"}
-    db = None
-    try:
-        from llmwiki.web.routes.auth import get_current_user
-        from llmwiki.web.database import SessionLocal
-        from llmwiki.web.models import ChatHistory, Conversation
-        db = SessionLocal()
-        user = get_current_user(token=token, db=db)
-        # Look up the fork message and derive thread from it
-        fork_msg = db.query(ChatHistory).filter(
-            ChatHistory.id == fork_from_msg_id,
-        ).first()
-        if not fork_msg:
-            return {"status": "error", "message": "分叉消息不存在"}
-        thread_id = fork_msg.thread_id
-        conv = db.query(Conversation).filter(
-            Conversation.id == thread_id,
-            Conversation.user_id == user.id,
-        ).first()
-        if not conv:
-            return {"status": "error", "message": "对话线程不存在"}
-        # Create new thread (truncate title to fit DB column)
-        new_conv = Conversation(user_id=user.id, title=conv.title[:195] + " (分叉)")
-        db.add(new_conv)
-        db.flush()
-        # Copy messages up to and including fork point
-        messages = (
-            db.query(ChatHistory)
-            .filter(ChatHistory.thread_id == thread_id)
-            .order_by(ChatHistory.created_at.asc())
-            .all()
-        )
-        for msg in messages:
-            db.add(ChatHistory(
-                user_id=user.id,
-                thread_id=new_conv.id,
-                question=msg.question,
-                answer=msg.answer,
-                model=msg.model,
-            ))
-            if msg.id == fork_from_msg_id:
-                break
-        db.commit()
-        return {"status": "ok", "thread_id": new_conv.id, "title": new_conv.title}
-    except Exception as e:
-        return {"status": "error", "message": str(e)}
-    finally:
-        if db:
-            db.close()
-
-
 def _write_synthesis(question: str, answer: str) -> str:
     """Write Q&A pair to wiki/syntheses/ and return the path."""
     slug = _slugify(question[:30])
