@@ -596,7 +596,7 @@ const QA = {
 
   /* --- Fork thread at a specific message --- */
   _forkAtMessage(msgId) {
-    if (!this.threadId || !msgId) return;
+    if (!msgId) return;
     if (!confirm('确认从此消息处创建分叉对话？')) return;
     var self = this;
     var token = Auth.getToken();
@@ -605,7 +605,6 @@ const QA = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         token: token,
-        thread_id: self.threadId,
         fork_from_msg_id: msgId,
       }),
     })
@@ -619,7 +618,13 @@ const QA = {
           Threads.refresh();
         }
         self.messagesEl.innerHTML = '<div class="chat-welcome"><h2>分叉对话</h2><p>基于 "' + self.escapeHtml(data.title) + '" 创建。继续提问即可。</p></div>';
+      } else {
+        alert('分叉失败: ' + (data.message || '未知错误'));
       }
+    })
+    .catch(function(err) {
+      console.error('[QA] fork error:', err);
+      alert('分叉失败: ' + err.message);
     });
   },
 

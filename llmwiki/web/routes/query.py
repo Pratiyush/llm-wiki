@@ -477,10 +477,9 @@ async def rename_thread(thread_id: int, body: dict):
 @router.post("/fork")
 async def fork_thread(body: dict):
     """Fork a thread at a specific message — create new thread with history up to that point."""
-    thread_id = body.get("thread_id")
     fork_from_msg_id = body.get("fork_from_msg_id")
     token = body.get("token", "")
-    if not token or not thread_id or not fork_from_msg_id:
+    if not token or not fork_from_msg_id:
         return {"status": "error", "message": "缺少参数"}
     try:
         fork_from_msg_id = int(fork_from_msg_id)
@@ -493,19 +492,19 @@ async def fork_thread(body: dict):
         from llmwiki.web.models import ChatHistory, Conversation
         db = SessionLocal()
         user = get_current_user(token=token, db=db)
+        # Look up the fork message and derive thread from it
+        fork_msg = db.query(ChatHistory).filter(
+            ChatHistory.id == fork_from_msg_id,
+        ).first()
+        if not fork_msg:
+            return {"status": "error", "message": "分叉消息不存在"}
+        thread_id = fork_msg.thread_id
         conv = db.query(Conversation).filter(
             Conversation.id == thread_id,
             Conversation.user_id == user.id,
         ).first()
         if not conv:
             return {"status": "error", "message": "对话线程不存在"}
-        # Verify fork point belongs to this thread
-        fork_msg = db.query(ChatHistory).filter(
-            ChatHistory.id == fork_from_msg_id,
-            ChatHistory.thread_id == thread_id,
-        ).first()
-        if not fork_msg:
-            return {"status": "error", "message": "分叉消息不存在"}
         # Create new thread (truncate title to fit DB column)
         new_conv = Conversation(user_id=user.id, title=conv.title[:195] + " (分叉)")
         db.add(new_conv)
