@@ -35,6 +35,18 @@ def current_notebook_slug(raw: str | None) -> str:
     return DEFAULT_NOTEBOOK_SLUG
 
 
+def user_is_admin(user: object | None) -> bool:
+    """Return True only for users with the admin role."""
+    return getattr(user, "role", None) == "admin"
+
+
+def can_access_notebook(user: object | None, notebook: object) -> bool:
+    """Return whether user can access notebook under current visibility rules."""
+    if bool(getattr(notebook, "is_default", False)):
+        return True
+    return user_is_admin(user)
+
+
 def notebook_wiki_dir(slug: str, *, repo_root: Path = REPO_ROOT) -> Path:
     """Return repo_root/notebooks/<slug>/wiki after path boundary checks."""
     slug = current_notebook_slug(slug)
