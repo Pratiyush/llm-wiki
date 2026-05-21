@@ -23,10 +23,25 @@ class User(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
 
 
+class Notebook(Base):
+    __tablename__ = "notebooks"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    slug: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
+    title: Mapped[str] = mapped_column(String(200), nullable=False)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    visibility: Mapped[str] = mapped_column(String(20), default="private", nullable=False)
+    is_default: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    created_by: Mapped[int | None] = mapped_column(Integer, ForeignKey("users.id"), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
+
+
 class PendingWiki(Base):
     __tablename__ = "pending_wikis"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    notebook_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("notebooks.id"), nullable=True)
     question: Mapped[str] = mapped_column(Text, default="")
     answer: Mapped[str] = mapped_column(Text, nullable=False)
     slug: Mapped[str] = mapped_column(String(100), default="")
@@ -43,6 +58,7 @@ class ChatHistory(Base):
     __tablename__ = "chat_history"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    notebook_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("notebooks.id"), nullable=True)
     user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"))
     thread_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("conversations.id"), nullable=True)
     question: Mapped[str] = mapped_column(Text, nullable=False)
@@ -56,6 +72,7 @@ class Conversation(Base):
     __tablename__ = "conversations"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    notebook_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("notebooks.id"), nullable=True)
     user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"))
     title: Mapped[str] = mapped_column(String(200), default="新对话")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
@@ -65,6 +82,7 @@ class UploadedFile(Base):
     __tablename__ = "uploaded_files"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    notebook_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("notebooks.id"), nullable=True)
     filename: Mapped[str] = mapped_column(String(200), nullable=False)
     wiki_path: Mapped[str] = mapped_column(String(200), default="")
     version_note: Mapped[str] = mapped_column(String(200), nullable=False)
@@ -77,6 +95,7 @@ class KnowledgeLineage(Base):
     __tablename__ = "knowledge_lineage"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    notebook_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("notebooks.id"), nullable=True)
     source_file_id: Mapped[int] = mapped_column(Integer, ForeignKey("uploaded_files.id"))
     wiki_path: Mapped[str] = mapped_column(String(200), nullable=False)
     wiki_type: Mapped[str] = mapped_column(String(20), default="source")  # source / entity / concept / synthesis / pending_review
@@ -87,6 +106,7 @@ class OutdatedFlag(Base):
     __tablename__ = "outdated_flags"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    notebook_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("notebooks.id"), nullable=True)
     file_id: Mapped[int] = mapped_column(Integer, ForeignKey("uploaded_files.id"))
     reporter_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"))
     reason: Mapped[str] = mapped_column(Text, default="")
