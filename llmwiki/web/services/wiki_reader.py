@@ -11,7 +11,8 @@ import markdown as md_lib
 from llmwiki import REPO_ROOT
 from llmwiki.text_utils import strip_bom
 
-WIKI_DIR = REPO_ROOT / "wiki"
+DEFAULT_WIKI_DIR = REPO_ROOT / "wiki"
+WIKI_DIR = DEFAULT_WIKI_DIR
 
 # ── TTL cache ────────────────────────────────────────────────────────────────
 
@@ -25,7 +26,8 @@ def _cache_get(key: str) -> object | None:
     if entry is None:
         return None
     ts, val = entry
-    if time.time() - ts > _CACHE_TTL_SEARCH if ":search:" in key else _CACHE_TTL_PAGE:
+    ttl = _CACHE_TTL_SEARCH if ":search:" in key else _CACHE_TTL_PAGE
+    if time.time() - ts > ttl:
         del _cache[key]
         return None
     return val
@@ -38,6 +40,21 @@ def _cache_set(key: str, value: object) -> None:
 def invalidate_cache() -> None:
     """Clear the in-memory cache (call after wiki writes)."""
     _cache.clear()
+
+
+def _resolve_wiki_dir(wiki_dir: Path | None = None) -> Path:
+    """Return the wiki root used for reads."""
+    return (wiki_dir or DEFAULT_WIKI_DIR).resolve(strict=False)
+
+
+def _resolve_page_path(root: Path, path: str) -> Path | None:
+    candidate = Path(path)
+    if candidate.is_absolute():
+        return None
+    full = (root / candidate).resolve(strict=False)
+    if full != root and root not in full.parents:
+        return None
+    return full
 
 
 def _parse_frontmatter(text: str) -> tuple[dict, str]:
@@ -58,16 +75,17 @@ def _parse_frontmatter(text: str) -> tuple[dict, str]:
     return meta, body
 
 
-def get_tree() -> dict:
+def get_tree(*, wiki_dir: Path | None = None) -> dict:
     """Return wiki directory tree as nested dict."""
+    root = _resolve_wiki_dir(wiki_dir)
     tree: dict = {}
-    if not WIKI_DIR.is_dir():
+    if not root.is_dir():
         return tree
 
-    for path in sorted(WIKI_DIR.rglob("*.md")):
+    for path in sorted(root.rglob("*.md")):
         if path.name.startswith("_") or path.name == "log.md":
             continue
-        rel = path.relative_to(WIKI_DIR)
+        rel = path.relative_to(root)
         parts = list(rel.parent.parts)
         if parts:
             category = parts[0]
@@ -80,23 +98,24 @@ def get_tree() -> dict:
         title = meta.get("title", name)
         tree[category].append({
             "name": name,
-            "path": str(rel),
+            "path": rel.as_posix(),
             "title": title,
             "type": meta.get("type", ""),
         })
     return tree
 
 
-def list_pages(category: str | None = None) -> list[dict]:
+def list_pages(category: str | None = None, *, wiki_dir: Path | None = None) -> list[dict]:
     """List wiki pages with metadata."""
+    root = _resolve_wiki_dir(wiki_dir)
     pages: list[dict] = []
-    if not WIKI_DIR.is_dir():
+    if not root.is_dir():
         return pages
 
-    for path in sorted(WIKI_DIR.rglob("*.md")):
+    for path in sorted(root.rglob("*.md")):
         if path.name.startswith("_") or path.name == "log.md":
             continue
-        rel = path.relative_to(WIKI_DIR)
+        rel = path.relative_to(root)
         parts = list(rel.parent.parts)
         cat = parts[0] if parts else "root"
 
@@ -106,7 +125,7 @@ def list_pages(category: str | None = None) -> list[dict]:
         meta, body = _parse_frontmatter(path.read_text(encoding="utf-8"))
         pages.append({
             "name": path.stem,
-            "path": str(rel),
+            "path": rel.as_posix(),
             "title": meta.get("title", path.stem),
             "type": meta.get("type", ""),
             "category": cat,
@@ -115,14 +134,17 @@ def list_pages(category: str | None = None) -> list[dict]:
     return pages
 
 
-def read_page(path: str) -> dict:
+def read_page(path: str, *, wiki_dir: Path | None = None) -> dict:
     """Read a wiki page, return raw content + frontmatter (cached)."""
-    cache_key = f"page:{path}"
+    root = _resolve_wiki_dir(wiki_dir)
+    cache_key = f"page:{root}:{path}"
     cached = _cache_get(cache_key)
     if cached is not None:
         return cached  # type: ignore[return-value]
 
-    full = WIKI_DIR / path
+    full = _resolve_page_path(root, path)
+    if full is None:
+        return {"error": "not found", "path": path}
     if not full.is_file():
         return {"error": "not found", "path": path}
     text = full.read_text(encoding="utf-8")
@@ -132,9 +154,9 @@ def read_page(path: str) -> dict:
     return result
 
 
-def render_page(path: str) -> dict:
+def render_page(path: str, *, wiki_dir: Path | None = None) -> dict:
     """Read and render a wiki page as HTML."""
-    data = read_page(path)
+    data = read_page(path, wiki_dir=wiki_dir)
     if "error" in data:
         return data
 
@@ -152,12 +174,13 @@ def render_page(path: str) -> dict:
     return {"html": html, "meta": data["meta"], "path": path}
 
 
-def search(query: str, limit: int = 20) -> list[dict]:
+def search(query: str, limit: int = 20, *, wiki_dir: Path | None = None) -> list[dict]:
     """Search wiki pages by keyword (Chinese-aware n-gram tokenization, cached)."""
     if not query:
         return []
 
-    cache_key = f":search:{query}:{limit}"
+    root = _resolve_wiki_dir(wiki_dir)
+    cache_key = f":search:{root}:{query}:{limit}"
     cached = _cache_get(cache_key)
     if cached is not None:
         return cached  # type: ignore[return-value]
@@ -204,7 +227,10 @@ def search(query: str, limit: int = 20) -> list[dict]:
 
     # 2. Score each wiki page
     results: list[dict] = []
-    for path in sorted(WIKI_DIR.rglob("*.md")):
+    if not root.is_dir():
+        return []
+
+    for path in sorted(root.rglob("*.md")):
         if path.name.startswith("_") or path.name == "log.md":
             continue
         text = path.read_text(encoding="utf-8").lower()
@@ -224,11 +250,11 @@ def search(query: str, limit: int = 20) -> list[dict]:
         if matched_tokens >= 3:
             score += matched_tokens * 5
         if score > 0:
-            rel = path.relative_to(WIKI_DIR)
+            rel = path.relative_to(root)
             meta, _ = _parse_frontmatter(path.read_text(encoding="utf-8"))
             results.append({
                 "name": path.stem,
-                "path": str(rel),
+                "path": rel.as_posix(),
                 "title": meta.get("title", path.stem),
                 "score": score,
             })
@@ -239,17 +265,18 @@ def search(query: str, limit: int = 20) -> list[dict]:
     return top
 
 
-def get_stats() -> dict:
+def get_stats(*, wiki_dir: Path | None = None) -> dict:
     """Return wiki statistics."""
+    root = _resolve_wiki_dir(wiki_dir)
     stats = {"pages": 0, "sources": 0, "entities": 0, "concepts": 0, "syntheses": 0}
-    if not WIKI_DIR.is_dir():
+    if not root.is_dir():
         return stats
 
-    for path in WIKI_DIR.rglob("*.md"):
+    for path in root.rglob("*.md"):
         if path.name.startswith("_") or path.name == "log.md":
             continue
         stats["pages"] += 1
-        rel = str(path.relative_to(WIKI_DIR))
+        rel = path.relative_to(root).as_posix()
         if rel.startswith("sources"):
             stats["sources"] += 1
         elif rel.startswith("entities"):

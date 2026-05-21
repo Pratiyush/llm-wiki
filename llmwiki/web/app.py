@@ -21,9 +21,10 @@ def create_app() -> FastAPI:
     init_db()
 
     # --- API routes ---
-    from llmwiki.web.routes import pages, query, upload, graph, manage, auth
+    from llmwiki.web.routes import pages, query, upload, graph, manage, auth, notebooks
 
     app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
+    app.include_router(notebooks.router, prefix="/api/notebooks", tags=["notebooks"])
     app.include_router(pages.router, prefix="/api/pages", tags=["pages"])
     app.include_router(query.router, prefix="/api/query", tags=["query"])
     app.include_router(upload.router, prefix="/api/upload", tags=["upload"])

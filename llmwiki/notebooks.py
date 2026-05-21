@@ -11,6 +11,7 @@ from llmwiki.web.services import notebooks as notebook_services
 from llmwiki.web.services.notebooks import (
     DEFAULT_NOTEBOOK_SLUG,
     DEFAULT_NOTEBOOK_TITLE,
+    SLUG_RE,
 )
 
 
@@ -20,6 +21,31 @@ MIGRATION_PATHS = (
     ("graph", "graph"),
     ("raw/company-docs", "raw/company-docs"),
 )
+
+
+def is_valid_slug(slug: str) -> bool:
+    """Return True when slug is safe for notebook directory lookup."""
+    return bool(SLUG_RE.fullmatch(slug))
+
+
+def current_notebook_slug(raw: str | None) -> str:
+    """Return the requested notebook slug, falling back to the default."""
+    if raw and is_valid_slug(raw):
+        return raw
+    return DEFAULT_NOTEBOOK_SLUG
+
+
+def notebook_wiki_dir(slug: str, *, repo_root: Path = REPO_ROOT) -> Path:
+    """Return repo_root/notebooks/<slug>/wiki after path boundary checks."""
+    slug = current_notebook_slug(slug)
+    repo_root = repo_root.resolve(strict=False)
+    notebooks_root = (repo_root / "notebooks").resolve(strict=False)
+    root = (notebooks_root / slug).resolve(strict=False)
+    if root != notebooks_root and notebooks_root not in root.parents:
+        raise ValueError("notebook slug resolves outside notebooks directory")
+    if root != repo_root and repo_root not in root.parents:
+        raise ValueError("notebook path resolves outside repository")
+    return root / "wiki"
 
 
 def _relative(path: Path, repo_root: Path) -> str:
