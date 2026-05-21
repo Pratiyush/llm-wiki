@@ -118,7 +118,12 @@ def test_load_pages_follows_symlinks(tmp_path: Path):
     # Create a symlink mimicking link-obsidian
     link = tmp_path / "vault" / "LLM Wiki"
     link.parent.mkdir()
-    link.symlink_to(real_wiki, target_is_directory=True)
+    try:
+        link.symlink_to(real_wiki, target_is_directory=True)
+    except OSError as exc:
+        if getattr(exc, "winerror", None) == 1314:
+            pytest.skip("creating symlinks requires elevated privileges on this Windows host")
+        raise
 
     # Load via the symlink
     pages_via_link = load_pages(link)

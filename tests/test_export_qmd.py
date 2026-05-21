@@ -209,12 +209,12 @@ def test_export_qmd_is_idempotent_on_rerun(tmp_path):
 
     out = tmp_path / "export"
     export_qmd(out, source_wiki=src)
-    first_manifest = (out / "qmd.yaml").read_text()
-    first_readme = (out / "README.md").read_text()
+    first_manifest = (out / "qmd.yaml").read_text(encoding="utf-8")
+    first_readme = (out / "README.md").read_text(encoding="utf-8")
 
     export_qmd(out, source_wiki=src)
-    second_manifest = (out / "qmd.yaml").read_text()
-    second_readme = (out / "README.md").read_text()
+    second_manifest = (out / "qmd.yaml").read_text(encoding="utf-8")
+    second_readme = (out / "README.md").read_text(encoding="utf-8")
 
     assert first_manifest == second_manifest
     assert first_readme == second_readme

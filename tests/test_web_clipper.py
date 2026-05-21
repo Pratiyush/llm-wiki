@@ -31,7 +31,7 @@ def test_config_custom():
         }
     })
     assert cfg["enabled"] is True
-    assert str(cfg["watch_dir"]) == "/tmp/clips"
+    assert str(cfg["watch_dir"]).replace("\\", "/") == "/tmp/clips"
     assert cfg["extensions"] == [".md", ".txt"]
     assert cfg["auto_queue"] is False
 

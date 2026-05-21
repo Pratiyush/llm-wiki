@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "llmwiki"
-version = "1.0.0"
+version = "0.19.0"
 description = "Karpathy-style LLM wiki from your Claude Code, Codex CLI, Cursor, and Obsidian sessions"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -74,6 +74,18 @@ e2e = [
 all = [
     "pypdf>=6.10.2",
 ]
+web = [
+    "fastapi>=0.110",
+    "uvicorn>=0.29",
+    "openai>=1.0",
+    "python-dotenv>=1.0",
+    "python-multipart>=0.0.9",
+    "sqlalchemy>=2.0",
+    "passlib[bcrypt]>=1.7",
+    "python-jose[cryptography]>=3.3",
+    "python-docx>=1.0",
+    "pypdf>=6.10.2",
+]
 
 [project.urls]
 Homepage = "https://github.com/Pratiyush/llm-wiki"
@@ -87,10 +99,10 @@ Releases = "https://github.com/Pratiyush/llm-wiki/releases"
 llmwiki = "llmwiki.cli:main"
 
 [tool.setuptools]
-packages = ["llmwiki", "llmwiki.adapters", "llmwiki.mcp"]
+packages = ["llmwiki", "llmwiki.adapters", "llmwiki.mcp", "llmwiki.web", "llmwiki.web.routes", "llmwiki.web.services"]
 
 [tool.setuptools.package-data]
-llmwiki = ["py.typed"]
+llmwiki = ["py.typed", "VERSION"]
 
 [tool.ruff]
 line-length = 120

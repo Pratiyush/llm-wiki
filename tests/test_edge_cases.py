@@ -381,7 +381,7 @@ class TestLogEdgeCases:
         # Create file exactly at threshold - 1 byte
         header = "# Log\n"
         padding = "x" * (50 * 1024 - len(header) - 1)
-        log.write_text(header + padding, encoding="utf-8")
+        log.write_bytes((header + padding).encode("utf-8"))
         assert log.stat().st_size < 50 * 1024
         result = _auto_archive_log(log)
         assert result is None  # just under threshold

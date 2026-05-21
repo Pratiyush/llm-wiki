@@ -8,6 +8,7 @@ Subcommands:
     sync              Convert new .jsonl sessions to markdown
     build             Compile static HTML site from raw/ + wiki/
     serve             Start local HTTP server
+    web               Start interactive web UI (FastAPI)
     graph             Build the knowledge graph (graph/graph.json + graph.html)
     watch             Watch agent session stores and auto-sync on change
     export-obsidian   Export the compiled wiki into an Obsidian vault
@@ -170,6 +171,26 @@ def cmd_serve(args: argparse.Namespace) -> int:
     """Serve the built site via a local HTTP server."""
     from llmwiki.serve import serve_site
     return serve_site(directory=args.dir, port=args.port, host=args.host, open_browser=args.open)
+
+
+def cmd_web(args: argparse.Namespace) -> int:
+    """Start the interactive web UI."""
+    try:
+        import uvicorn
+    except ImportError:
+        print("Error: web UI requires additional dependencies.")
+        print("  Install with: pip install -e '.[web]'")
+        return 1
+    from llmwiki.web.app import create_app
+    app = create_app()
+    host = args.host
+    port = args.port
+    print(f"  llmwiki web UI → http://{host}:{port}")
+    if args.open:
+        import webbrowser
+        webbrowser.open(f"http://{host}:{port}")
+    uvicorn.run(app, host=host, port=port, log_level="warning")
+    return 0
 
 
 def cmd_adapters(args: argparse.Namespace) -> int:
@@ -386,16 +407,28 @@ def cmd_manifest(args: argparse.Namespace) -> int:
 
 def cmd_lint(args: argparse.Namespace) -> int:
     """Run all 11 lint rules against the wiki and print a report."""
-    from llmwiki.lint import load_pages, run_all, summarize
+    from llmwiki.lint import (
+        load_incremental_pages, load_pages, run_all, summarize,
+    )
 
     wiki_dir = args.wiki_dir or (REPO_ROOT / "wiki")
     if not wiki_dir.is_dir():
         print(f"error: wiki directory not found: {wiki_dir}", file=sys.stderr)
         return 2
 
-    pages = load_pages(wiki_dir)
+    # Incremental scan by default; --full forces re-check of every page
+    if args.full:
+        pages = load_pages(wiki_dir)
+        incremental = False
+    else:
+        pages, is_full = load_incremental_pages(wiki_dir)
+        incremental = not is_full
+
     if not pages:
-        print(f"  no pages found in {wiki_dir}")
+        if incremental:
+            print("  no pages changed since last lint — nothing to check")
+        else:
+            print(f"  no pages found in {wiki_dir}")
         return 0
 
     selected = args.rules.split(",") if args.rules else None
@@ -403,6 +436,7 @@ def cmd_lint(args: argparse.Namespace) -> int:
         pages,
         include_llm=args.include_llm,
         selected=selected,
+        incremental=incremental,
     )
 
     summary = summarize(issues)
@@ -413,9 +447,11 @@ def cmd_lint(args: argparse.Namespace) -> int:
             "summary": summary,
             "issues": issues,
             "total_pages": len(pages),
+            "incremental": incremental,
         }, indent=2))
     else:
-        print(f"  scanned {len(pages)} pages")
+        scan_label = "incremental" if incremental else "full"
+        print(f"  scanned {len(pages)} pages ({scan_label})")
         print(f"  {sum(summary.values())} issues: "
               f"{summary.get('error', 0)} errors, "
               f"{summary.get('warning', 0)} warnings, "
@@ -783,6 +819,13 @@ def build_parser() -> argparse.ArgumentParser:
     serve.add_argument("--open", action="store_true", help="Open browser after starting")
     serve.set_defaults(func=cmd_serve)
 
+    # web
+    web = sub.add_parser("web", help="Start interactive web UI (FastAPI)")
+    web.add_argument("--port", type=int, default=8765)
+    web.add_argument("--host", type=str, default="127.0.0.1")
+    web.add_argument("--open", action="store_true", help="Open browser after starting")
+    web.set_defaults(func=cmd_web)
+
     # adapters
     ads = sub.add_parser("adapters", help="List available adapters")
     ads.set_defaults(func=cmd_adapters)
@@ -891,6 +934,8 @@ def build_parser() -> argparse.ArgumentParser:
     lint.add_argument("--include-llm", action="store_true",
                       help="Also run LLM-powered rules (requires --llm-callback)")
     lint.add_argument("--json", action="store_true", help="JSON output")
+    lint.add_argument("--full", action="store_true",
+                      help="Force full scan (skip incremental mtime-based filtering)")
     lint.add_argument("--fail-on-errors", action="store_true",
                       help="Exit non-zero if any error-severity issues found")
     lint.set_defaults(func=cmd_lint)

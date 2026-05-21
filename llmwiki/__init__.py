@@ -15,12 +15,12 @@ Public API:
     - llmwiki.mcp.server.main()       — MCP server (stdio)
 """
 
-__version__ = "1.0.0"
-__author__ = "Pratiyush"
-__license__ = "MIT"
-
 from pathlib import Path
 
 # Repo root (llmwiki/ clone), resolved from this file's location.
 REPO_ROOT = Path(__file__).resolve().parent.parent
 PACKAGE_ROOT = Path(__file__).resolve().parent
+
+__version__ = (PACKAGE_ROOT / "VERSION").read_text(encoding="utf-8").strip()
+__author__ = "Pratiyush"
+__license__ = "MIT"

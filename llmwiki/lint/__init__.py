@@ -18,13 +18,16 @@ Rule severity levels: ``error``, ``warning``, ``info``.
 
 from __future__ import annotations
 
+import json
 import re
 from pathlib import Path
 from typing import Any, Callable, Optional
 
 from llmwiki import REPO_ROOT
+from llmwiki.text_utils import strip_bom
 
 WIKI_DIR = REPO_ROOT / "wiki"
+LINT_STATE_FILE = REPO_ROOT / ".llmwiki-lint-state.json"
 FRONTMATTER_RE = re.compile(r"^---\n(.*?)\n---\n", re.DOTALL)
 WIKILINK_RE = re.compile(r"\[\[([^\]|]+)(?:\|[^\]]*)?\]\]")
 
@@ -65,6 +68,7 @@ def register(cls: type[LintRule]) -> type[LintRule]:
 
 def parse_frontmatter(text: str) -> dict[str, str]:
     """Parse YAML-like frontmatter from markdown text."""
+    text = strip_bom(text)
     m = FRONTMATTER_RE.match(text)
     if not m:
         return {}
@@ -96,7 +100,7 @@ def load_pages(wiki_dir: Optional[Path] = None) -> dict[str, dict[str, Any]]:
             continue
         meta = parse_frontmatter(text)
         body = FRONTMATTER_RE.sub("", text, count=1)
-        rel = str(p.relative_to(root))
+        rel = str(p.relative_to(root)).replace("\\", "/")
         pages[rel] = {
             "path": p,
             "rel": rel,
@@ -107,6 +111,56 @@ def load_pages(wiki_dir: Optional[Path] = None) -> dict[str, dict[str, Any]]:
     return pages
 
 
+def load_incremental_pages(
+    wiki_dir: Optional[Path] = None,
+    *,
+    force_full: bool = False,
+) -> tuple[dict[str, dict[str, Any]], bool]:
+    """Load wiki pages, returning only changed/new ones since last scan.
+
+    Returns (pages, is_full_scan). When ``is_full_scan`` is False, unchanged
+    pages are excluded so rules only re-check files that were modified. Rule
+    implementations should still scan the full set for cross-page checks
+    (orphans, link integrity) — the caller decides which rules to run.
+    """
+    root = wiki_dir or WIKI_DIR
+    all_pages = load_pages(root)
+    if force_full or not all_pages:
+        return all_pages, True
+
+    # Build current mtime snapshot
+    current_mtimes: dict[str, float] = {}
+    for rel, info in all_pages.items():
+        current_mtimes[rel] = info["path"].stat().st_mtime
+
+    # Load previous state
+    prev_mtimes: dict[str, float] = {}
+    if LINT_STATE_FILE.is_file():
+        try:
+            prev_mtimes = json.loads(LINT_STATE_FILE.read_text(encoding="utf-8"))
+        except (ValueError, OSError):
+            pass
+
+    # Find changed/new pages
+    changed: dict[str, dict[str, Any]] = {}
+    for rel, info in all_pages.items():
+        prev_mtime = prev_mtimes.get(rel)
+        if prev_mtime is None or current_mtimes[rel] != prev_mtime:
+            changed[rel] = info
+
+    # If many pages changed (e.g. bulk ingest), fall back to full scan
+    if len(changed) > len(all_pages) * 0.5:
+        return all_pages, True
+
+    # Persist new mtimes
+    LINT_STATE_FILE.write_text(json.dumps(current_mtimes, indent=2), encoding="utf-8")
+
+    if not changed:
+        return {}, False
+
+    return changed, False
+
+
 # ─── Runner ────────────────────────────────────────────────────────────
 
 def run_all(
@@ -115,6 +169,7 @@ def run_all(
     include_llm: bool = False,
     llm_callback: Optional[Callable[[str], str]] = None,
     selected: Optional[list[str]] = None,
+    incremental: bool = False,
 ) -> list[dict[str, Any]]:
     """Run all registered lint rules. Returns a flat list of issues.
 
@@ -126,12 +181,18 @@ def run_all(
         If True, also run LLM-powered rules (requires_llm=True).
     llm_callback : callable, optional
         Function that takes a prompt string and returns a response.
-        Required when include_llm=True.
     selected : list[str], optional
         Run only these rules by name. Default: all.
+    incremental : bool
+        If True, ``pages`` contains only changed pages. Cross-page
+        rules (link integrity, orphans, index sync) are still run
+        against the full wiki; per-page rules skip unchanged files.
     """
     # Import all rule modules so they register themselves
     from llmwiki.lint import rules  # noqa: F401
+
+    # When incremental, always run cross-page rules against full set
+    cross_page_rules = {"LinkIntegrity", "OrphanDetection", "IndexSync"}
 
     issues: list[dict[str, Any]] = []
     for name, rule_cls in REGISTRY.items():
@@ -141,7 +202,12 @@ def run_all(
             continue
         rule = rule_cls()
         try:
-            issues.extend(rule.run(pages, llm_callback=llm_callback))
+            if incremental and name in cross_page_rules and pages:
+                # Cross-page rules need the full wiki to be correct
+                full_pages = load_pages()
+                issues.extend(rule.run(full_pages, llm_callback=llm_callback))
+            else:
+                issues.extend(rule.run(pages, llm_callback=llm_callback))
         except Exception as e:
             issues.append({
                 "rule": name,
