@@ -13,6 +13,7 @@ Subcommands:
     watch             Watch agent session stores and auto-sync on change
     export-obsidian   Export the compiled wiki into an Obsidian vault
     export-qmd        Export the wiki as a self-contained qmd collection
+    notebooks         Manage notebook knowledge bases
     adapters          List available session-store adapters
     version           Print version and exit
 """
@@ -237,6 +238,41 @@ def cmd_adapters(args: argparse.Namespace) -> int:
     print("Adapters marked 'disabled' or '-' under configured require explicit")
     print("opt-in via sessions_config.json. See examples/sessions_config.json.")
     return 0
+
+
+def cmd_notebooks(args: argparse.Namespace) -> int:
+    """Manage notebook knowledge bases."""
+    from llmwiki.notebooks import migrate_default_notebook
+
+    if args.action == "migrate-default":
+        result = migrate_default_notebook(dry_run=args.dry_run)
+        if args.dry_run:
+            print("Would copy:")
+            for item in result["would_copy"]:
+                print(f"  {item}")
+            if not result["would_copy"]:
+                print("  nothing")
+            if result["blocked"]:
+                print("Blocked:")
+                for item in result["blocked"]:
+                    print(f"  {item}")
+            return 0
+
+        if result["blocked"]:
+            print("Blocked:")
+            for item in result["blocked"]:
+                print(f"  {item}")
+            return 1
+
+        print("Copied:")
+        for item in result["copied"]:
+            print(f"  {item}")
+        if not result["copied"]:
+            print("  nothing")
+        return 0
+
+    print(f"error: unknown notebooks action {args.action!r}", file=sys.stderr)
+    return 2
 
 
 def cmd_graph(args: argparse.Namespace) -> int:
@@ -829,6 +865,16 @@ def build_parser() -> argparse.ArgumentParser:
     # adapters
     ads = sub.add_parser("adapters", help="List available adapters")
     ads.set_defaults(func=cmd_adapters)
+
+    # notebooks
+    notebooks = sub.add_parser("notebooks", help="Manage notebook knowledge bases")
+    notebook_sub = notebooks.add_subparsers(dest="action", metavar="ACTION", required=True)
+    migrate_default = notebook_sub.add_parser(
+        "migrate-default",
+        help="Copy existing root wiki data into the default notebook",
+    )
+    migrate_default.add_argument("--dry-run", action="store_true")
+    migrate_default.set_defaults(func=cmd_notebooks)
 
     # graph
     graph = sub.add_parser("graph", help="Build the knowledge graph (graph/graph.json + graph.html)")
