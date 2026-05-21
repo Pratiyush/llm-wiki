@@ -45,13 +45,12 @@ class WebhookHandler(BaseHTTPRequestHandler):
     """Handle POST /webhook from GitHub."""
 
     def do_POST(self) -> None:
+        length = int(self.headers.get("Content-Length", 0))
+        body = self.rfile.read(length)
+
         if self.path not in ("/webhook", "/webhook/"):
             self._respond(404, {"error": "not found"})
             return
-
-        # Read body
-        length = int(self.headers.get("Content-Length", 0))
-        body = self.rfile.read(length)
 
         # Verify signature if a secret is configured
         if WEBHOOK_SECRET:
