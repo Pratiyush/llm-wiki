@@ -34,7 +34,7 @@ def _resolve_secret_key() -> str:
     generated = secrets.token_hex(32)
     secret_file.write_text(generated, encoding="utf-8")
     print(
-        f"  warning: no JWT_SECRET_KEY set — auto-generated a random key "
+        f"  warning: no JWT_SECRET_KEY set; auto-generated a random key "
         f"({secret_file}). Set JWT_SECRET_KEY in .env for persistent deployments.",
     )
     return generated

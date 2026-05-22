@@ -178,3 +178,11 @@ test-results/
 playwright-report/
 .claude/worktrees/
 .worktrees/
+
+# llmwiki web runtime state
+llmwiki.db
+llmwiki.db-*
+.jwt_secret
+
+# Notebook uploads can contain private source documents
+notebooks/*/raw/uploads/
