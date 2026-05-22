@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import re as _re
+from pathlib import Path
 
 from dotenv import load_dotenv
 from openai import OpenAI
@@ -91,9 +92,9 @@ def get_client() -> OpenAI:
     return OpenAI(api_key=API_KEY, base_url=BASE_URL)
 
 
-def ask(question: str, model: str | None = None) -> str:
+def ask(question: str, model: str | None = None, *, wiki_dir: Path | None = None) -> str:
     """Ask a question with wiki context, return full answer."""
-    context = build_context(question)
+    context = build_context(question, wiki_dir=wiki_dir)
     client, actual_model = _get_client_for_model(model or MODEL_FLASH)
 
     messages = [
@@ -110,9 +111,9 @@ def ask(question: str, model: str | None = None) -> str:
     return resp.choices[0].message.content
 
 
-def ask_stream(question: str, model: str | None = None):
+def ask_stream(question: str, model: str | None = None, *, wiki_dir: Path | None = None):
     """Stream Q&A response via generator (for SSE)."""
-    context = build_context(question)
+    context = build_context(question, wiki_dir=wiki_dir)
     client, actual_model = _get_client_for_model(model or MODEL_FLASH)
 
     messages = [
@@ -136,6 +137,7 @@ def ask_stream(question: str, model: str | None = None):
 def _build_context_from_wiki(
     question: str,
     *,
+    wiki_dir: Path | None = None,
     search_limit: int = 8,
     max_pages: int = 8,
     per_page_chars: int = 3000,
@@ -152,11 +154,11 @@ def _build_context_from_wiki(
     """
     from llmwiki.web.services.wiki_reader import search, read_page
 
-    results = search(question, limit=search_limit)
+    results = search(question, limit=search_limit, wiki_dir=wiki_dir)
 
     if not results:
         if fallback_to_overview:
-            overview = read_page("overview.md")
+            overview = read_page("overview.md", wiki_dir=wiki_dir)
             if "content" in overview:
                 return overview["content"][:total_max_chars]
         return ""
@@ -164,7 +166,7 @@ def _build_context_from_wiki(
     context_parts = []
     total = 0
     for r in results[:max_pages]:
-        page = read_page(r["path"])
+        page = read_page(r["path"], wiki_dir=wiki_dir)
         if "content" not in page:
             continue
         score_suffix = f", 相关度: {r.get('score', 0):.0f}" if include_score else ""
@@ -178,9 +180,9 @@ def _build_context_from_wiki(
     return "".join(context_parts)
 
 
-def build_context(question: str, max_chars: int = 20000) -> str:
+def build_context(question: str, max_chars: int = 20000, *, wiki_dir: Path | None = None) -> str:
     """Search wiki pages and build context string for LLM (non-streaming path)."""
-    return _build_context_from_wiki(question, total_max_chars=max_chars)
+    return _build_context_from_wiki(question, total_max_chars=max_chars, wiki_dir=wiki_dir)
 
 
 INGEST_PROMPT = """你是一个企业知识库的结构化分析助手。请分析以下制度文档内容，提取知识要素。
@@ -314,7 +316,7 @@ WIKI_TOOLS = [
 MAX_AGENT_ITERATIONS = 10
 
 
-def _execute_wiki_tool(name: str, arguments: dict) -> str:
+def _execute_wiki_tool(name: str, arguments: dict, *, wiki_dir: Path | None = None) -> str:
     """Execute a wiki tool and return string result."""
     import json as _json
     from llmwiki.web.services.wiki_reader import search, read_page
@@ -322,7 +324,7 @@ def _execute_wiki_tool(name: str, arguments: dict) -> str:
     if name == "search_wiki":
         query = arguments.get("query", "")
         limit = arguments.get("limit", 10)
-        results = search(query, limit=limit)
+        results = search(query, limit=limit, wiki_dir=wiki_dir)
         if not results:
             return "未找到相关页面。"
         lines = []
@@ -332,7 +334,7 @@ def _execute_wiki_tool(name: str, arguments: dict) -> str:
 
     elif name == "read_wiki_page":
         path = arguments.get("path", "")
-        page = read_page(path)
+        page = read_page(path, wiki_dir=wiki_dir)
         if "content" not in page:
             return f"页面不存在或无法读取: {path}"
         return page["content"][:8000]
@@ -341,7 +343,13 @@ def _execute_wiki_tool(name: str, arguments: dict) -> str:
         return f"未知工具: {name}"
 
 
-def _preload_context(question: str, max_pages: int = 3, max_chars: int = 15000) -> str:
+def _preload_context(
+    question: str,
+    max_pages: int = 3,
+    max_chars: int = 15000,
+    *,
+    wiki_dir: Path | None = None,
+) -> str:
     """Pre-load top search results into context to save agent iterations."""
     return _build_context_from_wiki(
         question,
@@ -351,10 +359,17 @@ def _preload_context(question: str, max_pages: int = 3, max_chars: int = 15000) 
         total_max_chars=max_chars,
         include_score=True,
         fallback_to_overview=False,
+        wiki_dir=wiki_dir,
     )
 
 
-def ask_agent(question: str, model: str | None = None, conversation_history: str | None = None):
+def ask_agent(
+    question: str,
+    model: str | None = None,
+    conversation_history: str | None = None,
+    *,
+    wiki_dir: Path | None = None,
+):
     """Agent loop with tool calling — yields SSE JSON events.
 
     Inspired by claw-code ConversationRuntime::run_turn():
@@ -370,7 +385,7 @@ def ask_agent(question: str, model: str | None = None, conversation_history: str
     client, actual_model = _get_client_for_model(model or MODEL_FLASH)
 
     # Pre-load: search and inject top results into system prompt
-    preloaded_context = _preload_context(question)
+    preloaded_context = _preload_context(question, wiki_dir=wiki_dir)
 
     system_content = AGENT_SYSTEM_PROMPT
     if conversation_history:
@@ -461,7 +476,7 @@ def ask_agent(question: str, model: str | None = None, conversation_history: str
                 func_args = {}
 
             # Execute tool ONCE
-            result = _execute_wiki_tool(func_name, func_args)
+            result = _execute_wiki_tool(func_name, func_args, wiki_dir=wiki_dir)
             tool_results[tc.id] = result
 
             if func_name == "read_wiki_page":
