@@ -13,8 +13,11 @@ import json
 from pathlib import Path
 
 import pytest
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
 
 import llmwiki.graph as graph_mod
+import llmwiki.web.routes.graph as graph_route
 from llmwiki.graph import (
     HTML_TEMPLATE,
     build_graph,
@@ -75,6 +78,21 @@ def test_scan_pages_excludes_readme(tmp_path: Path, monkeypatch):
     pages = scan_pages()
     assert "README" not in pages
     assert "Keep" in pages
+
+
+def test_graph_scan_pages_uses_supplied_wiki_dir(tmp_path: Path, monkeypatch):
+    alpha_wiki = tmp_path / "alpha" / "wiki"
+    beta_wiki = tmp_path / "beta" / "wiki"
+    alpha_wiki.mkdir(parents=True)
+    beta_wiki.mkdir(parents=True)
+    (alpha_wiki / "Alpha.md").write_text("alpha body", encoding="utf-8")
+    (beta_wiki / "Beta.md").write_text("beta body", encoding="utf-8")
+    monkeypatch.setattr(graph_mod, "REPO_ROOT", tmp_path)
+
+    pages = scan_pages(wiki_dir=alpha_wiki)
+
+    assert "Alpha" in pages
+    assert "Beta" not in pages
 
 
 def test_build_graph_computes_in_degree(seeded_graph):
@@ -207,6 +225,55 @@ def test_write_json_roundtrip(tmp_path: Path, seeded_graph):
     write_json(seeded_graph, out)
     loaded = json.loads(out.read_text(encoding="utf-8"))
     assert loaded["stats"]["total_pages"] == seeded_graph["stats"]["total_pages"]
+
+
+def test_graph_route_data_is_scoped_by_notebook(tmp_path: Path, monkeypatch):
+    default_wiki = tmp_path / "notebooks" / "enterprise-management" / "wiki"
+    ops_wiki = tmp_path / "notebooks" / "ops" / "wiki"
+    global_wiki = tmp_path / "wiki"
+    default_wiki.mkdir(parents=True)
+    ops_wiki.mkdir(parents=True)
+    global_wiki.mkdir(parents=True)
+    (default_wiki / "DefaultOnly.md").write_text("default", encoding="utf-8")
+    (ops_wiki / "OpsOnly.md").write_text("ops", encoding="utf-8")
+    (global_wiki / "GlobalOnly.md").write_text("global", encoding="utf-8")
+    monkeypatch.setattr(graph_route, "REPO_ROOT", tmp_path)
+
+    app = FastAPI()
+    app.include_router(graph_route.router, prefix="/api/graph")
+    client = TestClient(app)
+
+    ops_response = client.get("/api/graph/data?notebook=ops")
+    assert ops_response.status_code == 200
+    ops_ids = {node["id"] for node in ops_response.json()["nodes"]}
+    assert ops_ids == {"OpsOnly"}
+
+    default_response = client.get("/api/graph/data")
+    assert default_response.status_code == 200
+    default_ids = {node["id"] for node in default_response.json()["nodes"]}
+    assert default_ids == {"DefaultOnly"}
+
+    assert client.get("/api/graph/data?notebook=../ops").status_code == 404
+    assert client.get("/api/graph/data?notebook=missing").status_code == 404
+
+
+def test_rebuild_graph_does_not_call_invalid_json_only(tmp_path: Path, monkeypatch):
+    wiki = tmp_path / "notebooks" / "ops" / "wiki"
+    graph_dir = tmp_path / "notebooks" / "ops" / "graph"
+    wiki.mkdir(parents=True)
+    (wiki / "OpsOnly.md").write_text("ops", encoding="utf-8")
+    monkeypatch.setattr(graph_route, "REPO_ROOT", tmp_path)
+
+    app = FastAPI()
+    app.include_router(graph_route.router, prefix="/api/graph")
+    client = TestClient(app)
+
+    response = client.post("/api/graph/rebuild?notebook=ops")
+
+    assert response.status_code == 200
+    assert response.json() == {"status": "ok"}
+    assert (graph_dir / "graph.json").is_file()
+    assert (graph_dir / "graph.html").is_file()
 
 
 # ─── copy_to_site() — #118 site integration ───────────────────────────

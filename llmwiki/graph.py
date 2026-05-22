@@ -26,24 +26,34 @@ from llmwiki import REPO_ROOT
 
 WIKI_DIR = REPO_ROOT / "wiki"
 GRAPH_DIR = REPO_ROOT / "graph"
+_DEFAULT_WIKI_DIR = WIKI_DIR
+_DEFAULT_GRAPH_DIR = GRAPH_DIR
 
 WIKILINK_RE = re.compile(r"\[\[([^\]|]+)(?:\|[^\]]*)?\]\]")
 
 
-def scan_pages() -> dict[str, dict[str, Any]]:
+def _resolve_default_path(path: Path, current_default: Path, original_default: Path) -> Path:
+    if path == original_default and current_default != original_default:
+        return current_default
+    return Path(path)
+
+
+def scan_pages(wiki_dir: Path = WIKI_DIR) -> dict[str, dict[str, Any]]:
     """Return a dict {slug: {path, type, title, out_links}}."""
     pages: dict[str, dict[str, Any]] = {}
-    if not WIKI_DIR.exists():
+    wiki_root = _resolve_default_path(wiki_dir, WIKI_DIR, _DEFAULT_WIKI_DIR)
+    if not wiki_root.exists():
         return pages
-    for p in sorted(WIKI_DIR.rglob("*.md")):
+    for p in sorted(wiki_root.rglob("*.md")):
         slug = p.stem
         if slug in ("README",):
             continue
         # Type = parent directory name when under sources/entities/concepts/etc.
         try:
-            rel = p.relative_to(WIKI_DIR)
+            rel = p.relative_to(wiki_root)
             type_ = rel.parts[0] if len(rel.parts) > 1 else "root"
         except ValueError:
+            rel = p
             type_ = "root"
         title = slug
         try:
@@ -57,7 +67,7 @@ def scan_pages() -> dict[str, dict[str, Any]]:
         # Extract wikilinks
         out_links = set(WIKILINK_RE.findall(text))
         pages[slug] = {
-            "path": str(p.relative_to(REPO_ROOT)),
+            "path": rel.as_posix(),
             "type": type_,
             "title": title,
             "out_links": out_links,
@@ -65,8 +75,9 @@ def scan_pages() -> dict[str, dict[str, Any]]:
     return pages
 
 
-def build_graph() -> dict[str, Any]:
-    pages = scan_pages()
+def build_graph(wiki_dir: Path = WIKI_DIR) -> dict[str, Any]:
+    wiki_root = _resolve_default_path(wiki_dir, WIKI_DIR, _DEFAULT_WIKI_DIR)
+    pages = scan_pages(wiki_dir=wiki_root)
 
     # Compute in-degree
     in_deg: dict[str, int] = {slug: 0 for slug in pages}
@@ -470,7 +481,12 @@ def write_html(graph: dict[str, Any], out_path: Path) -> None:
     out_path.write_text(html, encoding="utf-8")
 
 
-def copy_to_site(site_dir: Path, *, graph: Optional[dict[str, Any]] = None) -> Optional[Path]:
+def copy_to_site(
+    site_dir: Path,
+    *,
+    graph: Optional[dict[str, Any]] = None,
+    wiki_dir: Path = WIKI_DIR,
+) -> Optional[Path]:
     """Emit ``site/graph.html`` so the interactive viewer is reachable
     from the static site (v1.1.0 · #118).
 
@@ -480,7 +496,8 @@ def copy_to_site(site_dir: Path, *, graph: Optional[dict[str, Any]] = None) -> O
 
     Returns the path written, or ``None`` when the wiki has no pages.
     """
-    g = graph or build_graph()
+    wiki_root = _resolve_default_path(wiki_dir, WIKI_DIR, _DEFAULT_WIKI_DIR)
+    g = graph or build_graph(wiki_dir=wiki_root)
     if not g.get("nodes"):
         return None
     out = site_dir / "graph.html"
@@ -488,21 +505,36 @@ def copy_to_site(site_dir: Path, *, graph: Optional[dict[str, Any]] = None) -> O
     return out
 
 
-def build_and_report(write_json_flag: bool = True, write_html_flag: bool = True) -> int:
-    graph = build_graph()
+def _display_path(path: Path) -> str:
+    try:
+        return str(path.relative_to(REPO_ROOT))
+    except ValueError:
+        return str(path)
+
+
+def build_and_report(
+    write_json_flag: bool = True,
+    write_html_flag: bool = True,
+    *,
+    wiki_dir: Path = WIKI_DIR,
+    graph_dir: Path = GRAPH_DIR,
+) -> int:
+    wiki_root = _resolve_default_path(wiki_dir, WIKI_DIR, _DEFAULT_WIKI_DIR)
+    graph_root = _resolve_default_path(graph_dir, GRAPH_DIR, _DEFAULT_GRAPH_DIR)
+    graph = build_graph(wiki_dir=wiki_root)
     if not graph["nodes"]:
-        print(f"warning: no wiki pages found under {WIKI_DIR}", file=sys.stderr)
+        print(f"warning: no wiki pages found under {wiki_root}", file=sys.stderr)
         return 1
 
     if write_json_flag:
-        json_path = GRAPH_DIR / "graph.json"
+        json_path = graph_root / "graph.json"
         write_json(graph, json_path)
-        print(f"  wrote {json_path.relative_to(REPO_ROOT)}")
+        print(f"  wrote {_display_path(json_path)}")
 
     if write_html_flag:
-        html_path = GRAPH_DIR / "graph.html"
+        html_path = graph_root / "graph.html"
         write_html(graph, html_path)
-        print(f"  wrote {html_path.relative_to(REPO_ROOT)}")
+        print(f"  wrote {_display_path(html_path)}")
 
     stats = graph["stats"]
     print()
