@@ -9,6 +9,7 @@ const Manager = {
         this.loadDeployLog();
         this.loadAuditFiles();
         this.loadWikiPages();
+        this.loadNotebookAdminList();
       }
     });
 
@@ -16,6 +17,10 @@ const Manager = {
     document.getElementById('btn-fix-wiki')?.addEventListener('click', () => this.runAction('fix-wiki'));
     document.getElementById('btn-build')?.addEventListener('click', () => this.runAction('build'));
     document.getElementById('btn-sync')?.addEventListener('click', () => this.runAction('sync'));
+    document.getElementById('notebook-create-form')?.addEventListener('submit', (e) => {
+      e.preventDefault();
+      this.createNotebook();
+    });
 
     // Wiki content management
     document.getElementById('wiki-cat-select')?.addEventListener('change', () => this.loadWikiPages());
@@ -42,6 +47,7 @@ const Manager = {
     }
 
     window.addEventListener('notebook:change', () => this.reloadVisible());
+    window.addEventListener('auth:change', () => this.reloadVisible());
   },
 
   notebookSlug() {
@@ -65,6 +71,63 @@ const Manager = {
     this.loadApprovals();
     this.loadAuditFiles();
     this.loadWikiPages();
+    this.loadNotebookAdminList();
+  },
+
+  async createNotebook() {
+    if (typeof Auth === 'undefined' || !Auth.isAdmin()) return;
+    var error = document.getElementById('notebook-create-error');
+    if (error) error.textContent = '';
+
+    var nameEl = document.getElementById('notebook-name');
+    var slugEl = document.getElementById('notebook-slug');
+    var descEl = document.getElementById('notebook-description');
+    var name = (nameEl?.value || '').trim();
+    var slug = (slugEl?.value || '').trim().toLowerCase();
+    var description = (descEl?.value || '').trim();
+    if (!name || !slug) return;
+
+    try {
+      var data = await API.createNotebook({ name: name, slug: slug, description: description });
+      if (data.status === 'ok') {
+        document.getElementById('notebook-create-form')?.reset();
+        await Notebooks.load();
+        this.loadNotebookAdminList();
+      } else if (error) {
+        error.textContent = data.message || '创建失败';
+      }
+    } catch (e) {
+      if (error) error.textContent = e.message || '创建失败';
+    }
+  },
+
+  async loadNotebookAdminList() {
+    var section = document.getElementById('notebook-management-section');
+    var list = document.getElementById('notebook-admin-list');
+    if (!section || !list) return;
+    if (typeof Auth === 'undefined' || !Auth.isAdmin()) {
+      section.style.display = 'none';
+      list.innerHTML = '';
+      return;
+    }
+    section.style.display = 'block';
+    await Notebooks.load();
+    var notebooks = Notebooks.notebooks || [];
+    if (!notebooks.length) {
+      list.innerHTML = '<div class="muted">暂无 Notebook</div>';
+      return;
+    }
+    list.innerHTML = notebooks.map(n => {
+      var title = n.title || n.name || n.slug;
+      return '<div class="notebook-admin-item">' +
+        '<div class="notebook-admin-title">' +
+        '<strong>' + this._esc(title) + '</strong>' +
+        (n.is_default ? '<span class="status-badge current">默认</span>' : '') +
+        '</div>' +
+        '<div class="muted">' + this._esc(n.slug) + '</div>' +
+        '<p>' + this._esc(n.description || '') + '</p>' +
+        '</div>';
+    }).join('');
   },
 
   async loadStats() {

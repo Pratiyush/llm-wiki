@@ -495,6 +495,18 @@ a:hover { color: var(--accent-hover); }
   max-height: 420px; overflow-y: auto; min-height: 60px; color: var(--text-secondary);
   line-height: 1.55;
 }
+.manage-section { margin: 24px 0; }
+.notebook-form { display: grid; grid-template-columns: minmax(160px,1fr) minmax(120px,180px) minmax(220px,2fr) auto; gap: 10px; }
+.notebook-form input {
+  min-width: 0; border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--bg-card); color: var(--text); font-family: var(--font);
+  font-size: 13px; padding: 8px 10px;
+}
+.notebook-form input:focus { outline: none; border-color: var(--accent); }
+.notebook-admin-list { display: grid; gap: 10px; margin-top: 14px; }
+.notebook-admin-item { border: 1px solid var(--border); background: var(--bg-card); border-radius: var(--radius-sm); padding: 12px; }
+.notebook-admin-title { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.notebook-admin-item p { margin-top: 6px; color: var(--text-secondary); font-size: 13px; }
 
 /* ═══════════════════════════════════════════════════════════════════════════
    Buttons
@@ -535,6 +547,7 @@ a:hover { color: var(--accent-hover); }
   .tab-btn[data-tab="qa"] { padding: 4px 16px; font-size: 13px; margin: 0 8px; }
   .nav-brand { min-width: auto; }
   .nav-title { display: none; }
+  .notebook-form { grid-template-columns: 1fr; }
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════

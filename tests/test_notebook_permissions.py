@@ -140,6 +140,7 @@ def test_create_notebook_allows_admin_and_creates_private_dirs(
         "notebook": {
             "slug": "admin-notes",
             "title": "Admin Notes",
+            "name": "Admin Notes",
             "description": "Private",
             "visibility": "private",
             "is_default": False,
@@ -148,6 +149,79 @@ def test_create_notebook_allows_admin_and_creates_private_dirs(
     notebook = db_session.query(Notebook).filter_by(slug="admin-notes").one()
     assert notebook.created_by == users["admin"].id
     assert (tmp_path / "notebooks" / "admin-notes" / "wiki").is_dir()
+
+
+def test_create_notebook_accepts_name_alias_for_frontend(
+    db_session, users, monkeypatch, tmp_path
+):
+    from llmwiki.web.routes import notebooks as route
+    from llmwiki.web.services import notebooks as notebook_services
+
+    monkeypatch.setattr(notebook_services, "REPO_ROOT", tmp_path)
+
+    response = asyncio.run(
+        route.create_notebook(
+            {"slug": "ai", "name": "Artificial Intelligence", "description": "AI notes"},
+            user=users["admin"],
+            db=db_session,
+        )
+    )
+
+    assert response["notebook"]["slug"] == "ai"
+    assert response["notebook"]["title"] == "Artificial Intelligence"
+    assert response["notebook"]["name"] == "Artificial Intelligence"
+
+
+def test_update_notebook_allows_admin_to_edit_non_default(db_session, users):
+    from llmwiki.web.routes import notebooks as route
+
+    db_session.add(
+        Notebook(
+            slug="ai",
+            title="AI",
+            description="Old",
+            is_default=False,
+            created_by=users["admin"].id,
+        )
+    )
+    db_session.commit()
+
+    response = asyncio.run(
+        route.update_notebook(
+            "ai",
+            {"name": "Artificial Intelligence", "description": "New"},
+            user=users["admin"],
+            db=db_session,
+        )
+    )
+
+    notebook = db_session.query(Notebook).filter_by(slug="ai").one()
+    assert response["status"] == "ok"
+    assert notebook.title == "Artificial Intelligence"
+    assert notebook.description == "New"
+
+
+def test_update_notebook_rejects_staff_and_default(db_session, users):
+    from llmwiki.web.routes import notebooks as route
+
+    db_session.add(Notebook(slug="enterprise-management", title="Default", is_default=True))
+    db_session.add(Notebook(slug="ai", title="AI", is_default=False))
+    db_session.commit()
+
+    with pytest.raises(HTTPException) as staff_exc:
+        asyncio.run(route.update_notebook("ai", {"name": "X"}, user=users["staff"], db=db_session))
+    assert staff_exc.value.status_code == 403
+
+    with pytest.raises(HTTPException) as default_exc:
+        asyncio.run(
+            route.update_notebook(
+                "enterprise-management",
+                {"name": "X"},
+                user=users["admin"],
+                db=db_session,
+            )
+        )
+    assert default_exc.value.status_code == 404
 
 
 @pytest.mark.parametrize(

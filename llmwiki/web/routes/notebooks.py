@@ -22,6 +22,7 @@ def _serialize_notebook(notebook: Notebook) -> dict[str, object]:
     return {
         "slug": notebook.slug,
         "title": notebook.title,
+        "name": notebook.title,
         "description": notebook.description or (
             NOTEBOOK_DESCRIPTION if notebook.is_default else None
         ),
@@ -55,7 +56,7 @@ async def create_notebook(
         raise HTTPException(status_code=403, detail="admin role required")
 
     slug = str(body.get("slug") or "").strip()
-    title = str(body.get("title") or "").strip()
+    title = str(body.get("title") or body.get("name") or "").strip()
     description = body.get("description")
     if isinstance(description, str):
         description = description.strip() or None
@@ -78,4 +79,34 @@ async def create_notebook(
     db.commit()
     db.refresh(notebook)
 
+    return {"status": "ok", "notebook": _serialize_notebook(notebook)}
+
+
+@router.patch("/{slug}")
+async def update_notebook(
+    slug: str,
+    body: dict,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if not user_is_admin(user):
+        raise HTTPException(status_code=403, detail="admin role required")
+    if not is_valid_slug(slug):
+        raise HTTPException(status_code=404, detail="notebook not found")
+
+    notebook = db.query(Notebook).filter(Notebook.slug == slug).first()
+    if not notebook or notebook.is_default:
+        raise HTTPException(status_code=404, detail="notebook not found")
+
+    title = str(body.get("title") or body.get("name") or notebook.title).strip()
+    description = body.get("description", notebook.description)
+    if isinstance(description, str):
+        description = description.strip() or None
+    if not title:
+        raise HTTPException(status_code=400, detail="invalid notebook")
+
+    notebook.title = title
+    notebook.description = description
+    db.commit()
+    db.refresh(notebook)
     return {"status": "ok", "notebook": _serialize_notebook(notebook)}

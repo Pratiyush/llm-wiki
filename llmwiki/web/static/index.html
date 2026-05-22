@@ -173,6 +173,18 @@
         </div>
         <div class="manage-output" id="manage-output"></div>
 
+        <section class="manage-section" id="notebook-management-section" style="display:none">
+          <h3 class="section-title">Notebook 管理</h3>
+          <form id="notebook-create-form" class="notebook-form">
+            <input id="notebook-name" placeholder="名称，例如：人工智能" required>
+            <input id="notebook-slug" placeholder="slug，例如：ai" required>
+            <input id="notebook-description" placeholder="描述，可选">
+            <button class="btn btn-primary" type="submit">新建 Notebook</button>
+          </form>
+          <div id="notebook-create-error" class="form-error"></div>
+          <div id="notebook-admin-list" class="notebook-admin-list"></div>
+        </section>
+
         <!-- Deploy log section -->
         <div id="deploy-log-section">
           <h3 class="section-title">维护日志 <span class="version-badge" id="version-badge"></span></h3>

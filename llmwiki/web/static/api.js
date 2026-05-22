@@ -95,9 +95,25 @@ const API = {
         ...(token ? { 'Authorization': 'Bearer ' + token } : {}),
       },
       body: JSON.stringify(body),
-    }).then(r => {
-      if (!r.ok) throw new Error(`API error: ${r.status}`);
-      return r.json();
+    }).then(async r => {
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(data.detail || `API error: ${r.status}`);
+      return data;
+    });
+  },
+  updateNotebook: (slug, body) => {
+    const token = (typeof Auth !== 'undefined') ? Auth.getToken() : '';
+    return fetch('/api/notebooks/' + encodeURIComponent(slug), {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': 'Bearer ' + token } : {}),
+      },
+      body: JSON.stringify(body),
+    }).then(async r => {
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(data.detail || `API error: ${r.status}`);
+      return data;
     });
   },
 
