@@ -30,6 +30,17 @@ Every Claude Code, Codex CLI, Copilot, Cursor, and Gemini CLI session writes a f
 ./build.sh && ./serve.sh           # build + serve at http://127.0.0.1:8765
 ```
 
+### Web notebook knowledge bases
+
+The FastAPI web UI can also run llmwiki as a multi-notebook knowledge platform. Existing enterprise internal-control content is migrated into the default notebook named `企业管理制度`; each notebook has its own `raw/`, `wiki/`, graph, uploads, chat history, and saved syntheses. Admin users can create and manage additional notebooks such as `人工智能`, upload `.pdf`, `.doc`, `.docx`, `.md`, and `.txt` files, generate wiki/graph content, and ask questions scoped strictly to the selected notebook's uploaded knowledge.
+
+Current access rules are intentionally conservative: only `admin` users can create or manage notebooks and see non-default notebooks. Staff users see and query only the default `企业管理制度` notebook.
+
+```bash
+python -m llmwiki notebooks migrate-default
+python -m llmwiki web --host 0.0.0.0 --port 8765
+```
+
 ![llm-wiki demo](docs/demo.gif)
 
 **Contributing in one line:** read [`CONTRIBUTING.md`](CONTRIBUTING.md), keep PRs focused (one concern each), use `feat:` / `fix:` / `docs:` / `chore:` / `test:` commit prefixes, never commit real session data (`raw/` is gitignored), no new runtime deps. CI must be green to merge.
