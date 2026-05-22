@@ -206,7 +206,10 @@ def main():
         print("Migrating default notebook...")
         run_remote(
             ssh,
-            f"cd {REMOTE_BASE} && .venv/bin/python -m llmwiki notebooks migrate-default",
+            f"cd {REMOTE_BASE} && "
+            "if [ -d notebooks/enterprise-management/wiki ]; then "
+            "echo 'Default notebook already exists; skipping migration'; "
+            "else .venv/bin/python -m llmwiki notebooks migrate-default; fi",
             "Default notebook migration",
         )
         print("Restarting service...")
