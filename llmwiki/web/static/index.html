@@ -26,6 +26,10 @@
       <button class="tab-btn" data-tab="manage">管理</button>
     </div>
     <div class="nav-actions">
+      <div class="notebook-selector" id="notebook-selector" style="display:none">
+        <label for="notebook-select">知识库</label>
+        <select id="notebook-select"></select>
+      </div>
       <button class="theme-toggle" id="theme-toggle" title="切换主题">
         <span class="theme-icon">&#9788;</span>
       </button>
@@ -84,6 +88,10 @@
                   <option value="kimi-k2.5" data-mode="agent">Kimi K2.5</option>
                 </select>
               </div>
+              <label class="cross-notebook-row" id="cross-notebook-row" style="display:none">
+                <input type="checkbox" id="cross-notebook-search">
+                跨知识库搜索
+              </label>
             </div>
           </div>
           <div class="chat-thread-bar" id="chat-thread-bar" style="display:none">
@@ -311,6 +319,7 @@
   <script src="/static/components/router.js"></script>
   <script src="/static/api.js"></script>
   <script src="/static/components/auth.js?v=3"></script>
+  <script src="/static/components/notebooks.js?v=1"></script>
   <script src="/static/components/browser.js"></script>
   <script src="/static/components/qa.js?v=5"></script>
   <script src="/static/components/threads.js?v=1"></script>

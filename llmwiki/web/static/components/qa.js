@@ -5,6 +5,7 @@ const QA = {
   threadId: null,       // current conversation thread ID
   _streamBuf: [],       // buffered SSE events while streaming
   _streamReading: false, // true while ReadableStream pump is active
+  historySeq: 0,
 
   init() {
     this.messagesEl = document.getElementById('chat-messages');
@@ -30,7 +31,40 @@ const QA = {
       Threads.init();
     }
 
+    window.addEventListener('notebook:change', () => {
+      this.clearChat();
+      if (typeof Threads !== 'undefined') Threads.refresh();
+    });
+    window.addEventListener('auth:change', () => this.updateCrossNotebookVisibility());
+    this.updateCrossNotebookVisibility();
+
     console.log('[QA] initialized');
+  },
+
+  notebookSlug() {
+    return (typeof Notebooks !== 'undefined' && Notebooks.currentSlug)
+      ? Notebooks.currentSlug()
+      : 'enterprise-management';
+  },
+
+  notebookQuery() {
+    return 'notebook=' + encodeURIComponent(this.notebookSlug());
+  },
+
+  crossNotebookEnabled() {
+    var input = document.getElementById('cross-notebook-search');
+    return !!(input && input.checked);
+  },
+
+  updateCrossNotebookVisibility() {
+    var row = document.getElementById('cross-notebook-row');
+    if (!row) return;
+    var isAdmin = typeof Auth !== 'undefined' && Auth.isAdmin && Auth.isAdmin();
+    row.style.display = isAdmin ? 'flex' : 'none';
+    if (!isAdmin) {
+      var input = document.getElementById('cross-notebook-search');
+      if (input) input.checked = false;
+    }
   },
 
   send() {
@@ -69,9 +103,12 @@ const QA = {
     self.clearChat();
 
     var token = Auth.getToken();
-    fetch('/api/query/history?token=' + encodeURIComponent(token))
+    var slug = this.notebookSlug();
+    var seq = ++this.historySeq;
+    fetch('/api/query/history?token=' + encodeURIComponent(token) + '&' + this.notebookQuery())
     .then(function(r) { return r.json(); })
     .then(function(data) {
+      if (seq !== self.historySeq || self.notebookSlug() !== slug) return;
       if (!data.history || data.history.length === 0) return;
       self.messagesEl.innerHTML = '';
       var lastThreadId = null;
@@ -109,9 +146,12 @@ const QA = {
       '<option value="deepseek-v3.2" data-mode="agent">DeepSeek V3.2</option>' +
       '<option value="deepseek-v4-pro" data-mode="agent">DeepSeek V4 Pro</option>' +
       '<option value="kimi-k2.5" data-mode="agent">Kimi K2.5</option>' +
-      '</select></div>';
+      '</select></div>' +
+      '<label class="cross-notebook-row" id="cross-notebook-row" style="display:none">' +
+      '<input type="checkbox" id="cross-notebook-search"> 跨知识库搜索</label>';
     this.messagesEl.appendChild(welcome);
     this.modelSelect = document.getElementById('model-select');
+    this.updateCrossNotebookVisibility();
   },
 
   /* --- Clear history --- */
@@ -121,7 +161,7 @@ const QA = {
     if (!confirm('确定清空所有问答历史？')) return;
 
     var token = Auth.getToken();
-    fetch('/api/query/history?token=' + encodeURIComponent(token), { method: 'DELETE' })
+    fetch('/api/query/history?token=' + encodeURIComponent(token) + '&' + this.notebookQuery(), { method: 'DELETE' })
     .then(function() { self.clearChat(); });
   },
 
@@ -129,15 +169,18 @@ const QA = {
   loadThread(threadId) {
     var self = this;
     if (typeof Auth === 'undefined' || !Auth.isLoggedIn()) return;
+    var slug = this.notebookSlug();
+    var seq = ++this.historySeq;
 
     this.clearChat();
     this.threadId = threadId;
     this._updateThreadIndicator();
 
     var token = Auth.getToken();
-    fetch('/api/query/messages?thread_id=' + threadId + '&token=' + encodeURIComponent(token))
+    fetch('/api/query/messages?thread_id=' + threadId + '&token=' + encodeURIComponent(token) + '&' + this.notebookQuery())
       .then(function(r) { return r.json(); })
       .then(function(data) {
+        if (seq !== self.historySeq || self.notebookSlug() !== slug) return;
         if (!data.messages || !data.messages.length) return;
         self.messagesEl.innerHTML = '';
         data.messages.forEach(function(item) {
@@ -193,7 +236,14 @@ const QA = {
     fetch('/api/query/agent', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ question, model, token, thread_id: self.threadId }),
+      body: JSON.stringify({
+        question,
+        model,
+        token,
+        thread_id: self.threadId,
+        notebook_slug: self.notebookSlug(),
+        cross_notebook: self.crossNotebookEnabled(),
+      }),
     })
     .then(function(resp) {
       if (!resp.ok) throw new Error('HTTP ' + resp.status);
@@ -337,7 +387,13 @@ const QA = {
     fetch('/api/query/stream', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ question, model }),
+      body: JSON.stringify({
+        question,
+        model,
+        token: (typeof Auth !== 'undefined') ? Auth.getToken() : '',
+        notebook_slug: self.notebookSlug(),
+        cross_notebook: self.crossNotebookEnabled(),
+      }),
     })
     .then(function(resp) {
       if (!resp.ok) throw new Error('HTTP ' + resp.status);
@@ -573,7 +629,7 @@ const QA = {
     var self = this;
     var tid = this.threadId;
     var token = Auth.getToken();
-    fetch('/api/query/thread/' + tid + '?token=' + encodeURIComponent(token), { method: 'DELETE' })
+    fetch('/api/query/thread/' + tid + '?token=' + encodeURIComponent(token) + '&' + this.notebookQuery(), { method: 'DELETE' })
       .then(function(r) { return r.json(); })
       .then(function(data) {
         if (data.status === 'ok') {
@@ -718,7 +774,12 @@ const QA = {
       var resp = await fetch('/api/query/save', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question: question, answer: answer, token: token }),
+        body: JSON.stringify({
+          question: question,
+          answer: answer,
+          token: token,
+          notebook_slug: this.notebookSlug(),
+        }),
       });
       var data = await resp.json();
 
@@ -839,7 +900,7 @@ const QA = {
       }
     }
     // Fallback: try API search
-    fetch('/api/pages/search?q=' + encodeURIComponent(name))
+    fetch('/api/pages/search?q=' + encodeURIComponent(name) + '&' + this.notebookQuery())
       .then(function(r) { return r.json(); })
       .then(function(data) {
         if (data.results && data.results.length > 0) {

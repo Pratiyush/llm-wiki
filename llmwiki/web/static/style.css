@@ -143,12 +143,25 @@ a:hover { color: var(--accent-hover); }
 
 /* Right-side actions */
 .nav-actions { display: flex; align-items: center; min-width: 170px; justify-content: flex-end; gap: 8px; }
+.notebook-selector { align-items: center; gap: 6px; color: var(--text-on-dark); font-size: 12px; }
+.notebook-selector label { color: var(--text-on-dark); opacity: 0.78; white-space: nowrap; }
+.notebook-selector select {
+  height: 32px; max-width: 190px; border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 7px; background: rgba(255,255,255,0.06); color: #fff;
+  padding: 0 28px 0 10px; font-family: var(--font); font-size: 13px;
+}
+.notebook-selector select option { color: #111113; background: #fff; }
 .theme-toggle {
   width: 34px; height: 34px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.04);
   border-radius: 7px; cursor: pointer; font-size: 16px; color: var(--text-on-dark);
   display: flex; align-items: center; justify-content: center; transition: all var(--transition);
 }
 .theme-toggle:hover { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.18); }
+.cross-notebook-row {
+  align-items: center; justify-content: center; gap: 8px; margin-top: 10px;
+  color: var(--text-secondary); font-size: 13px;
+}
+.cross-notebook-row input { width: 14px; height: 14px; accent-color: var(--accent); }
 
 /* ═══════════════════════════════════════════════════════════════════════════
    Main app shell

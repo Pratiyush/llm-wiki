@@ -3,6 +3,9 @@
 const Browser = {
   tree: null,
   currentPage: null,
+  loadSeq: 0,
+  pageSeq: 0,
+  searchSeq: 0,
 
   init() {
     this.sidebar = document.getElementById('wiki-sidebar');
@@ -32,14 +35,27 @@ const Browser = {
         this.loadTree();
       }
     });
+
+    window.addEventListener('notebook:change', () => {
+      this.tree = null;
+      this.currentPage = null;
+      if (this.contentEl) {
+        this.contentEl.innerHTML = '<div class="empty-state"><p>从左侧选择一个页面开始浏览</p></div>';
+      }
+      this.loadTree();
+    });
   },
 
   async loadTree() {
+    const slug = (typeof Notebooks !== 'undefined') ? Notebooks.currentSlug() : 'enterprise-management';
+    const seq = ++this.loadSeq;
     try {
       const data = await API.getTree();
+      if (seq !== this.loadSeq || (typeof Notebooks !== 'undefined' && Notebooks.currentSlug() !== slug)) return;
       this.tree = data.tree;
       this.renderTree();
     } catch (e) {
+      if (seq !== this.loadSeq || (typeof Notebooks !== 'undefined' && Notebooks.currentSlug() !== slug)) return;
       this.treeEl.innerHTML = `<div class="loading">加载失败: ${e.message}</div>`;
     }
   },
@@ -94,6 +110,8 @@ const Browser = {
   },
 
   async loadPage(path) {
+    const slug = (typeof Notebooks !== 'undefined') ? Notebooks.currentSlug() : 'enterprise-management';
+    const seq = ++this.pageSeq;
     // Update active state
     this.treeEl.querySelectorAll('.tree-item').forEach(el => {
       el.classList.toggle('active', el.dataset.path === path);
@@ -103,6 +121,7 @@ const Browser = {
 
     try {
       const data = await API.getPage(path);
+      if (seq !== this.pageSeq || (typeof Notebooks !== 'undefined' && Notebooks.currentSlug() !== slug)) return;
       if (data.error) {
         this.contentEl.innerHTML = `<div class="empty-state"><p>页面不存在: ${path}</p></div>`;
         return;
@@ -119,6 +138,7 @@ const Browser = {
       }
       this.contentEl.innerHTML = metaHtml + (data.html || '<p>空页面</p>');
     } catch (e) {
+      if (seq !== this.pageSeq || (typeof Notebooks !== 'undefined' && Notebooks.currentSlug() !== slug)) return;
       this.contentEl.innerHTML = `<div class="empty-state"><p>加载失败: ${e.message}</p></div>`;
     }
   },
@@ -129,8 +149,11 @@ const Browser = {
       this.renderTree();
       return;
     }
+    const slug = (typeof Notebooks !== 'undefined') ? Notebooks.currentSlug() : 'enterprise-management';
+    const seq = ++this.searchSeq;
     try {
       const data = await API.search(q);
+      if (seq !== this.searchSeq || (typeof Notebooks !== 'undefined' && Notebooks.currentSlug() !== slug)) return;
       let html = '';
       for (const r of data.results) {
         html += this.renderItem(r);
@@ -140,6 +163,7 @@ const Browser = {
         el.addEventListener('click', () => this.loadPage(el.dataset.path));
       });
     } catch (e) {
+      if (seq !== this.searchSeq || (typeof Notebooks !== 'undefined' && Notebooks.currentSlug() !== slug)) return;
       this.treeEl.innerHTML = `<div class="muted">搜索失败</div>`;
     }
   },

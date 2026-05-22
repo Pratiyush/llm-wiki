@@ -40,6 +40,31 @@ const Manager = {
         this.loadWikiPages();
       });
     }
+
+    window.addEventListener('notebook:change', () => this.reloadVisible());
+  },
+
+  notebookSlug() {
+    return (typeof Notebooks !== 'undefined' && Notebooks.currentSlug)
+      ? Notebooks.currentSlug()
+      : 'enterprise-management';
+  },
+
+  notebookQuery() {
+    return 'notebook=' + encodeURIComponent(this.notebookSlug());
+  },
+
+  withNotebook(url) {
+    return url + (url.indexOf('?') >= 0 ? '&' : '?') + this.notebookQuery();
+  },
+
+  reloadVisible() {
+    var manage = document.getElementById('tab-manage');
+    if (!manage || !manage.classList.contains('active')) return;
+    this.loadStats();
+    this.loadApprovals();
+    this.loadAuditFiles();
+    this.loadWikiPages();
   },
 
   async loadStats() {
@@ -70,7 +95,7 @@ const Manager = {
 
     try {
       var token = Auth.getToken();
-      var resp = await fetch('/api/manage/approvals', {
+      var resp = await fetch(this.withNotebook('/api/manage/approvals'), {
         headers: { 'Authorization': 'Bearer ' + token },
       });
       var data = await resp.json();
@@ -287,7 +312,7 @@ const Manager = {
 
     try {
       var token = Auth.getToken();
-      var resp = await fetch('/api/manage/files', {
+      var resp = await fetch(this.withNotebook('/api/manage/files'), {
         headers: { 'Authorization': 'Bearer ' + token },
       });
       var data = await resp.json();
@@ -351,7 +376,7 @@ const Manager = {
 
     try {
       var token = Auth.getToken();
-      var resp = await fetch('/api/manage/files/' + fileId + '/flag', {
+      var resp = await fetch(this.withNotebook('/api/manage/files/' + fileId + '/flag'), {
         method: 'POST',
         headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
         body: JSON.stringify({ reason: reason }),
@@ -374,7 +399,7 @@ const Manager = {
 
     try {
       var token = Auth.getToken();
-      var resp = await fetch('/api/manage/flags', {
+      var resp = await fetch(this.withNotebook('/api/manage/flags'), {
         headers: { 'Authorization': 'Bearer ' + token },
       });
       var data = await resp.json();
@@ -419,7 +444,7 @@ const Manager = {
 
     try {
       var token = Auth.getToken();
-      var resp = await fetch('/api/manage/flags/' + flagId + '/confirm', {
+      var resp = await fetch(this.withNotebook('/api/manage/flags/' + flagId + '/confirm'), {
         method: 'POST',
         headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
       });
@@ -440,7 +465,7 @@ const Manager = {
 
     try {
       var token = Auth.getToken();
-      var resp = await fetch('/api/manage/flags/' + flagId + '/reject', {
+      var resp = await fetch(this.withNotebook('/api/manage/flags/' + flagId + '/reject'), {
         method: 'POST',
         headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
       });
@@ -462,7 +487,7 @@ const Manager = {
 
     try {
       var token = Auth.getToken();
-      var resp = await fetch('/api/manage/audit-queue', {
+      var resp = await fetch(this.withNotebook('/api/manage/audit-queue'), {
         headers: { 'Authorization': 'Bearer ' + token },
       });
       var data = await resp.json();
@@ -505,7 +530,7 @@ const Manager = {
   async auditEdit(lineageId) {
     try {
       var token = Auth.getToken();
-      var resp = await fetch('/api/manage/audit-queue/' + lineageId + '/content', {
+      var resp = await fetch(this.withNotebook('/api/manage/audit-queue/' + lineageId + '/content'), {
         headers: { 'Authorization': 'Bearer ' + token },
       });
       var data = await resp.json();
@@ -534,7 +559,7 @@ const Manager = {
 
     try {
       var token = Auth.getToken();
-      var resp = await fetch('/api/manage/audit-queue/' + lineageId + '/edit', {
+      var resp = await fetch(this.withNotebook('/api/manage/audit-queue/' + lineageId + '/edit'), {
         method: 'POST',
         headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
         body: JSON.stringify({ content: content }),
@@ -556,7 +581,7 @@ const Manager = {
 
     try {
       var token = Auth.getToken();
-      var resp = await fetch('/api/manage/audit-queue/' + lineageId + '/delete', {
+      var resp = await fetch(this.withNotebook('/api/manage/audit-queue/' + lineageId + '/delete'), {
         method: 'POST',
         headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
       });
@@ -574,7 +599,7 @@ const Manager = {
   async auditKeep(lineageId) {
     try {
       var token = Auth.getToken();
-      var resp = await fetch('/api/manage/audit-queue/' + lineageId + '/keep', {
+      var resp = await fetch(this.withNotebook('/api/manage/audit-queue/' + lineageId + '/keep'), {
         method: 'POST',
         headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
       });
@@ -618,7 +643,7 @@ const Manager = {
 
     try {
       var token = Auth.getToken();
-      var resp = await fetch('/api/manage/wiki-pages?category=' + cat, {
+      var resp = await fetch(this.withNotebook('/api/manage/wiki-pages?category=' + encodeURIComponent(cat)), {
         headers: { 'Authorization': 'Bearer ' + token },
       });
       var data = await resp.json();
@@ -695,7 +720,7 @@ const Manager = {
 
     try {
       var token = Auth.getToken();
-      var resp = await fetch('/api/manage/wiki-page/' + this._encPath(p.path), {
+      var resp = await fetch(this.withNotebook('/api/manage/wiki-page/' + this._encPath(p.path)), {
         headers: { 'Authorization': 'Bearer ' + token },
       });
       var data = await resp.json();
@@ -752,7 +777,7 @@ const Manager = {
 
     try {
       var token = Auth.getToken();
-      var resp = await fetch('/api/manage/wiki-page/' + this._encPath(path), {
+      var resp = await fetch(this.withNotebook('/api/manage/wiki-page/' + this._encPath(path)), {
         method: 'POST',
         headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
         body: JSON.stringify({ content: textarea.value }),
@@ -777,7 +802,7 @@ const Manager = {
 
     try {
       var token = Auth.getToken();
-      var resp = await fetch('/api/manage/wiki-page/' + this._encPath(path) + '/mark-outdated', {
+      var resp = await fetch(this.withNotebook('/api/manage/wiki-page/' + this._encPath(path) + '/mark-outdated'), {
         method: 'POST',
         headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
       });
@@ -872,7 +897,7 @@ const Manager = {
 
     try {
       var token = Auth.getToken();
-      var resp = await fetch('/api/manage/wiki-pages/batch-delete', {
+      var resp = await fetch(this.withNotebook('/api/manage/wiki-pages/batch-delete'), {
         method: 'POST',
         headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
         body: JSON.stringify({ paths: paths }),
@@ -897,7 +922,7 @@ const Manager = {
 
     try {
       var token = Auth.getToken();
-      var resp = await fetch('/api/manage/wiki-page/' + this._encPath(path), {
+      var resp = await fetch(this.withNotebook('/api/manage/wiki-page/' + this._encPath(path)), {
         method: 'DELETE',
         headers: { 'Authorization': 'Bearer ' + token },
       });
@@ -934,7 +959,7 @@ const Manager = {
 
     try {
       var token = Auth.getToken();
-      var resp = await fetch('/api/manage/wiki-search?q=' + encodeURIComponent(q), {
+      var resp = await fetch(this.withNotebook('/api/manage/wiki-search?q=' + encodeURIComponent(q)), {
         headers: { 'Authorization': 'Bearer ' + token },
       });
       var data = await resp.json();

@@ -2,6 +2,7 @@
 
 const GraphViewer = {
   network: null,
+  loadSeq: 0,
 
   init() {
     this.canvas = document.getElementById('graph-canvas');
@@ -16,28 +17,45 @@ const GraphViewer = {
     this.searchInput?.addEventListener('input', () => {
       if (this.network) this.focusNode(this.searchInput.value.trim());
     });
+
+    window.addEventListener('notebook:change', () => {
+      this.network = null;
+      if (this.canvas) {
+        this.canvas.innerHTML = '<div class="loading">加载图谱中...</div>';
+      }
+      this.loadGraph();
+    });
   },
 
   async loadGraph() {
+    const slug = (typeof Notebooks !== 'undefined') ? Notebooks.currentSlug() : 'enterprise-management';
+    const seq = ++this.loadSeq;
     try {
       const data = await API.getGraph();
+      if (seq !== this.loadSeq || (typeof Notebooks !== 'undefined' && Notebooks.currentSlug() !== slug)) return;
       if (!data.nodes.length) {
         this.canvas.innerHTML = '<div class="empty-state"><p>暂无图谱数据</p></div>';
         return;
       }
-      this.renderGraph(data);
+      this.renderGraph(data, seq, slug);
     } catch (e) {
+      if (seq !== this.loadSeq || (typeof Notebooks !== 'undefined' && Notebooks.currentSlug() !== slug)) return;
       this.canvas.innerHTML = `<div class="empty-state"><p>加载失败: ${e.message}</p></div>`;
     }
   },
 
-  renderGraph(data) {
+  renderGraph(data, seq, slug) {
+    if (seq !== this.loadSeq || (typeof Notebooks !== 'undefined' && Notebooks.currentSlug() !== slug)) return;
     // Load vis.js from CDN
     if (typeof vis === 'undefined') {
       const script = document.createElement('script');
       script.src = 'https://unpkg.com/vis-network@9.1.9/standalone/umd/vis-network.min.js';
-      script.onload = () => this._createNetwork(data);
+      script.onload = () => {
+        if (seq !== this.loadSeq || (typeof Notebooks !== 'undefined' && Notebooks.currentSlug() !== slug)) return;
+        this._createNetwork(data);
+      };
       script.onerror = () => {
+        if (seq !== this.loadSeq || (typeof Notebooks !== 'undefined' && Notebooks.currentSlug() !== slug)) return;
         this.canvas.innerHTML = '<div class="empty-state"><p>无法加载 vis.js，请检查网络</p></div>';
       };
       document.head.appendChild(script);

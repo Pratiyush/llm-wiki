@@ -17,19 +17,33 @@ const API = {
     return r.json();
   },
 
+  notebookQuery() {
+    const slug = (typeof Notebooks !== 'undefined' && Notebooks.currentSlug)
+      ? Notebooks.currentSlug()
+      : 'enterprise-management';
+    return 'notebook=' + encodeURIComponent(slug);
+  },
+
+  notebookBody(body) {
+    const slug = (typeof Notebooks !== 'undefined' && Notebooks.currentSlug)
+      ? Notebooks.currentSlug()
+      : 'enterprise-management';
+    return Object.assign({ notebook_slug: slug }, body || {});
+  },
+
   // Pages
-  getTree: () => API.get('/api/pages/tree'),
-  getPage: (path) => API.get(`/api/pages/rendered/${encodeURIComponent(path)}`),
-  getRaw: (path) => API.get(`/api/pages/content/${encodeURIComponent(path)}`),
-  search: (q) => API.get(`/api/pages/search?q=${encodeURIComponent(q)}`),
+  getTree: () => API.get('/api/pages/tree?' + API.notebookQuery()),
+  getPage: (path) => API.get(`/api/pages/rendered/${encodeURIComponent(path)}?` + API.notebookQuery()),
+  getRaw: (path) => API.get(`/api/pages/content/${encodeURIComponent(path)}?` + API.notebookQuery()),
+  search: (q) => API.get(`/api/pages/search?q=${encodeURIComponent(q)}&` + API.notebookQuery()),
 
   // Query
-  ask: (question, model) => API.post('/api/query/ask', { question, model }),
+  ask: (question, model) => API.post('/api/query/ask', API.notebookBody({ question, model })),
   askStream(question, model, onChunk, onDone) {
     return fetch('/api/query/stream', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ question, model }),
+      body: JSON.stringify(API.notebookBody({ question, model })),
     }).then(async resp => {
       const reader = resp.body.getReader();
       const decoder = new TextDecoder();
@@ -56,11 +70,36 @@ const API = {
   uploadFile: (file) => {
     const fd = new FormData();
     fd.append('file', file);
-    return fetch('/api/upload/file', { method: 'POST', body: fd }).then(r => r.json());
+    return fetch('/api/upload/file?' + API.notebookQuery(), { method: 'POST', body: fd }).then(r => r.json());
   },
 
   // Graph
-  getGraph: () => API.get('/api/graph/data'),
+  getGraph: () => API.get('/api/graph/data?' + API.notebookQuery()),
+
+  // Notebooks
+  getNotebooks: () => {
+    const token = (typeof Auth !== 'undefined') ? Auth.getToken() : '';
+    return fetch('/api/notebooks', {
+      headers: token ? { 'Authorization': 'Bearer ' + token } : {},
+    }).then(r => {
+      if (!r.ok) throw new Error(`API error: ${r.status}`);
+      return r.json();
+    });
+  },
+  createNotebook: (body) => {
+    const token = (typeof Auth !== 'undefined') ? Auth.getToken() : '';
+    return fetch('/api/notebooks', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': 'Bearer ' + token } : {}),
+      },
+      body: JSON.stringify(body),
+    }).then(r => {
+      if (!r.ok) throw new Error(`API error: ${r.status}`);
+      return r.json();
+    });
+  },
 
   // Manage
   getStatus: () => API.get('/api/manage/status'),

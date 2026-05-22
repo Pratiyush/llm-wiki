@@ -3,6 +3,7 @@
 const Threads = {
   threads: [],
   activeThreadId: null,
+  loadSeq: 0,
 
   init() {
     this.sidebarEl = document.getElementById('thread-sidebar');
@@ -10,16 +11,38 @@ const Threads = {
     this.newBtn = document.getElementById('thread-new-sidebar');
 
     this.newBtn.addEventListener('click', function() { QA._newThread(); });
+    window.addEventListener('notebook:change', () => {
+      this.activeThreadId = null;
+      this.load();
+    });
     this.load();
   },
 
+  notebookSlug() {
+    return (typeof Notebooks !== 'undefined' && Notebooks.currentSlug)
+      ? Notebooks.currentSlug()
+      : 'enterprise-management';
+  },
+
+  notebookQuery() {
+    return 'notebook=' + encodeURIComponent(this.notebookSlug());
+  },
+
   load() {
-    if (typeof Auth === 'undefined' || !Auth.isLoggedIn()) return;
     var self = this;
+    if (typeof Auth === 'undefined' || !Auth.isLoggedIn()) {
+      this.threads = [];
+      this.activeThreadId = null;
+      this.render();
+      return;
+    }
     var token = Auth.getToken();
-    fetch('/api/query/history?token=' + encodeURIComponent(token))
+    var slug = this.notebookSlug();
+    var seq = ++this.loadSeq;
+    fetch('/api/query/history?token=' + encodeURIComponent(token) + '&' + this.notebookQuery())
       .then(function(r) { return r.json(); })
       .then(function(data) {
+        if (seq !== self.loadSeq || self.notebookSlug() !== slug) return;
         self.threads = data.threads || [];
         self.render();
       });
@@ -136,7 +159,7 @@ const Threads = {
     fetch('/api/query/thread/' + threadId + '/rename', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token: token, title: newTitle }),
+      body: JSON.stringify({ token: token, title: newTitle, notebook_slug: this.notebookSlug() }),
     })
     .then(function(r) { return r.json(); })
     .then(function() { Threads.refresh(); });
@@ -144,7 +167,7 @@ const Threads = {
 
   exportThread(threadId) {
     var token = Auth.getToken();
-    fetch('/api/query/messages?thread_id=' + threadId + '&token=' + encodeURIComponent(token))
+    fetch('/api/query/messages?thread_id=' + threadId + '&token=' + encodeURIComponent(token) + '&' + this.notebookQuery())
       .then(function(r) { return r.json(); })
       .then(function(data) {
         if (!data.messages || !data.messages.length) return;
@@ -173,7 +196,7 @@ const Threads = {
     if (!confirm('确定删除此对话线程？')) return;
     var token = Auth.getToken();
     var self = this;
-    fetch('/api/query/thread/' + threadId + '?token=' + encodeURIComponent(token), { method: 'DELETE' })
+    fetch('/api/query/thread/' + threadId + '?token=' + encodeURIComponent(token) + '&' + this.notebookQuery(), { method: 'DELETE' })
       .then(function(r) { return r.json(); })
       .then(function(data) {
         if (data.status === 'ok') {

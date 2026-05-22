@@ -108,6 +108,7 @@ const Auth = {
       this.user = data.user;
       this.hideModal();
       this._updateUI();
+      window.dispatchEvent(new CustomEvent('auth:change'));
 
       if (typeof QA !== 'undefined') QA.loadHistory();
       if (typeof Manager !== 'undefined' && Manager.loadApprovals) {
@@ -126,16 +127,19 @@ const Auth = {
       if (resp.ok) {
         this.user = await resp.json();
         this._updateUI();
+        window.dispatchEvent(new CustomEvent('auth:change'));
         if (loadHistory && typeof QA !== 'undefined') QA.loadHistory();
       } else {
         localStorage.removeItem('llmwiki-token');
         this.user = null;
         this._updateUI();
+        window.dispatchEvent(new CustomEvent('auth:change'));
         if (typeof QA !== 'undefined') QA.clearChat();
       }
     } catch (e) {
       this.user = null;
       this._updateUI();
+      window.dispatchEvent(new CustomEvent('auth:change'));
       if (typeof QA !== 'undefined') QA.clearChat();
     }
   },
@@ -144,6 +148,7 @@ const Auth = {
     localStorage.removeItem('llmwiki-token');
     this.user = null;
     this._updateUI();
+    window.dispatchEvent(new CustomEvent('auth:change'));
     if (typeof QA !== 'undefined') QA.clearChat();
   },
 
@@ -175,6 +180,7 @@ const Auth = {
       this.user = data.user;
       this.hideModal();
       this._updateUI();
+      window.dispatchEvent(new CustomEvent('auth:change'));
 
       if (typeof QA !== 'undefined') QA.clearChat();
       if (typeof Manager !== 'undefined' && Manager.loadApprovals) {

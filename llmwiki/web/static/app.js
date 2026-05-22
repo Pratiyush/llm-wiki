@@ -37,9 +37,15 @@
 
   // Init components
   Auth.init();
-  Browser.init();
-  QA.init();
-  Uploader.init();
-  GraphViewer.init();
-  Manager.init();
+  Promise.resolve(Notebooks.init()).finally(() => {
+    Browser.init();
+    QA.init();
+    Uploader.init();
+    GraphViewer.init();
+    Manager.init();
+    if (Auth.isLoggedIn()) {
+      QA.loadHistory();
+      if (typeof Threads !== 'undefined') Threads.refresh();
+    }
+  });
 })();

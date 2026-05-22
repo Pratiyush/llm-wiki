@@ -47,6 +47,16 @@ const Uploader = {
     // Confirm modal actions
     this.closeBtn.addEventListener('click', () => this._hideConfirm());
     this.confirmBtn.addEventListener('click', () => this._doUpload());
+
+    window.addEventListener('notebook:change', () => {
+      if (this.results) this.results.innerHTML = '';
+    });
+  },
+
+  notebookSlug() {
+    return (typeof Notebooks !== 'undefined' && Notebooks.currentSlug)
+      ? Notebooks.currentSlug()
+      : 'enterprise-management';
   },
 
   _showConfirm(files) {
@@ -96,7 +106,8 @@ const Uploader = {
         if (typeof Auth !== 'undefined' && Auth.isLoggedIn()) {
           fd.append('token', Auth.getToken());
         }
-        const resp = await fetch('/api/upload/file', { method: 'POST', body: fd });
+        fd.append('notebook', this.notebookSlug());
+        const resp = await fetch('/api/upload/file?notebook=' + encodeURIComponent(this.notebookSlug()), { method: 'POST', body: fd });
         const data = await resp.json();
 
         const statusDot = item.querySelector('.status');
