@@ -172,6 +172,31 @@ def test_create_notebook_accepts_name_alias_for_frontend(
     assert response["notebook"]["name"] == "Artificial Intelligence"
 
 
+def test_create_notebook_normalizes_slug_with_spaces_from_form_input(
+    db_session, users, monkeypatch, tmp_path
+):
+    from llmwiki.web.routes import notebooks as route
+    from llmwiki.web.services import notebooks as notebook_services
+
+    monkeypatch.setattr(notebook_services, "REPO_ROOT", tmp_path)
+
+    response = asyncio.run(
+        route.create_notebook(
+            {
+                "slug": "Chinese tradition",
+                "name": "传统文化",
+                "description": "中国传统文化知识",
+            },
+            user=users["admin"],
+            db=db_session,
+        )
+    )
+
+    assert response["notebook"]["slug"] == "chinese-tradition"
+    assert response["notebook"]["title"] == "传统文化"
+    assert (tmp_path / "notebooks" / "chinese-tradition" / "wiki").is_dir()
+
+
 def test_update_notebook_allows_admin_to_edit_non_default(db_session, users):
     from llmwiki.web.routes import notebooks as route
 

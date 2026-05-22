@@ -83,7 +83,7 @@ const Manager = {
     var slugEl = document.getElementById('notebook-slug');
     var descEl = document.getElementById('notebook-description');
     var name = (nameEl?.value || '').trim();
-    var slug = (slugEl?.value || '').trim().toLowerCase();
+    var slug = this._normalizeNotebookSlug(slugEl?.value || '');
     var description = (descEl?.value || '').trim();
     if (!name || !slug) return;
 
@@ -99,6 +99,16 @@ const Manager = {
     } catch (e) {
       if (error) error.textContent = e.message || '创建失败';
     }
+  },
+
+  _normalizeNotebookSlug(value) {
+    return String(value || '')
+      .trim()
+      .toLowerCase()
+      .replace(/[\s_]+/g, '-')
+      .replace(/[^a-z0-9-]/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-|-$/g, '');
   },
 
   async loadNotebookAdminList() {

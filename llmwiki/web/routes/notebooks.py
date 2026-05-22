@@ -13,9 +13,22 @@ from llmwiki.notebooks import (
 from llmwiki.web.database import get_db
 from llmwiki.web.models import Notebook, User
 from llmwiki.web.routes.auth import get_current_user
-from llmwiki.web.services.notebooks import ensure_default_notebook, ensure_notebook_dirs
+from llmwiki.web.services.notebooks import (
+    ensure_default_notebook,
+    ensure_notebook_dirs,
+    slugify_notebook_title,
+)
 
 router = APIRouter()
+
+
+def _normalize_submitted_slug(raw_slug: str, title: str) -> str:
+    slug = raw_slug.strip()
+    if not slug:
+        return slugify_notebook_title(title)
+    if any(char.isspace() for char in slug) or "_" in slug:
+        return slugify_notebook_title(slug)
+    return slug
 
 
 def _serialize_notebook(notebook: Notebook) -> dict[str, object]:
@@ -55,14 +68,17 @@ async def create_notebook(
     if not user_is_admin(user):
         raise HTTPException(status_code=403, detail="admin role required")
 
-    slug = str(body.get("slug") or "").strip()
     title = str(body.get("title") or body.get("name") or "").strip()
+    slug = _normalize_submitted_slug(str(body.get("slug") or ""), title)
     description = body.get("description")
     if isinstance(description, str):
         description = description.strip() or None
 
     if not slug or not is_valid_slug(slug) or not title:
-        raise HTTPException(status_code=400, detail="invalid notebook")
+        raise HTTPException(
+            status_code=400,
+            detail="invalid notebook: slug must use lowercase letters, numbers, and hyphens",
+        )
     if db.query(Notebook).filter(Notebook.slug == slug).first():
         raise HTTPException(status_code=409, detail="notebook slug already exists")
 
