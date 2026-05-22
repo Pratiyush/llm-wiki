@@ -10,12 +10,10 @@ from __future__ import annotations
 
 import os
 import re
-from pathlib import Path
 
 import pytest
 
 from llmwiki import REPO_ROOT, __version__
-
 
 RELEASE_YML = REPO_ROOT / ".github" / "workflows" / "release.yml"
 PYPI_DOC = REPO_ROOT / "docs" / "deploy" / "pypi-publishing.md"
@@ -56,21 +54,21 @@ def test_release_workflow_gated_on_pypi_publishing_variable(release_yml: str):
     assert "vars.PYPI_PUBLISHING == 'true'" in release_yml
 
 
-def test_release_workflow_environment_matches_docs(
-    release_yml: str, pypi_doc: str
-):
+def test_release_workflow_environment_matches_docs(release_yml: str, pypi_doc: str):
     # Both sides of the trusted-publisher binding must agree on the
     # environment name. Mismatches cause PyPI to reject the OIDC token
     # with "invalid-publisher".
     assert "environment: release" in release_yml
-    assert "Environment name | `release`" in pypi_doc or \
-        "Env: release" in pypi_doc or \
-        "environment: release" in pypi_doc.lower()
+    assert (
+        "Environment name | `release`" in pypi_doc
+        or "Env: release" in pypi_doc
+        or "environment: release" in pypi_doc.lower()
+    )
 
 
 def test_release_workflow_triggers_only_on_version_tags(release_yml: str):
     # Must NOT trigger on every master push — only on vX.Y.Z tags.
-    assert 'tags:' in release_yml
+    assert "tags:" in release_yml
     assert '"v*.*.*"' in release_yml or "'v*.*.*'" in release_yml
 
 
@@ -90,8 +88,7 @@ def test_github_release_job_runs_even_if_publish_fails(release_yml: str):
 def test_pyproject_has_required_metadata(pyproject: str):
     # Without these fields `python -m build` + `twine check` fail and
     # PyPI rejects the sdist.
-    for field in ('name =', 'version =', 'description =', 'readme =',
-                  'requires-python =', 'authors'):
+    for field in ("name =", "version =", "description =", "readme =", "requires-python =", "authors"):
         assert field in pyproject, f"pyproject.toml missing {field!r}"
 
 
@@ -117,6 +114,11 @@ def test_pyproject_version_matches_package_version(pyproject: str):
     )
 
 
+def test_pyproject_uses_package_discovery(pyproject: str):
+    assert "[tool.setuptools.packages.find]" in pyproject
+    assert 'include = ["llmwiki*"]' in pyproject
+
+
 # ─── Doc walkthrough ──────────────────────────────────────────────────
 
 
@@ -133,9 +135,7 @@ def test_pypi_doc_covers_troubleshooting(pypi_doc: str):
     # Must at minimum document the three failure modes the workflow
     # can produce: skipped, invalid-publisher, 403.
     for keyword in ("publish` skipped", "invalid-publisher", "403"):
-        assert keyword in pypi_doc, (
-            f"docs/deploy/pypi-publishing.md doesn't cover {keyword!r}"
-        )
+        assert keyword in pypi_doc, f"docs/deploy/pypi-publishing.md doesn't cover {keyword!r}"
 
 
 # ─── Local smoke-test helper ──────────────────────────────────────────
@@ -146,10 +146,7 @@ def test_check_release_artifacts_script_exists_and_executable():
         "scripts/check-release-artifacts.sh is missing — it's referenced "
         "by the PyPI publishing doc as the local dry-run entry point"
     )
-    assert os.access(CHECK_SCRIPT, os.X_OK), (
-        "scripts/check-release-artifacts.sh isn't executable; "
-        "run `chmod +x` on it"
-    )
+    assert os.access(CHECK_SCRIPT, os.X_OK), "scripts/check-release-artifacts.sh isn't executable; run `chmod +x` on it"
 
 
 def test_check_release_artifacts_script_runs_twine_check():
