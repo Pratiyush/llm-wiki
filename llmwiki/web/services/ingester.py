@@ -19,6 +19,29 @@ def _slugify(text: str) -> str:
     return text.strip('-')[:50] or "unnamed"
 
 
+def _safe_upload_filename(filename: str) -> str:
+    safe = filename.replace("/", "-").replace("\\", "-")
+    safe = re.sub(r"\s+", "-", safe.strip())
+    safe = re.sub(r"-+", "-", safe)
+    return safe.strip("-") or "unnamed"
+
+
+def _safe_page_filename(name: str) -> str:
+    safe = _safe_upload_filename(name)
+    if safe.lower().endswith(".md"):
+        safe = safe[:-3]
+    safe = safe.strip(".-")
+    return safe or "unnamed"
+
+
+def _safe_child_path(parent: Path, filename: str) -> Path:
+    parent_resolved = parent.resolve(strict=False)
+    path = (parent / filename).resolve(strict=False)
+    if path.parent != parent_resolved:
+        raise ValueError("generated page path escapes target directory")
+    return path
+
+
 def convert_docx(path: Path) -> str:
     """Convert .docx to markdown text."""
     from docx import Document
@@ -61,10 +84,11 @@ def convert_pdf(path: Path) -> str:
     return "\n\n".join(lines)
 
 
-def save_raw_file(filename: str, content: bytes) -> Path:
-    """Save uploaded file to raw/company-docs/."""
-    RAW_DIR.mkdir(parents=True, exist_ok=True)
-    dest = RAW_DIR / filename
+def save_raw_file(filename: str, content: bytes, *, uploads_dir: Path | None = None) -> Path:
+    """Save uploaded file to the configured raw uploads directory."""
+    target_dir = uploads_dir or RAW_DIR
+    target_dir.mkdir(parents=True, exist_ok=True)
+    dest = target_dir / _safe_upload_filename(filename)
     dest.write_bytes(content)
     return dest
 
@@ -170,9 +194,16 @@ def convert_to_markdown(filepath: Path) -> str:
         raise ValueError(f"不支持的文件格式: {ext}")
 
 
-def create_source_page(filename: str, md_content: str, knowledge: dict | None = None) -> str:
+def create_source_page(
+    filename: str,
+    md_content: str,
+    knowledge: dict | None = None,
+    *,
+    wiki_dir: Path | None = None,
+) -> str:
     """Create a wiki source page from converted markdown content."""
-    WIKI_SOURCES.mkdir(parents=True, exist_ok=True)
+    wiki_sources = (wiki_dir or (REPO_ROOT / "wiki")) / "sources" / "company-docs"
+    wiki_sources.mkdir(parents=True, exist_ok=True)
 
     stem = Path(filename).stem
     slug = _slugify(stem)
@@ -215,23 +246,30 @@ project: company-docs
 
 """
 
-    out_path = WIKI_SOURCES / f"{slug}.md"
+    out_path = wiki_sources / f"{slug}.md"
     out_path.write_text(page_content + "\n" + md_content, encoding="utf-8")
 
     return f"sources/company-docs/{slug}.md"
 
 
-def create_entity_concept_pages(knowledge: dict, source_slug: str) -> list[str]:
+def create_entity_concept_pages(
+    knowledge: dict,
+    source_slug: str,
+    *,
+    wiki_dir: Path | None = None,
+) -> list[str]:
     """Create entity and concept pages from GLM extraction."""
-    from llmwiki import REPO_ROOT as ROOT
+    target_wiki_dir = wiki_dir or (REPO_ROOT / "wiki")
     created = []
     today = date.today().isoformat()
 
     for item in knowledge.get("entities", []):
         name = item["name"]
+        safe_name = _safe_page_filename(name)
         desc = item.get("description", "")
         etype = item.get("type", "organization")
-        path = ROOT / "wiki" / "entities" / f"{name}.md"
+        entities_dir = target_wiki_dir / "entities"
+        path = _safe_child_path(entities_dir, f"{safe_name}.md")
         if path.exists():
             continue
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -256,12 +294,14 @@ last_updated: {today}
 - [[{source_slug}]]
 """
         path.write_text(content, encoding="utf-8")
-        created.append(f"entities/{name}.md")
+        created.append(f"entities/{safe_name}.md")
 
     for item in knowledge.get("concepts", []):
         name = item["name"]
+        safe_name = _safe_page_filename(name)
         desc = item.get("description", "")
-        path = ROOT / "wiki" / "concepts" / f"{name}.md"
+        concepts_dir = target_wiki_dir / "concepts"
+        path = _safe_child_path(concepts_dir, f"{safe_name}.md")
         if path.exists():
             continue
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -286,15 +326,20 @@ last_updated: {today}
 - [[{source_slug}]]
 """
         path.write_text(content, encoding="utf-8")
-        created.append(f"concepts/{name}.md")
+        created.append(f"concepts/{safe_name}.md")
 
     return created
 
 
-def _ensure_wikilink_pages(md_content: str, source_slug: str) -> list[str]:
+def _ensure_wikilink_pages(
+    md_content: str,
+    source_slug: str,
+    *,
+    wiki_dir: Path | None = None,
+) -> list[str]:
     """Scan md_content for [[wikilinks]] and create stub entity pages for any
     that don't already exist in wiki/entities/ or wiki/concepts/."""
-    from llmwiki import REPO_ROOT as ROOT
+    target_wiki_dir = wiki_dir or (REPO_ROOT / "wiki")
 
     WIKILINK_RE = re.compile(r"\[\[([^\]|]+)(?:\|[^\]]*)?\]\]")
     names = set(WIKILINK_RE.findall(md_content))
@@ -308,8 +353,8 @@ def _ensure_wikilink_pages(md_content: str, source_slug: str) -> list[str]:
         name = name.strip()
         if not name or "#" in name or "/" in name or "\\" in name or len(name) > 100:
             continue
-        entity_path = ROOT / "wiki" / "entities" / f"{name}.md"
-        concept_path = ROOT / "wiki" / "concepts" / f"{name}.md"
+        entity_path = target_wiki_dir / "entities" / f"{name}.md"
+        concept_path = target_wiki_dir / "concepts" / f"{name}.md"
         if entity_path.exists() or concept_path.exists():
             continue
         # Create stub entity page
@@ -340,12 +385,18 @@ last_updated: {today}
     return created
 
 
-def process_upload(filename: str, content: bytes) -> dict:
+def process_upload(
+    filename: str,
+    content: bytes,
+    *,
+    uploads_dir: Path | None = None,
+    wiki_dir: Path | None = None,
+) -> dict:
     """Full upload pipeline: save → convert → GLM extract → create wiki pages."""
-    from llmwiki import REPO_ROOT as ROOT
+    target_wiki_dir = wiki_dir or (REPO_ROOT / "wiki")
 
     # 1. Save raw file
-    raw_path = save_raw_file(filename, content)
+    raw_path = save_raw_file(filename, content, uploads_dir=uploads_dir)
 
     # 2. Convert to markdown
     try:
@@ -355,7 +406,9 @@ def process_upload(filename: str, content: bytes) -> dict:
 
     # 3. Save markdown to raw/company-docs/
     md_filename = Path(filename).stem + ".md"
-    md_path = RAW_DIR / md_filename
+    md_dir = uploads_dir or RAW_DIR
+    md_dir.mkdir(parents=True, exist_ok=True)
+    md_path = md_dir / _safe_upload_filename(md_filename)
     today = date.today().isoformat()
     frontmatter = f"""---
 title: "{Path(filename).stem}"
@@ -379,23 +432,26 @@ project: company-docs
         pass  # Non-critical — source page still works without it
 
     # 5. Create wiki source page (with GLM-extracted metadata)
-    wiki_path = create_source_page(filename, md_text, knowledge=knowledge)
+    wiki_path = create_source_page(filename, md_text, knowledge=knowledge, wiki_dir=target_wiki_dir)
 
     # 6. Create entity/concept pages from GLM extraction
     if knowledge:
         slug = Path(filename).stem
-        entity_pages = create_entity_concept_pages(knowledge, slug)
+        entity_pages = create_entity_concept_pages(knowledge, slug, wiki_dir=target_wiki_dir)
 
     # 6b. Ensure all wikilinks in source page have corresponding pages
-    source_page_path = ROOT / "wiki" / wiki_path
+    source_page_path = target_wiki_dir / wiki_path
     if source_page_path.exists():
         source_content = source_page_path.read_text(encoding="utf-8")
         slug = Path(filename).stem
-        wikilink_pages = _ensure_wikilink_pages(source_content, slug)
+        wikilink_pages = _ensure_wikilink_pages(source_content, slug, wiki_dir=target_wiki_dir)
         entity_pages.extend(wikilink_pages)
 
     # 7. Append to log
-    log_path = ROOT / "wiki" / "log.md"
+    log_path = target_wiki_dir / "log.md"
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    if not log_path.exists():
+        log_path.write_text("", encoding="utf-8")
     log_entry = f"\n## [{today}] ingest (web upload) | {Path(filename).stem}\n"
     if knowledge:
         log_entry += f"  - AI提取: {len(knowledge.get('entities', []))} 实体, {len(knowledge.get('concepts', []))} 概念\n"

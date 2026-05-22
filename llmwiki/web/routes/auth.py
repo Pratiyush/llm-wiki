@@ -40,7 +40,6 @@ def _resolve_secret_key() -> str:
     return generated
 
 
-SECRET_KEY = _resolve_secret_key()
 ALGORITHM = "HS256"
 TOKEN_EXPIRE_HOURS = 8
 
@@ -63,14 +62,14 @@ def _create_token(user: User) -> str:
         "role": user.role,
         "exp": datetime.utcnow() + timedelta(hours=TOKEN_EXPIRE_HOURS),
     }
-    return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+    return jwt.encode(payload, _resolve_secret_key(), algorithm=ALGORITHM)
 
 
 def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> User:
     """Dependency: extract current user from JWT token."""
     exc = HTTPException(status_code=401, detail="未登录或登录已过期")
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(token, _resolve_secret_key(), algorithms=[ALGORITHM])
         username = payload.get("sub")
     except JWTError:
         raise exc
