@@ -68,6 +68,16 @@ cd D:\llm-wiki
 python -m llmwiki web --host 0.0.0.0 --port 8765
 ```
 
+### Notebook 知识库升级
+
+如果是从旧版企业制度知识库升级到 notebook 版本，请先执行一次默认知识库迁移：
+
+```
+python -m llmwiki notebooks migrate-default
+```
+
+迁移会把原有 `wiki/` 和 `raw/` 内容复制到默认 notebook **「企业管理制度」** 下，不覆盖已存在文件。
+
 ## 第六步：防火墙放行
 
 1. 打开 **Windows 防火墙** → **高级设置**
@@ -98,6 +108,21 @@ netsh advfirewall firewall add rule name="LLM-Wiki" dir=in action=allow protocol
 | admin（管理员） | ✓ | 直接写入 | 全部 |
 | leader（部门长） | ✓ | 直接写入 | 审批 |
 | staff（普通员工） | ✓ | 提交审批 | 统计 |
+
+---
+
+## 本地一键部署到腾讯云
+
+本项目包含 `deploy.py`，用于从本机增量上传代码和知识库到腾讯云服务器 `121.4.89.177`，并重启 `llmwiki` systemd 服务。脚本不会删除服务器上的文件，避免误删 Web UI 上传的资料。
+
+建议通过环境变量提供 SSH 密码：
+
+```
+$env:LLMWIKI_DEPLOY_PASSWORD="服务器密码"
+python deploy.py
+```
+
+如果未设置 `LLMWIKI_DEPLOY_PASSWORD`，脚本会在运行时提示输入密码。部署过程中会自动执行 `python -m llmwiki notebooks migrate-default`，确保旧版企业制度知识库进入默认 notebook。
 
 ---
 

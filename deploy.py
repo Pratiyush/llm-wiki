@@ -8,11 +8,12 @@ import paramiko
 import os
 import sys
 import argparse
+import getpass
 
 # ---- 服务器配置 ----
 HOST = "121.4.89.177"
 USER = "ubuntu"
-PASS = "988977Meme**"
+PASS = os.environ.get("LLMWIKI_DEPLOY_PASSWORD")
 REMOTE_BASE = "/opt/llm-wiki"
 
 # ---- 本地项目路径 ----
@@ -20,6 +21,23 @@ LOCAL = os.path.dirname(os.path.abspath(__file__))
 
 # 服务器独有文件（Web UI 上传的文档等）— 受保护，绝不被删除
 PROTECTED_REMOTE_DIRS = ["wiki/sources", "wiki/sources/company-docs"]
+ROOT_FILES = ["VERSION", "DEPLOY_LOG.md", "pyproject.toml", "README.md", "USERGUIDE.md"]
+
+
+def run_remote(ssh, command: str, label: str) -> str:
+    """Run a remote command and fail fast with stderr if it exits non-zero."""
+    stdin, stdout, stderr = ssh.exec_command(command)
+    exit_code = stdout.channel.recv_exit_status()
+    out = stdout.read().decode(errors="replace")
+    err = stderr.read().decode(errors="replace")
+    if exit_code != 0:
+        print(f"{label} failed with exit code {exit_code}.")
+        if out.strip():
+            print(out.strip())
+        if err.strip():
+            print(err.strip())
+        sys.exit(exit_code)
+    return out
 
 
 def sync_file(sftp, rel_path) -> bool:
@@ -118,11 +136,12 @@ def main():
     args = parser.parse_args()
 
     print(f"Deploying to {HOST}...")
+    password = PASS or getpass.getpass("Deploy password: ")
 
     ssh = paramiko.SSHClient()
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     try:
-        ssh.connect(HOST, username=USER, password=PASS, timeout=15)
+        ssh.connect(HOST, username=USER, password=password, timeout=15)
     except Exception as e:
         print(f"Connection failed: {e}")
         sys.exit(1)
@@ -148,7 +167,7 @@ def main():
         return
 
     # Individual root files
-    for f in ["VERSION", "DEPLOY_LOG.md", "pyproject.toml"]:
+    for f in ROOT_FILES:
         if sync_file(sftp, f):
             total += 1
     print(f"  [OK] root files ({total} files)")
@@ -184,12 +203,18 @@ def main():
     print(f"\n{total} files synced.")
 
     if not args.no_restart:
-        print("Restarting service...")
-        stdin, stdout, stderr = ssh.exec_command(
-            "sudo systemctl restart llmwiki && sudo systemctl status llmwiki --no-pager"
+        print("Migrating default notebook...")
+        run_remote(
+            ssh,
+            f"cd {REMOTE_BASE} && .venv/bin/python -m llmwiki notebooks migrate-default",
+            "Default notebook migration",
         )
-        stdout.channel.recv_exit_status()
-        out = stdout.read().decode()
+        print("Restarting service...")
+        out = run_remote(
+            ssh,
+            "sudo systemctl restart llmwiki && sudo systemctl status llmwiki --no-pager",
+            "Service restart",
+        )
         for line in out.split("\n"):
             if "Active:" in line:
                 print(f"  {line.strip()}")
