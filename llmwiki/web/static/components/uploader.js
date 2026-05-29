@@ -102,18 +102,29 @@ const Uploader = {
         const fd = new FormData();
         fd.append('file', file);
         fd.append('version_note', versionNote || '');
+        const headers = {};
         // Attach token if logged in
         if (typeof Auth !== 'undefined' && Auth.isLoggedIn()) {
-          fd.append('token', Auth.getToken());
+          const token = Auth.getToken();
+          fd.append('token', token);
+          headers['Authorization'] = 'Bearer ' + token;
         }
         fd.append('notebook', this.notebookSlug());
-        const resp = await fetch('/api/upload/file?notebook=' + encodeURIComponent(this.notebookSlug()), { method: 'POST', body: fd });
-        const data = await resp.json();
+        const resp = await fetch('/api/upload/file?notebook=' + encodeURIComponent(this.notebookSlug()), { method: 'POST', body: fd, headers: headers });
+        const data = await resp.json().catch(() => ({}));
 
         const statusDot = item.querySelector('.status');
         const statusText = item.querySelector('.upload-status');
 
-        if (data.status === 'ok') {
+        if (!resp.ok) {
+          statusDot.className = 'status error';
+          if (resp.status === 401) {
+            statusText.textContent = '登录已过期，请重新登录后再上传';
+            if (typeof Auth !== 'undefined' && Auth.logout) Auth.logout();
+          } else {
+            statusText.textContent = data.detail || data.message || ('上传失败: HTTP ' + resp.status);
+          }
+        } else if (data.status === 'ok') {
           statusDot.className = 'status success';
           let detail = '转换成功 (' + data.content_length + ' 字符)';
           if (data.version_note) {

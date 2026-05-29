@@ -156,6 +156,54 @@ def test_upload_route_records_notebook_id_and_uses_selected_notebook(
         db.close()
 
 
+def test_upload_route_accepts_bearer_token_header(monkeypatch, tmp_path):
+    monkeypatch.setenv("JWT_SECRET_KEY", "test-secret")
+
+    from llmwiki.web import database
+    from llmwiki.web.database import Base
+    from llmwiki.web.models import Notebook, UploadedFile, User
+    from llmwiki.web.routes.auth import _create_token
+    from llmwiki.web.routes.upload import upload_file
+    from llmwiki.web.services import notebooks
+
+    monkeypatch.setattr(notebooks, "REPO_ROOT", tmp_path)
+    engine = create_engine(f"sqlite:///{tmp_path / 'app.db'}")
+    Base.metadata.create_all(bind=engine)
+    Session = sessionmaker(bind=engine)
+    monkeypatch.setattr(database, "SessionLocal", Session)
+
+    db = Session()
+    try:
+        admin = User(username="admin", hashed_password="x", role="admin")
+        selected = Notebook(slug="ai", title="AI", is_default=False)
+        db.add_all([admin, selected])
+        db.commit()
+        db.refresh(admin)
+        admin_id = admin.id
+        token = _create_token(admin)
+    finally:
+        db.close()
+
+    notebooks.ensure_notebook_dirs("ai")
+    (tmp_path / "notebooks" / "ai" / "wiki" / "log.md").write_text("", encoding="utf-8")
+
+    result = asyncio.run(
+        upload_file(
+            file=UploadFile(filename="AI Notes.md", file=BytesIO(b"# Notes")),
+            notebook="ai",
+            authorization=f"Bearer {token}",
+        )
+    )
+
+    assert result["status"] == "ok"
+    db = Session()
+    try:
+        uploaded = db.query(UploadedFile).one()
+        assert uploaded.uploader_id == admin_id
+    finally:
+        db.close()
+
+
 def test_upload_route_rejects_invalid_or_missing_notebook(monkeypatch, tmp_path):
     from fastapi import HTTPException
 

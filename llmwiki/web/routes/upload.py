@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
+from fastapi import APIRouter, File, Form, Header, HTTPException, Query, UploadFile
 
 from llmwiki.web.services.notebooks import DEFAULT_NOTEBOOK_SLUG
 
@@ -13,6 +13,14 @@ def _form_value(value: object, default: str = "") -> str:
     return value if isinstance(value, str) else default
 
 
+def _bearer_token(authorization: str | None) -> str:
+    value = _form_value(authorization).strip()
+    scheme, _, token = value.partition(" ")
+    if scheme.lower() == "bearer" and token:
+        return token.strip()
+    return ""
+
+
 @router.post("/file")
 async def upload_file(
     file: UploadFile = File(...),
@@ -20,6 +28,7 @@ async def upload_file(
     token: str = Form(""),
     notebook: str = Form(""),
     notebook_query: str | None = Query(None, alias="notebook"),
+    authorization: str | None = Header(None),
 ):
     """Upload a file, convert to markdown, create wiki source page with lineage."""
     from llmwiki.web.database import SessionLocal
@@ -37,7 +46,7 @@ async def upload_file(
     filename = file.filename or "unnamed"
     content = await file.read()
     version_note = _form_value(version_note)
-    token = _form_value(token)
+    token = _form_value(token) or _bearer_token(authorization)
     requested_notebook = (
         _form_value(notebook).strip()
         or _form_value(notebook_query).strip()
