@@ -25,6 +25,7 @@ from llmwiki.web.services.ingester import (
 MAX_DOWNLOAD_BYTES = 5 * 1024 * 1024
 MIN_CONTENT_CHARS = 40
 USER_AGENT = "llmwiki-web-import/1.0 (+public knowledge import)"
+LEGACY_CHINESE_ENCODINGS = {"gb2312", "gbk", "gb18030", "hz-gb-2312"}
 
 
 class WebImportError(ValueError):
@@ -141,8 +142,41 @@ def validate_public_url(url: str) -> str:
     return parsed.geturl()
 
 
-def _extract_html(raw: bytes, final_url: str, requested_url: str) -> FetchedPage:
-    text = raw.decode("utf-8", errors="replace")
+def _normalize_charset(charset: str | None) -> str:
+    normalized = (charset or "").strip().lower().replace("_", "-")
+    if normalized in LEGACY_CHINESE_ENCODINGS:
+        return "gb18030"
+    return normalized or "utf-8"
+
+
+def _charset_from_meta(raw: bytes) -> str:
+    head = raw[:4096].decode("ascii", errors="ignore")
+    match = re.search(r"charset\s*=\s*['\"]?\s*([A-Za-z0-9._-]+)", head, flags=re.IGNORECASE)
+    return _normalize_charset(match.group(1) if match else "")
+
+
+def _decode_html(raw: bytes, charset: str | None = None) -> str:
+    candidates = [_normalize_charset(charset), _charset_from_meta(raw), "utf-8", "gb18030"]
+    seen: set[str] = set()
+    for candidate in candidates:
+        if candidate in seen:
+            continue
+        seen.add(candidate)
+        try:
+            return raw.decode(candidate)
+        except (LookupError, UnicodeDecodeError):
+            continue
+    return raw.decode("utf-8", errors="replace")
+
+
+def _extract_html(
+    raw: bytes,
+    final_url: str,
+    requested_url: str,
+    *,
+    charset: str | None = None,
+) -> FetchedPage:
+    text = _decode_html(raw, charset)
     parser = _ReadableHTMLParser()
     parser.feed(text)
     title = parser.title() or urlparse(final_url).netloc
@@ -164,6 +198,7 @@ def fetch_public_page(url: str) -> FetchedPage:
     try:
         with urlopen(request, timeout=15) as response:
             final_url = validate_public_url(response.geturl())
+            charset = response.headers.get_content_charset()
             raw = response.read(MAX_DOWNLOAD_BYTES + 1)
     except HTTPError as exc:
         code = "fetch_forbidden" if exc.code in {401, 403, 429} else "fetch_http_error"
@@ -172,7 +207,7 @@ def fetch_public_page(url: str) -> FetchedPage:
         raise WebImportError("fetch_failed", f"Unable to fetch URL: {exc}") from exc
     if len(raw) > MAX_DOWNLOAD_BYTES:
         raise WebImportError("content_too_large", "Downloaded page is too large.")
-    return _extract_html(raw, final_url, safe_url)
+    return _extract_html(raw, final_url, safe_url, charset=charset)
 
 
 def _quote_yaml(value: str) -> str:

@@ -51,3 +51,28 @@ def test_process_manual_web_import_preserves_url_metadata(monkeypatch, tmp_path)
     assert "capture_method: manual" in text
     assert "- URL: https://example.gov.cn/rule.html" in text
     assert body in text
+
+
+def test_extract_html_decodes_chinese_legacy_charset():
+    from llmwiki.web.services.web_ingester import _extract_html
+
+    html = """<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=gb2312">
+  <title>国务院办公厅转发财政部</title>
+</head>
+<body>
+  <p>关于规范政府和社会资本合作存量项目建设和运营的通知。各地区各部门应当依法依规推进项目实施，完善风险防控和绩效管理。</p>
+</body>
+</html>"""
+    raw = html.encode("gb18030")
+
+    page = _extract_html(
+        raw,
+        "http://m.mof.gov.cn/czxw/202508/t20250820_3970511.htm",
+        "http://m.mof.gov.cn/czxw/202508/t20250820_3970511.htm",
+    )
+
+    assert page.title == "国务院办公厅转发财政部"
+    assert "规范政府和社会资本合作" in page.content
+    assert "\ufffd" not in page.content
