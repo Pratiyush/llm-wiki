@@ -277,3 +277,64 @@ def test_staff_cannot_upload_to_non_default_notebook(monkeypatch, tmp_path):
             )
         )
     assert exc.value.status_code == 403
+
+
+def test_upload_url_route_records_notebook_id_and_lineage(monkeypatch, tmp_path):
+    monkeypatch.setenv("JWT_SECRET_KEY", "test-secret")
+
+    from llmwiki.web import database
+    from llmwiki.web.database import Base
+    from llmwiki.web.models import KnowledgeLineage, Notebook, UploadedFile, User
+    from llmwiki.web.routes.auth import _create_token
+    from llmwiki.web.routes.upload import upload_url
+    from llmwiki.web.services import notebooks, web_ingester
+
+    def fake_getaddrinfo(host, port, type=0):
+        return [(None, None, None, "", ("93.184.216.34", port))]
+
+    monkeypatch.setattr(web_ingester.socket, "getaddrinfo", fake_getaddrinfo)
+    monkeypatch.setattr(notebooks, "REPO_ROOT", tmp_path)
+    engine = create_engine(f"sqlite:///{tmp_path / 'app.db'}")
+    Base.metadata.create_all(bind=engine)
+    Session = sessionmaker(bind=engine)
+    monkeypatch.setattr(database, "SessionLocal", Session)
+
+    db = Session()
+    try:
+        admin = User(username="admin", hashed_password="x", role="admin")
+        selected = Notebook(slug="ai", title="AI", is_default=False)
+        db.add_all([admin, selected])
+        db.commit()
+        db.refresh(admin)
+        db.refresh(selected)
+        token = _create_token(admin)
+        notebook_id = selected.id
+    finally:
+        db.close()
+
+    notebooks.ensure_notebook_dirs("ai")
+    body = {
+        "url": "https://example.gov.cn/rule.html",
+        "title": "Public Rule",
+        "content": "Manual web body with enough content to be imported into the notebook.",
+        "mode": "manual",
+        "version_note": "manual capture",
+        "notebook": "ai",
+        "token": token,
+    }
+
+    result = asyncio.run(upload_url(body=body))
+
+    assert result["status"] == "ok"
+    assert result["notebook"] == "ai"
+    db = Session()
+    try:
+        uploaded = db.query(UploadedFile).one()
+        assert uploaded.notebook_id == notebook_id
+        assert uploaded.version_note == "manual capture"
+        assert uploaded.wiki_path.startswith("sources/web/")
+        lineages = db.query(KnowledgeLineage).all()
+        assert lineages
+        assert {lineage.notebook_id for lineage in lineages} == {notebook_id}
+    finally:
+        db.close()
