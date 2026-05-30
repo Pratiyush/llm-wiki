@@ -853,12 +853,9 @@ const QA = {
 
   reAsk(question, model) {
     if (this.streaming) return;
-    // Re-ask with a fresh thread — model comparison should be independent
-    this.threadId = null;
-    this._updateThreadIndicator();
     var msgEl = this.addMessage('assistant', '');
     var bubble = msgEl.querySelector('.msg-bubble');
-    bubble.innerHTML = '<div class="agent-step agent-thinking">正在用 ' + model + ' 重新回答...</div>';
+    bubble.innerHTML = '<div class="agent-step agent-thinking">正在用 ' + model + ' 在当前会话中重新回答...</div>';
     this.messagesEl.scrollTop = this.messagesEl.scrollHeight;
     this._sendAgent(question, model, msgEl, bubble);
   },
