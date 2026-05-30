@@ -85,6 +85,11 @@ SYSTEM_PROMPT = """你是一个企业内控制度知识库的专业问答助手�
 6. 如果知识库中没有足够信息，说明"根据现有知识库，暂未找到相关信息"，并建议查阅哪类制度文件
 """
 
+WEB_CITATION_RULE = (
+    "\nCitation rule for web sources: when context contains "
+    '"Web source URL:", cite both the wiki page link and the exact URL.'
+)
+
 
 def get_client() -> OpenAI:
     if not API_KEY:
@@ -106,7 +111,7 @@ def _build_ask_messages(
     wiki_dir: Path | None = None,
 ) -> list[dict[str, str]]:
     context = build_context(question, wiki_dir=wiki_dir)
-    system = SYSTEM_PROMPT + _conversation_context_section(conversation_context)
+    system = SYSTEM_PROMPT + WEB_CITATION_RULE + _conversation_context_section(conversation_context)
     system += f"\n---\nWiki context:\n{context}\n---"
     return [
         {"role": "system", "content": system},
@@ -168,6 +173,16 @@ def ask_stream(
             yield delta.content
 
 
+def _source_metadata_lines(page: dict) -> str:
+    meta = page.get("meta") or {}
+    if meta.get("source_type") == "web" and meta.get("source_url"):
+        lines = [f"Web source URL: {meta['source_url']}"]
+        if meta.get("canonical_url") and meta.get("canonical_url") != meta.get("source_url"):
+            lines.append(f"Canonical URL: {meta['canonical_url']}")
+        return "\n".join(lines) + "\n"
+    return ""
+
+
 def _build_context_from_wiki(
     question: str,
     *,
@@ -205,7 +220,8 @@ def _build_context_from_wiki(
             continue
         score_suffix = f", 相关度: {r.get('score', 0):.0f}" if include_score else ""
         header = f"=== {r['title']} (来源: {r['path']}{score_suffix}) ===\n"
-        chunk = header + page["content"][:per_page_chars] + "\n\n"
+        metadata = _source_metadata_lines(page)
+        chunk = header + metadata + page["content"][:per_page_chars] + "\n\n"
         if total + len(chunk) > total_max_chars:
             break
         context_parts.append(chunk)
@@ -403,7 +419,7 @@ def _build_agent_system_content(
     conversation_context: str | None = None,
     wiki_dir: Path | None = None,
 ) -> str:
-    system_content = AGENT_SYSTEM_PROMPT
+    system_content = AGENT_SYSTEM_PROMPT + WEB_CITATION_RULE
     if conversation_context:
         system_content += _conversation_context_section(conversation_context)
     preloaded_context = _preload_context(question, wiki_dir=wiki_dir)
