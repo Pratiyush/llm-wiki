@@ -57,3 +57,33 @@ def test_format_history_omits_topic_for_standalone_question():
 
     assert "## Current conversation context" in context
     assert "### Current thread topic" not in context
+
+
+def test_build_messages_puts_conversation_before_wiki_context(monkeypatch):
+    import llmwiki.web.services.glm_client as glm
+
+    monkeypatch.setattr(glm, "build_context", lambda question, wiki_dir=None: "WIKI CONTEXT")
+
+    messages = glm._build_ask_messages(
+        "current question",
+        conversation_context="THREAD CONTEXT",
+        wiki_dir=None,
+    )
+
+    system = messages[0]["content"]
+    assert system.index("THREAD CONTEXT") < system.index("WIKI CONTEXT")
+    assert messages[1] == {"role": "user", "content": "current question"}
+
+
+def test_build_agent_system_content_includes_conversation_before_preload(monkeypatch):
+    import llmwiki.web.services.glm_client as glm
+
+    monkeypatch.setattr(glm, "_preload_context", lambda question, wiki_dir=None: "PRELOADED WIKI")
+
+    content = glm._build_agent_system_content(
+        "current question",
+        conversation_context="THREAD CONTEXT",
+        wiki_dir=None,
+    )
+
+    assert content.index("THREAD CONTEXT") < content.index("PRELOADED WIKI")

@@ -92,15 +92,43 @@ def get_client() -> OpenAI:
     return OpenAI(api_key=API_KEY, base_url=BASE_URL)
 
 
-def ask(question: str, model: str | None = None, *, wiki_dir: Path | None = None) -> str:
-    """Ask a question with wiki context, return full answer."""
-    context = build_context(question, wiki_dir=wiki_dir)
-    client, actual_model = _get_client_for_model(model or MODEL_FLASH)
+def _conversation_context_section(conversation_context: str | None) -> str:
+    if not conversation_context:
+        return ""
+    return "\n---\nConversation context:\n" + conversation_context.strip() + "\n---"
 
-    messages = [
-        {"role": "system", "content": SYSTEM_PROMPT + f"\n---\n知识库上下文:\n{context}\n---"},
+
+def _build_ask_messages(
+    question: str,
+    *,
+    model: str | None = None,
+    conversation_context: str | None = None,
+    wiki_dir: Path | None = None,
+) -> list[dict[str, str]]:
+    context = build_context(question, wiki_dir=wiki_dir)
+    system = SYSTEM_PROMPT + _conversation_context_section(conversation_context)
+    system += f"\n---\nWiki context:\n{context}\n---"
+    return [
+        {"role": "system", "content": system},
         {"role": "user", "content": question},
     ]
+
+
+def ask(
+    question: str,
+    model: str | None = None,
+    *,
+    conversation_context: str | None = None,
+    wiki_dir: Path | None = None,
+) -> str:
+    """Ask a question with wiki context, return full answer."""
+    client, actual_model = _get_client_for_model(model or MODEL_FLASH)
+    messages = _build_ask_messages(
+        question,
+        model=model,
+        conversation_context=conversation_context,
+        wiki_dir=wiki_dir,
+    )
 
     resp = client.chat.completions.create(
         model=actual_model,
@@ -111,15 +139,21 @@ def ask(question: str, model: str | None = None, *, wiki_dir: Path | None = None
     return resp.choices[0].message.content
 
 
-def ask_stream(question: str, model: str | None = None, *, wiki_dir: Path | None = None):
+def ask_stream(
+    question: str,
+    model: str | None = None,
+    *,
+    conversation_context: str | None = None,
+    wiki_dir: Path | None = None,
+):
     """Stream Q&A response via generator (for SSE)."""
-    context = build_context(question, wiki_dir=wiki_dir)
     client, actual_model = _get_client_for_model(model or MODEL_FLASH)
-
-    messages = [
-        {"role": "system", "content": SYSTEM_PROMPT + f"\n---\n知识库上下文:\n{context}\n---"},
-        {"role": "user", "content": question},
-    ]
+    messages = _build_ask_messages(
+        question,
+        model=model,
+        conversation_context=conversation_context,
+        wiki_dir=wiki_dir,
+    )
 
     resp = client.chat.completions.create(
         model=actual_model,
@@ -363,11 +397,27 @@ def _preload_context(
     )
 
 
+def _build_agent_system_content(
+    question: str,
+    *,
+    conversation_context: str | None = None,
+    wiki_dir: Path | None = None,
+) -> str:
+    system_content = AGENT_SYSTEM_PROMPT
+    if conversation_context:
+        system_content += _conversation_context_section(conversation_context)
+    preloaded_context = _preload_context(question, wiki_dir=wiki_dir)
+    if preloaded_context:
+        system_content += "\n\nInitial wiki search results; read full pages if needed:\n" + preloaded_context
+    return system_content
+
+
 def ask_agent(
     question: str,
     model: str | None = None,
     conversation_history: str | None = None,
     *,
+    conversation_context: str | None = None,
     wiki_dir: Path | None = None,
 ):
     """Agent loop with tool calling — yields SSE JSON events.
@@ -384,19 +434,12 @@ def ask_agent(
 
     client, actual_model = _get_client_for_model(model or MODEL_FLASH)
 
-    # Pre-load: search and inject top results into system prompt
-    preloaded_context = _preload_context(question, wiki_dir=wiki_dir)
-
-    system_content = AGENT_SYSTEM_PROMPT
-    if conversation_history:
-        system_content += (
-            "\n\n## 当前对话历史（同一话题的追问上下文）\n"
-            "以下是你与用户在同一话题下的历史对话，请结合此上下文理解当前问题：\n\n"
-            + conversation_history +
-            "\n请基于以上对话历史，结合知识库内容回答当前问题。"
-        )
-    if preloaded_context:
-        system_content += f"\n\n以下是初步搜索结果，你可能还需要进一步阅读完整页面：\n{preloaded_context}"
+    effective_context = conversation_context or conversation_history
+    system_content = _build_agent_system_content(
+        question,
+        conversation_context=effective_context,
+        wiki_dir=wiki_dir,
+    )
 
     messages = [
         {"role": "system", "content": system_content},
