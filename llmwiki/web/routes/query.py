@@ -79,12 +79,49 @@ def _resolve_query_notebook(notebook_slug: str | None, token: str = "") -> tuple
             db.close()
 
 
+def _build_context_for_thread(
+    *,
+    token: str,
+    thread_id: int | str | None,
+    notebook_id: int | None,
+    question: str,
+) -> str:
+    if not token or not thread_id or notebook_id is None:
+        return ""
+    try:
+        resolved_thread_id = int(thread_id)
+    except (TypeError, ValueError):
+        return ""
+
+    db = None
+    try:
+        from llmwiki.web.database import SessionLocal
+        from llmwiki.web.routes.auth import get_current_user
+        from llmwiki.web.services.conversation_context import build_conversation_context
+
+        db = SessionLocal()
+        user = get_current_user(token=token, db=db)
+        return build_conversation_context(
+            db,
+            user_id=user.id,
+            notebook_id=notebook_id,
+            thread_id=resolved_thread_id,
+            current_question=question,
+        )
+    except Exception:
+        return ""
+    finally:
+        if db:
+            db.close()
+
+
 @router.post("/ask")
 async def ask(body: dict):
     """Ask a question with GLM API + wiki context."""
     question = body.get("question", "")
     model = body.get("model")
     token = body.get("token", "")
+    thread_id = body.get("thread_id")
     notebook_slug = body.get("notebook_slug") or DEFAULT_NOTEBOOK_SLUG
     cross_notebook = bool(body.get("cross_notebook", False))
 
@@ -97,7 +134,18 @@ async def ask(body: dict):
             return {"answer": CROSS_NOTEBOOK_DENIED, "question": question}
         notebook, wiki_dir, _ = _resolve_query_notebook(notebook_slug, token)
         from llmwiki.web.services.glm_client import ask as glm_ask
-        answer = glm_ask(question, model=model, wiki_dir=wiki_dir)
+        conversation_context = _build_context_for_thread(
+            token=token,
+            thread_id=thread_id,
+            notebook_id=notebook.id,
+            question=question,
+        )
+        answer = glm_ask(
+            question,
+            model=model,
+            conversation_context=conversation_context or None,
+            wiki_dir=wiki_dir,
+        )
         return {"answer": answer, "question": question, "notebook": notebook.slug}
     except ValueError as e:
         return {"answer": f"配置错误: {e}", "question": question}
@@ -111,6 +159,7 @@ async def stream(body: dict):
     question = body.get("question", "")
     model = body.get("model")
     token = body.get("token", "")
+    thread_id = body.get("thread_id")
     notebook_slug = body.get("notebook_slug") or DEFAULT_NOTEBOOK_SLUG
     cross_notebook = bool(body.get("cross_notebook", False))
 
@@ -127,9 +176,20 @@ async def stream(body: dict):
                 yield f"data: {CROSS_NOTEBOOK_DENIED}\n\n"
                 yield "data: [DONE]\n\n"
                 return
-            _, wiki_dir, _ = _resolve_query_notebook(notebook_slug, token)
+            notebook, wiki_dir, _ = _resolve_query_notebook(notebook_slug, token)
+            conversation_context = _build_context_for_thread(
+                token=token,
+                thread_id=thread_id,
+                notebook_id=notebook.id,
+                question=question,
+            )
             from llmwiki.web.services.glm_client import ask_stream
-            for chunk in ask_stream(question, model=model, wiki_dir=wiki_dir):
+            for chunk in ask_stream(
+                question,
+                model=model,
+                conversation_context=conversation_context or None,
+                wiki_dir=wiki_dir,
+            ):
                 yield f"data: {chunk}\n\n"
         except ValueError as e:
             yield f"data: 配置错误: {e}\n\n"
@@ -162,16 +222,17 @@ async def agent_stream(body: dict):
 
     # Resolve thread_id and build conversation history
     resolved_thread_id = None
-    conversation_history = ""
+    conversation_context = ""
 
     if token and thread_id:
         try:
             resolved_thread_id = int(thread_id)
             notebook, _, _ = _resolve_query_notebook(notebook_slug, token)
-            conversation_history = _build_thread_history(
-                token,
-                resolved_thread_id,
+            conversation_context = _build_context_for_thread(
+                token=token,
+                thread_id=resolved_thread_id,
                 notebook_id=notebook.id,
+                question=question,
             )
         except (ValueError, TypeError):
             pass
@@ -192,7 +253,7 @@ async def agent_stream(body: dict):
             from llmwiki.web.services.glm_client import ask_agent
             for event_json in ask_agent(
                 question, model=model,
-                conversation_history=conversation_history or None,
+                conversation_context=conversation_context or None,
                 wiki_dir=wiki_dir,
             ):
                 yield f"data: {event_json}\n\n"

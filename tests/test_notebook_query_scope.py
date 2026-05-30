@@ -216,21 +216,31 @@ async def test_ask_route_passes_selected_notebook_wiki_dir(monkeypatch, tmp_path
     monkeypatch.setattr(
         query,
         "_resolve_query_notebook",
-        lambda slug, token="": (SimpleNamespace(slug=slug, id=42), wiki_dir, None),
+        lambda slug, token="": (SimpleNamespace(slug=slug, id=42), wiki_dir, SimpleNamespace(id=7)),
+    )
+    monkeypatch.setattr(
+        query,
+        "_build_context_for_thread",
+        lambda *, token, thread_id, notebook_id, question: "THREAD CONTEXT",
     )
 
-    def fake_ask(question, model=None, *, wiki_dir=None):
+    def fake_ask(question, model=None, *, conversation_context=None, wiki_dir=None):
         captured["question"] = question
         captured["wiki_dir"] = wiki_dir
+        captured["conversation_context"] = conversation_context
         return "scoped answer"
 
     monkeypatch.setattr("llmwiki.web.services.glm_client.ask", fake_ask)
 
-    response = await query.ask({"question": "attention", "notebook_slug": "ai"})
+    response = await query.ask({"question": "attention", "notebook_slug": "ai", "thread_id": 9, "token": "t"})
 
     assert response["answer"] == "scoped answer"
     assert response["notebook"] == "ai"
-    assert captured == {"question": "attention", "wiki_dir": wiki_dir}
+    assert captured == {
+        "question": "attention",
+        "wiki_dir": wiki_dir,
+        "conversation_context": "THREAD CONTEXT",
+    }
 
 
 @pytest.mark.asyncio
@@ -281,3 +291,81 @@ def test_agent_cross_notebook_denial_is_framed_and_done(monkeypatch):
     payload = json.loads(chunks[0][6:].strip())
     assert payload == {"type": "error", "message": query.CROSS_NOTEBOOK_DENIED}
     assert chunks[1] == "data: [DONE]\n\n"
+
+
+def test_stream_route_passes_conversation_context(monkeypatch, tmp_path):
+    import asyncio
+    import llmwiki.web.routes.query as query
+
+    wiki_dir = tmp_path / "wiki"
+    captured = {}
+    monkeypatch.setattr(
+        query,
+        "_resolve_query_notebook",
+        lambda slug, token="": (SimpleNamespace(slug=slug, id=42), wiki_dir, SimpleNamespace(id=7)),
+    )
+    monkeypatch.setattr(
+        query,
+        "_build_context_for_thread",
+        lambda *, token, thread_id, notebook_id, question: "THREAD CONTEXT",
+    )
+
+    def fake_stream(question, model=None, *, conversation_context=None, wiki_dir=None):
+        captured["conversation_context"] = conversation_context
+        captured["wiki_dir"] = wiki_dir
+        yield "answer"
+
+    monkeypatch.setattr("llmwiki.web.services.glm_client.ask_stream", fake_stream)
+
+    response = asyncio.run(query.stream({"question": "q", "thread_id": 3, "token": "t", "notebook_slug": "ai"}))
+
+    async def collect():
+        return [chunk async for chunk in response.body_iterator]
+
+    chunks = asyncio.run(collect())
+
+    assert "data: answer\n\n" in chunks
+    assert captured == {"conversation_context": "THREAD CONTEXT", "wiki_dir": wiki_dir}
+
+
+def test_agent_route_passes_conversation_context(monkeypatch, tmp_path):
+    import asyncio
+    import json
+    import llmwiki.web.routes.query as query
+
+    wiki_dir = tmp_path / "wiki"
+    captured = {}
+    monkeypatch.setattr(query, "_user_from_token", lambda token: SimpleNamespace(id=7, role="admin"))
+    monkeypatch.setattr(
+        query,
+        "_resolve_query_notebook",
+        lambda slug, token="": (SimpleNamespace(slug=slug, id=42), wiki_dir, SimpleNamespace(id=7)),
+    )
+    monkeypatch.setattr(
+        query,
+        "_build_context_for_thread",
+        lambda *, token, thread_id, notebook_id, question: "THREAD CONTEXT",
+    )
+    monkeypatch.setattr(query, "_save_chat_history", lambda *args, **kwargs: 3)
+
+    def fake_agent(question, model=None, conversation_history=None, *, conversation_context=None, wiki_dir=None):
+        captured["conversation_history"] = conversation_history
+        captured["conversation_context"] = conversation_context
+        captured["wiki_dir"] = wiki_dir
+        yield json.dumps({"type": "done", "answer": "final"}, ensure_ascii=False)
+
+    monkeypatch.setattr("llmwiki.web.services.glm_client.ask_agent", fake_agent)
+
+    response = asyncio.run(query.agent_stream({"question": "q", "thread_id": 3, "token": "t", "notebook_slug": "ai"}))
+
+    async def collect():
+        return [chunk async for chunk in response.body_iterator]
+
+    chunks = asyncio.run(collect())
+
+    assert any('"answer": "final"' in chunk for chunk in chunks)
+    assert captured == {
+        "conversation_history": None,
+        "conversation_context": "THREAD CONTEXT",
+        "wiki_dir": wiki_dir,
+    }
