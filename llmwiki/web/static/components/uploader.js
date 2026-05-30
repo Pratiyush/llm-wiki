@@ -2,6 +2,7 @@
 
 const Uploader = {
   pendingFiles: null,
+  webMode: 'auto',
 
   init() {
     this.dropzone = document.getElementById('upload-dropzone');
@@ -47,6 +48,19 @@ const Uploader = {
     // Confirm modal actions
     this.closeBtn.addEventListener('click', () => this._hideConfirm());
     this.confirmBtn.addEventListener('click', () => this._doUpload());
+
+    this.webUrl = document.getElementById('web-import-url');
+    this.webTitle = document.getElementById('web-import-title');
+    this.webContent = document.getElementById('web-import-content');
+    this.webNote = document.getElementById('web-import-note');
+    this.webImportBtn = document.getElementById('web-import-btn');
+    this.webModeAuto = document.getElementById('web-mode-auto');
+    this.webModeManual = document.getElementById('web-mode-manual');
+    if (this.webImportBtn) {
+      this.webModeAuto.addEventListener('click', () => this._setWebMode('auto'));
+      this.webModeManual.addEventListener('click', () => this._setWebMode('manual'));
+      this.webImportBtn.addEventListener('click', () => this.importUrl());
+    }
 
     window.addEventListener('notebook:change', () => {
       if (this.results) this.results.innerHTML = '';
@@ -147,6 +161,83 @@ const Uploader = {
         item.querySelector('.upload-status').textContent = '请求失败: ' + e.message;
       }
     }
+  },
+
+  _setWebMode(mode) {
+    this.webMode = mode;
+    this.webModeAuto.classList.toggle('active', mode === 'auto');
+    this.webModeManual.classList.toggle('active', mode === 'manual');
+    document.querySelectorAll('.web-manual-only').forEach((el) => {
+      el.style.display = mode === 'manual' ? '' : 'none';
+    });
+  },
+
+  async importUrl() {
+    const url = (this.webUrl.value || '').trim();
+    const item = document.createElement('div');
+    item.className = 'upload-item';
+    item.innerHTML = '<div class="status pending"></div><div><strong>' + this._escapeHtml(url || 'URL') + '</strong><br><span class="upload-status">Importing web source...</span></div>';
+    this.results.appendChild(item);
+
+    if (!url) {
+      item.querySelector('.status').className = 'status error';
+      item.querySelector('.upload-status').textContent = 'URL is required';
+      return;
+    }
+
+    const headers = { 'Content-Type': 'application/json' };
+    const body = {
+      url: url,
+      mode: this.webMode,
+      title: this.webTitle ? this.webTitle.value.trim() : '',
+      content: this.webContent ? this.webContent.value : '',
+      version_note: this.webNote ? this.webNote.value.trim() : '',
+      notebook: this.notebookSlug()
+    };
+
+    if (typeof Auth !== 'undefined' && Auth.isLoggedIn()) {
+      const token = Auth.getToken();
+      body.token = token;
+      headers.Authorization = 'Bearer ' + token;
+    }
+
+    try {
+      const resp = await fetch('/api/upload/url', {
+        method: 'POST',
+        headers: headers,
+        body: JSON.stringify(body)
+      });
+      const data = await resp.json().catch(() => ({}));
+      const statusDot = item.querySelector('.status');
+      const statusText = item.querySelector('.upload-status');
+
+      if (!resp.ok) {
+        statusDot.className = 'status error';
+        statusText.textContent = data.detail || 'Import failed: HTTP ' + resp.status;
+      } else if (data.status === 'ok') {
+        statusDot.className = 'status success';
+        statusText.innerHTML = 'Imported ' + data.content_length + ' characters'
+          + '<br>URL: ' + this._escapeHtml(data.canonical_url || data.url)
+          + '<br>Page: <a href="#wiki" onclick="Uploader.openPage(\'' + data.wiki_path + '\')">' + data.wiki_path + '</a>';
+      } else {
+        statusDot.className = 'status error';
+        statusText.textContent = data.message || 'Import failed';
+        if (data.code && data.code.indexOf('fetch') === 0) this._setWebMode('manual');
+      }
+    } catch (e) {
+      item.querySelector('.status').className = 'status error';
+      item.querySelector('.upload-status').textContent = 'Request failed: ' + e.message;
+    }
+  },
+
+  _escapeHtml(value) {
+    return String(value || '').replace(/[&<>"']/g, (ch) => ({
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#39;'
+    }[ch]));
   },
 
   openPage(path) {

@@ -442,6 +442,54 @@ a:hover { color: var(--accent-hover); }
 .dropzone-icon { font-size: 44px; margin-bottom: 14px; opacity: 0.5; }
 .upload-dropzone p { margin-bottom: 8px; color: var(--text-secondary); }
 .upload-results { width: 100%; max-width: 580px; margin-top: 24px; }
+.web-import-panel {
+  width: 100%;
+  max-width: 760px;
+  margin-top: 24px;
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  box-shadow: var(--shadow-xs);
+}
+.web-import-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.web-import-header h3 {
+  margin: 0;
+  font-size: 16px;
+}
+.web-import-mode {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+.web-mode-btn {
+  border: 0;
+  background: transparent;
+  padding: 7px 10px;
+  cursor: pointer;
+  color: var(--text-secondary);
+}
+.web-mode-btn.active {
+  background: var(--accent);
+  color: white;
+}
+#web-import-content {
+  width: 100%;
+  resize: vertical;
+}
+@media (max-width: 700px) {
+  .web-import-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
 .upload-item {
   padding: 14px 18px; background: var(--bg-card); border: 1px solid var(--border);
   border-radius: var(--radius-sm); margin-bottom: 10px; display: flex; align-items: center;

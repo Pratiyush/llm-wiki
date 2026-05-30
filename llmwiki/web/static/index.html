@@ -124,6 +124,32 @@
           <input type="file" id="upload-input" multiple accept=".doc,.docx,.pdf,.md,.txt" hidden>
           <button class="btn btn-primary" id="upload-btn">选择文件</button>
         </div>
+        <div class="web-import-panel" id="web-import-panel">
+          <div class="web-import-header">
+            <h3>Web URL Import</h3>
+            <div class="web-import-mode" role="group" aria-label="Web import mode">
+              <button class="web-mode-btn active" id="web-mode-auto" type="button">Auto fetch</button>
+              <button class="web-mode-btn" id="web-mode-manual" type="button">Paste body</button>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="web-import-url">URL</label>
+            <input type="url" id="web-import-url" placeholder="https://example.gov.cn/rule.html">
+          </div>
+          <div class="form-group web-manual-only" style="display:none">
+            <label for="web-import-title">Title</label>
+            <input type="text" id="web-import-title" placeholder="Page title">
+          </div>
+          <div class="form-group web-manual-only" style="display:none">
+            <label for="web-import-content">Page body</label>
+            <textarea id="web-import-content" rows="8" placeholder="Paste page text here"></textarea>
+          </div>
+          <div class="form-group">
+            <label for="web-import-note">Source note</label>
+            <input type="text" id="web-import-note" placeholder="Source date, version, or capture note">
+          </div>
+          <button class="btn btn-primary" id="web-import-btn" type="button">Import URL</button>
+        </div>
         <div class="upload-results" id="upload-results"></div>
       </div>
     </div>
