@@ -82,6 +82,9 @@ const API = {
     return fetch('/api/notebooks', {
       headers: token ? { 'Authorization': 'Bearer ' + token } : {},
     }).then(r => {
+      if (r.status === 401 && typeof Auth !== 'undefined' && Auth.logout) {
+        Auth.logout();
+      }
       if (!r.ok) throw new Error(`API error: ${r.status}`);
       return r.json();
     });

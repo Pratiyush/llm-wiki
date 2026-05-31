@@ -13,8 +13,9 @@ const Auth = {
 
     // Restore session
     var token = localStorage.getItem('llmwiki-token');
+    var restorePromise = Promise.resolve();
     if (token) {
-      this._loadUser(token, true);
+      restorePromise = this._loadUser(token, true);
     }
 
     // Login button click
@@ -56,6 +57,7 @@ const Auth = {
       QA.clearChat();
     }
     console.log('[Auth] initialized, user:', this.user ? this.user.username : 'none');
+    return restorePromise;
   },
 
   getToken() {

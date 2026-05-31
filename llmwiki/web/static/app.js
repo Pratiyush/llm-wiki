@@ -36,8 +36,7 @@
   Router.init();
 
   // Init components
-  Auth.init();
-  Promise.resolve(Notebooks.init()).finally(() => {
+  Promise.resolve(Auth.init()).finally(() => Notebooks.init()).finally(() => {
     Browser.init();
     QA.init();
     Uploader.init();
