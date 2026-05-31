@@ -34,6 +34,16 @@ const Notebooks = {
   },
 
   async load() {
+    if (typeof Auth !== 'undefined' && !Auth.getToken()) {
+      this.notebooks = [{
+        slug: 'enterprise-management',
+        title: '企业管理制度',
+        is_default: true,
+      }];
+      this.render();
+      return;
+    }
+
     try {
       const data = await API.getNotebooks();
       this.notebooks = data.notebooks || [];
