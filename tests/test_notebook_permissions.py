@@ -197,6 +197,34 @@ def test_create_notebook_normalizes_slug_with_spaces_from_form_input(
     assert (tmp_path / "notebooks" / "chinese-tradition" / "wiki").is_dir()
 
 
+def test_create_notebook_accepts_chinese_slug_from_form_input(
+    db_session, users, monkeypatch, tmp_path
+):
+    from llmwiki.notebooks import is_valid_slug
+    from llmwiki.web.routes import notebooks as route
+    from llmwiki.web.services import notebooks as notebook_services
+
+    monkeypatch.setattr(notebook_services, "REPO_ROOT", tmp_path)
+
+    response = asyncio.run(
+        route.create_notebook(
+            {
+                "slug": "城轨技术规范",
+                "name": "城市轨道交通技术规范",
+                "description": "城市轨道交通业务范围内的技术规范",
+            },
+            user=users["admin"],
+            db=db_session,
+        )
+    )
+
+    slug = response["notebook"]["slug"]
+    assert is_valid_slug(slug)
+    assert slug != "notebook"
+    assert response["notebook"]["title"] == "城市轨道交通技术规范"
+    assert (tmp_path / "notebooks" / slug / "wiki").is_dir()
+
+
 def test_update_notebook_allows_admin_to_edit_non_default(db_session, users):
     from llmwiki.web.routes import notebooks as route
 

@@ -83,12 +83,13 @@ const Manager = {
     var slugEl = document.getElementById('notebook-slug');
     var descEl = document.getElementById('notebook-description');
     var name = (nameEl?.value || '').trim();
-    var slug = this._normalizeNotebookSlug(slugEl?.value || '');
+    var rawSlug = (slugEl?.value || '').trim();
+    var slug = this._normalizeNotebookSlug(rawSlug);
     var description = (descEl?.value || '').trim();
-    if (!name || !slug) return;
+    if (!name) return;
 
     try {
-      var data = await API.createNotebook({ name: name, slug: slug, description: description });
+      var data = await API.createNotebook({ name: name, slug: slug || rawSlug, description: description });
       if (data.status === 'ok') {
         document.getElementById('notebook-create-form')?.reset();
         await Notebooks.load();

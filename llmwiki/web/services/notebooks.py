@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import re
 import unicodedata
 from pathlib import Path
@@ -38,8 +39,9 @@ PINYIN_BY_CHAR = {
 
 def slugify_notebook_title(title: str) -> str:
     """Convert a notebook title into a directory-safe slug."""
+    source = title.strip()
     parts: list[str] = []
-    for char in title.strip().lower():
+    for char in source.lower():
         if char.isascii() and char.isalnum():
             parts.append(char)
         elif char in PINYIN_BY_CHAR:
@@ -53,7 +55,12 @@ def slugify_notebook_title(title: str) -> str:
             parts.append(normalized.lower() if normalized and normalized.isalnum() else "-")
 
     slug = re.sub(r"[^a-z0-9]+", "-", "".join(parts)).strip("-")
-    return slug or "notebook"
+    if slug:
+        return slug
+    if source:
+        digest = hashlib.sha1(source.encode("utf-8")).hexdigest()[:8]
+        return f"notebook-{digest}"
+    return "notebook"
 
 
 def validate_notebook_slug(slug: str) -> str:

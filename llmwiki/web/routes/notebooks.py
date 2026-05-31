@@ -26,7 +26,7 @@ def _normalize_submitted_slug(raw_slug: str, title: str) -> str:
     slug = raw_slug.strip()
     if not slug:
         return slugify_notebook_title(title)
-    if any(char.isspace() for char in slug) or "_" in slug:
+    if any(char.isspace() for char in slug) or "_" in slug or not slug.isascii():
         return slugify_notebook_title(slug)
     return slug
 
