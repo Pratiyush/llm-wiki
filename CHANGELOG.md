@@ -8,6 +8,15 @@ Versions below 1.0 are pre-production — API and file formats may change.
 
 ## [Unreleased]
 
+### Added
+
+- **`llmwiki all --with-synth`** (#383) — opt-in chain that runs `synthesize` before `build → graph → export → lint`, so CLI users can fill `wiki/sources/` from `raw/` in one command without relying on agent slash skills. Companion flags: `--synth-force` (pass `--force` to synthesize), `--vault` (vault-overlay synthesize when using `--with-synth`).
+- **`llmwiki sync --status` synthesis hint** (#383) — reports the configured `synthesis.backend` and points to `llmwiki synthesize` / `llmwiki all --with-synth` when `wiki/sources/` may stay empty after sync.
+
+### Changed
+
+- **README quick-start + `/wiki-all`** (#383) — document that `sync` alone only fills `raw/`; semantic wiki pages require `synthesize` or `all --with-synth`.
+
 ## [1.3.82] — 2026-04-30
 
 #467 — healer-in-CI auto-patch comment workflow. Closes the Playwright Test Agents epic (#462).
