@@ -101,6 +101,12 @@ def cmd_sync_status(args: argparse.Namespace) -> int:
     else:
         print("Quarantined sources: 0")
 
+    from llmwiki.config_schedule import synthesis_status_hint
+    hint = synthesis_status_hint()
+    if hint:
+        print()
+        print(f"Hint: {hint}")
+
     if args.recent:
         from llmwiki.log_reader import recent_events
         log_path = REPO_ROOT / "wiki" / "log.md"

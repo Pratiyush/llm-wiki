@@ -15,6 +15,7 @@ Subcommands:
     candidates        List / promote / merge / discard candidate pages
     synthesize        Synthesize wiki source pages from raw sessions via LLM
     all               Run the full pipeline: build → graph → export all → lint
+                      (optional: synthesize first with --with-synth)
     version           Print version and exit
 """
 
@@ -676,6 +677,9 @@ def _add_vault_arg(parser: argparse.ArgumentParser, *, role: str) -> None:
                           "flag the state file lives at the repo root, so "
                           "two vaults synthesised against the same repo "
                           "silently share idempotency state.",
+            "all": "(#383) With --with-synth: run synthesize against the "
+                   "vault's raw/ + wiki/sources/ (same semantics as "
+                   "`llmwiki synthesize --vault`).",
         }[role],
     )
 
@@ -898,7 +902,8 @@ def build_parser() -> argparse.ArgumentParser:
     # all — run build + graph + export all + lint in sequence
     all_p = sub.add_parser(
         "all",
-        help="Run the full pipeline: build → graph → export all → lint",
+        help="Run the full pipeline: build → graph → export all → lint "
+             "(add --with-synth to run synthesize first)",
     )
     all_p.add_argument(
         "--out", type=Path, default=REPO_ROOT / "site",
@@ -924,6 +929,16 @@ def build_parser() -> argparse.ArgumentParser:
         "--strict", action="store_true",
         help="Exit 2 if lint reports any errors/warnings",
     )
+    all_p.add_argument(
+        "--with-synth", action="store_true",
+        help="Run `synthesize` before build (fills wiki/sources/ from raw/; "
+             "may invoke LLM — default off for cost discipline, #383)",
+    )
+    all_p.add_argument(
+        "--synth-force", action="store_true",
+        help="With --with-synth: pass --force to synthesize (re-synthesize all sessions)",
+    )
+    _add_vault_arg(all_p, role="all")
     all_p.set_defaults(func=cmd_all)
 
     return p

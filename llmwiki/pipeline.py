@@ -24,6 +24,9 @@ from llmwiki import REPO_ROOT
 def run_pipeline(args: argparse.Namespace) -> int:
     """Run the full wiki pipeline end-to-end: build → graph → export all → lint.
 
+    With ``--with-synth``, runs ``synthesize`` first (opt-in — may invoke an
+    LLM backend). See #383.
+
     This is the convenience entry point advertised as ``wiki-all`` in
     docs and slash commands. It executes the usual post-sync steps in
     the canonical order so a single command reproduces a CI-ready
@@ -39,12 +42,27 @@ def run_pipeline(args: argparse.Namespace) -> int:
     # the relevant cmd_* expects; no global parser involvement.
     # cmd_* are lazy-imported here to avoid a circular import — cli.py
     # imports run_pipeline at module top.
-    from llmwiki.cli import cmd_build, cmd_export, cmd_graph, cmd_lint
+    from llmwiki.cli import cmd_build, cmd_export, cmd_graph, cmd_lint, cmd_synthesize
 
     def _ns(**kw: Any) -> argparse.Namespace:
         return argparse.Namespace(**kw)
 
     steps: list[tuple[str, str, argparse.Namespace]] = []
+    if getattr(args, "with_synth", False):
+        steps.append((
+            "synthesize",
+            "synthesize",
+            _ns(
+                check=False,
+                estimate=False,
+                list_pending=False,
+                complete=None,
+                force=getattr(args, "synth_force", False),
+                page=None,
+                body=None,
+                vault=getattr(args, "vault", None),
+            ),
+        ))
     steps.append((
         "build",
         f"build --out {args.out} --search-mode {args.search_mode}",
@@ -84,6 +102,7 @@ def run_pipeline(args: argparse.Namespace) -> int:
     ))
 
     dispatch = {
+        "synthesize": cmd_synthesize,
         "build": cmd_build,
         "graph": cmd_graph,
         "export": cmd_export,

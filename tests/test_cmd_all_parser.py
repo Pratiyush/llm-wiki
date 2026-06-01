@@ -27,6 +27,9 @@ def _mk_args(**overrides) -> argparse.Namespace:
         "graph_engine": "builtin",
         "strict": False,
         "fail_fast": False,
+        "with_synth": False,
+        "synth_force": False,
+        "vault": None,
     }
     base.update(overrides)
     return argparse.Namespace(**base)

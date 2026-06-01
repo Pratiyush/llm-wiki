@@ -8,6 +8,8 @@ Usage: /wiki-all [flags]
 - `--skip-graph` — skip the graph step entirely
 - `--strict` — exit non-zero if lint reports any errors/warnings (good for CI)
 - `--fail-fast` — stop at the first non-zero step instead of continuing to the next
+- `--with-synth` — run `synthesize` before build (fills `wiki/sources/` from `raw/`; opt-in because it may invoke an LLM)
+- `--synth-force` — with `--with-synth`, pass `--force` to re-synthesize all sessions
 - `--out <dir>` — output directory (default: `site/`)
 
 Run:
@@ -18,6 +20,7 @@ python3 -m llmwiki all $ARGUMENTS
 
 The command runs these steps in order and surfaces their combined output:
 
+0. **synthesize** *(only with `--with-synth`)* — fill `wiki/sources/` from `raw/` via the configured LLM backend
 1. **build** — compile the static HTML site from `raw/` + `wiki/`
 2. **graph** — build the knowledge graph (`graph/graph.json` + interactive `graph.html`)
 3. **export all** — write every AI-consumable format (`llms.txt`, `llms-full.txt`, `graph.jsonld`, `sitemap.xml`, `rss.xml`, `robots.txt`, `ai-readme.md`)

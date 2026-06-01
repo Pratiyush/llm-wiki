@@ -33,6 +33,13 @@ Every Claude Code, Codex CLI, Copilot, Cursor, and Gemini CLI session writes a f
 ./build.sh && ./serve.sh           # build + serve at http://127.0.0.1:8765
 ```
 
+**Want LLM-enriched wiki pages from the CLI?** After `./setup.sh`, `llmwiki sync` only fills `raw/`. To populate `wiki/sources/` (semantic summaries), set `synthesis.backend` in `examples/sessions_config.json` (`ollama` for local Ollama, or keep `dummy` for stubs), then run `llmwiki synthesize` or chain it with `llmwiki all --with-synth`. See [docs/modes/api/](docs/modes/api/) and `llmwiki sync --status` for the current backend hint.
+
+```bash
+llmwiki sync
+llmwiki all --with-synth --graph-engine builtin   # synthesize → build → graph → export → lint
+```
+
 ![llmwiki — 70-second demo](docs/demo.gif)
 
 
