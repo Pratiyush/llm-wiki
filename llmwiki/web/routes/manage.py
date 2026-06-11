@@ -10,11 +10,40 @@ from sqlalchemy.orm import Session
 
 from llmwiki import REPO_ROOT
 from llmwiki.web.database import SessionLocal, get_db
-from llmwiki.web.models import PendingWiki, UploadedFile, KnowledgeLineage, OutdatedFlag, User
+from llmwiki.notebooks import DEFAULT_NOTEBOOK_SLUG
+from llmwiki.web.models import Notebook, PendingWiki, UploadedFile, KnowledgeLineage, OutdatedFlag, User
 from llmwiki.web.routes.auth import get_current_user
+from llmwiki.web.services.notebooks import notebook_wiki_dir, validate_notebook_slug
 from llmwiki.web.services.wiki_reader import get_stats, invalidate_cache
 
 router = APIRouter()
+
+
+def _selected_notebook_wiki_dir(db: Session, notebook: str | None) -> tuple[Notebook, Path]:
+    slug = (notebook or DEFAULT_NOTEBOOK_SLUG).strip() or DEFAULT_NOTEBOOK_SLUG
+    try:
+        validate_notebook_slug(slug)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="notebook not found") from None
+
+    row = db.query(Notebook).filter(Notebook.slug == slug).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="notebook not found")
+    return row, notebook_wiki_dir(row.slug)
+
+
+def _lineage_wiki_file(db: Session, lineage: KnowledgeLineage) -> Path:
+    notebook_id = lineage.notebook_id
+    if notebook_id is None:
+        source = db.query(UploadedFile).filter(UploadedFile.id == lineage.source_file_id).first()
+        notebook_id = source.notebook_id if source else None
+
+    slug = DEFAULT_NOTEBOOK_SLUG
+    if notebook_id is not None:
+        notebook = db.query(Notebook).filter(Notebook.id == notebook_id).first()
+        if notebook:
+            slug = notebook.slug
+    return notebook_wiki_dir(slug) / lineage.wiki_path
 
 
 @router.get("/status")
@@ -869,13 +898,16 @@ async def reject_flag(
 async def get_audit_queue(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
+    notebook: str = DEFAULT_NOTEBOOK_SLUG,
 ):
     """List all wiki pages pending review — admin only."""
     if user.role not in ("leader", "admin"):
         raise HTTPException(status_code=403, detail="需要管理员权限")
 
+    selected_notebook, wiki_dir = _selected_notebook_wiki_dir(db, notebook)
     items = db.query(KnowledgeLineage).filter(
         KnowledgeLineage.wiki_type == "pending_review",
+        KnowledgeLineage.notebook_id == selected_notebook.id,
     ).all()
 
     result = []
@@ -886,7 +918,7 @@ async def get_audit_queue(
         seen_paths.add(item.wiki_path)
 
         source = db.query(UploadedFile).filter(UploadedFile.id == item.source_file_id).first()
-        wiki_file = REPO_ROOT / "wiki" / item.wiki_path
+        wiki_file = wiki_dir / item.wiki_path
         exists = wiki_file.exists()
 
         # Read content preview
@@ -924,7 +956,7 @@ async def get_audited_content(
     if not lin:
         raise HTTPException(status_code=404, detail="记录不存在")
 
-    wiki_file = REPO_ROOT / "wiki" / lin.wiki_path
+    wiki_file = _lineage_wiki_file(db, lin)
     content = ""
     if wiki_file.exists():
         content = wiki_file.read_text(encoding="utf-8")
@@ -948,7 +980,7 @@ async def edit_audited_content(
         raise HTTPException(status_code=404, detail="记录不存在")
 
     new_content = body.get("content", "")
-    wiki_file = REPO_ROOT / "wiki" / lin.wiki_path
+    wiki_file = _lineage_wiki_file(db, lin)
     wiki_file.parent.mkdir(parents=True, exist_ok=True)
     wiki_file.write_text(new_content, encoding="utf-8")
 
@@ -970,9 +1002,12 @@ async def delete_audited_page(
         raise HTTPException(status_code=404, detail="记录不存在")
 
     wiki_path = lin.wiki_path
-    db.query(KnowledgeLineage).filter(KnowledgeLineage.wiki_path == wiki_path).delete()
+    db.query(KnowledgeLineage).filter(
+        KnowledgeLineage.wiki_path == wiki_path,
+        KnowledgeLineage.notebook_id == lin.notebook_id,
+    ).delete()
 
-    wiki_file = REPO_ROOT / "wiki" / wiki_path
+    wiki_file = _lineage_wiki_file(db, lin)
     deleted_file = False
     if wiki_file.exists():
         wiki_file.unlink()
@@ -996,7 +1031,10 @@ async def keep_audited_page(
     if not lin:
         raise HTTPException(status_code=404, detail="记录不存在")
 
-    for item in db.query(KnowledgeLineage).filter(KnowledgeLineage.wiki_path == lin.wiki_path):
+    for item in db.query(KnowledgeLineage).filter(
+        KnowledgeLineage.wiki_path == lin.wiki_path,
+        KnowledgeLineage.notebook_id == lin.notebook_id,
+    ):
         item.wiki_type = "source"
 
     db.commit()
