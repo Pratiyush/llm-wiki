@@ -45,7 +45,7 @@ jobs:
         run: python scripts/regen_docs_screenshots.py --theme="${{ inputs.theme }}"
 
       - name: Open PR with the diff (if any)
-        uses: peter-evans/create-pull-request@v7
+        uses: peter-evans/create-pull-request@v8
         with:
           branch: chore/regen-docs-screenshots-${{ github.run_id }}
           title: "chore: regenerate docs/images/*.png (#632)"
