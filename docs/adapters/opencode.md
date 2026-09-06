@@ -7,7 +7,7 @@ docs_shell: true
 # OpenCode / OpenClaw adapter
 
 Reads `.jsonl` session transcripts written by the
-[OpenCode](https://github.com/sst/opencode) / OpenClaw agents —
+[OpenCode](https://github.com/anomalyco/opencode) / OpenClaw agents —
 both use an identical schema.
 
 **AI-session adapter** (`is_ai_session = True`) — fires by default

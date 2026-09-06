@@ -216,7 +216,7 @@ python3 -m llmwiki graph --format html
 (vis-network interactive viewer). The interactive version is also
 auto-copied into `site/graph.html` on every `build`.
 
-**Graphify engine:** Runs the [Graphify](https://github.com/safishamsi/graphify) pipeline:
+**Graphify engine:** Runs the [Graphify](https://github.com/Graphify-Labs/graphify) pipeline:
 tree-sitter AST extraction for code, semantic analysis for docs, Leiden community
 detection, god-node analysis. Outputs to `graphify-out/` (graph.json, graph.html,
 GRAPH_REPORT.md) and copies to `graph/` for build compatibility. Install:

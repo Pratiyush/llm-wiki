@@ -24,7 +24,7 @@ GitHub Insights, the issue tracker, and PyPI stats.
 **Data sources:**
 - Stars/forks: GitHub repo page
 - Cloners/visitors: GitHub Insights > Traffic
-- PyPI downloads: [pepy.tech/project/llmwiki](https://pepy.tech/project/llmwiki)
+- PyPI downloads: [pepy.tech/projects/llmwiki](https://pepy.tech/projects/llmwiki)
 
 ### Issues
 
@@ -135,7 +135,7 @@ Ranked by upvotes on open issues:
    gh pr list --state merged --search "merged:2026-MM-01..2026-MM-31" \
      --json author --jq '.[].author.login' | sort -u
    ```
-3. **PyPI downloads:** [pepy.tech](https://pepy.tech/project/llmwiki)
+3. **PyPI downloads:** [pepy.tech](https://pepy.tech/projects/llmwiki)
    or `pip install pypistats && pypistats overall llmwiki --last-month`
 4. **Lighthouse:** run `npx lighthouse https://pratiyush.github.io/llm-wiki/ --output=json`
    or check the Chrome DevTools Lighthouse tab

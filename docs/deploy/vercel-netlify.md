@@ -60,7 +60,7 @@ pip install markdown && python3 -m llmwiki init && cp -r examples/demo-sessions/
 ### Quick setup
 
 1. Push your repo to GitHub/GitLab/Bitbucket.
-2. Go to [netlify.com](https://netlify.com), import the repo.
+2. Go to [netlify.com](https://www.netlify.com/), import the repo.
 3. Configure the build:
 
 | Setting | Value |
