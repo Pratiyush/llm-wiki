@@ -47,7 +47,11 @@ This document is the deliverable for **Phase 1.25 Research**, a new phase added 
 - **Gap:** Input is "drop markdown in `raw/`" — no knowledge of session transcripts. No dark mode. No search. No HTML output beyond the graph HTML.
 - **Lesson:** This is the closest prior art. llmwiki inherits its directory layout and slash-command naming (`/wiki-*`).
 
-#### [Ss1024sS/LLM-wiki](https://github.com/Ss1024sS/LLM-wiki)
+#### Ss1024sS/LLM-wiki (repository no longer public)
+- **Availability:** `github.com/Ss1024sS/LLM-wiki` returns 404 as of 2026-09-06.
+  GitHub redirects renames, so this was deleted or made private rather than
+  moved. The notes below record what was there when it was surveyed; the link
+  is removed rather than the entry, because the observation still stands.
 - **Shape:** 25 markdown + 4 Python. Generates 30 files including stale-reporting scripts.
 - **Strength:** Explicitly covers the "AI remembers nothing in new sessions" pain point in its README.
 - **Gap:** No HTML viewer. No multi-agent.
@@ -120,8 +124,8 @@ This document is the deliverable for **Phase 1.25 Research**, a new phase added 
 - [swarmclawai/swarmvault](https://github.com/swarmclawai/swarmvault) — multi-agent vault
 - [anzal1/quicky-wiki](https://github.com/anzal1/quicky-wiki) — small-scale wiki
 - [Houseofmvps/codesight](https://github.com/Houseofmvps/codesight) — different domain
-- [milla-jovovich/mempalace](https://github.com/milla-jovovich/mempalace) — memory palace
-- [MetamusicX/llm-research-wiki](https://github.com/MetamusicX/llm-research-wiki) — research-only
+- [MemPalace/mempalace](https://github.com/MemPalace/mempalace) — memory palace
+- [MetamusicX/zissa-wiki](https://github.com/MetamusicX/zissa-wiki) — research-only
 
 ## The 10x gap (feature matrix)
 

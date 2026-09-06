@@ -113,6 +113,11 @@ python3 -m llmwiki sync --dry-run --project ai-newsletter
 
 ## Reference
 
-- [Claude Code session format](https://docs.claude.com/claude-code/session-history) (if the docs page exists — TODO verify)
+- Claude Code session format: **not documented upstream.** The old
+  `docs.claude.com/claude-code/session-history` link now redirects to a page
+  that 404s, and no equivalent exists under
+  [code.claude.com/docs](https://code.claude.com/docs/en/overview) either
+  (checked 2026-09-06). The adapter below is the reference; treat the format
+  as observed rather than specified, because that is what it is.
 - [`llmwiki/adapters/claude_code.py`](../../llmwiki/adapters/claude_code.py) — the adapter source
 - [`llmwiki/convert.py`](../../llmwiki/convert.py) — the shared converter
