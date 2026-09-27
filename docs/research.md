@@ -12,7 +12,7 @@ This document is the deliverable for **Phase 1.25 Research**, a new phase added 
 | Cluster | What they do | Examples | llmwiki differentiation |
 |---|---|---|---|
 | **Pure-markdown skills** | A Claude Code skill/plugin + CLAUDE.md schema; rely on the agent to do all writes | `kfchou/wiki-skills`, `Astro-Han/karpathy-llm-wiki`, `bashiraziz/llm-wiki-template` | ✅ Same base + native `.jsonl` → markdown + static HTML + multi-agent |
-| **Markdown-first + light Python** | Schema + a few Python scripts for ingest/query/lint | `SamurAIGPT/llm-wiki-agent`, `Ss1024sS/LLM-wiki`, `hsuanguo/llm-wiki` | ✅ Same shape + session-transcript adapter + beautiful static site |
+| **Markdown-first + light Python** | Schema + a few Python scripts for ingest/query/lint | `SamurAIGPT/llm-wiki-agent`, Ss1024sS/LLM-wiki (repository no longer available), `hsuanguo/llm-wiki` | ✅ Same shape + session-transcript adapter + beautiful static site |
 | **Obsidian-coupled** | Wiki lives inside an Obsidian vault; user views via Obsidian | `AgriciDaniel/claude-obsidian`, `louiswang524/llm-knowledge-base`, `kytmanov/obsidian-llm-wiki-local`, `remember-md/remember` | 🔀 Obsidian as **one of many** connectors (input adapter) — not the only view |
 | **Heavy Python / hosted** | Backend services, databases, hosted demos | `lucasastorian/llmwiki` (Apache, Supabase + MCP, hosted at llmwiki.app), `bitsofchris/openaugi` | ❌ Too heavy — violates llmwiki's stdlib-first rule |
 | **Session browsers (not wikis)** | Search/TUI over raw `.jsonl`; no wiki compilation | `raine/claude-history`, `sinzin91/search-sessions` | 🔀 Complementary — they search raw; llmwiki builds the wiki on top |
@@ -47,7 +47,7 @@ This document is the deliverable for **Phase 1.25 Research**, a new phase added 
 - **Gap:** Input is "drop markdown in `raw/`" — no knowledge of session transcripts. No dark mode. No search. No HTML output beyond the graph HTML.
 - **Lesson:** This is the closest prior art. llmwiki inherits its directory layout and slash-command naming (`/wiki-*`).
 
-#### [Ss1024sS/LLM-wiki](https://github.com/Ss1024sS/LLM-wiki)
+#### Ss1024sS/LLM-wiki (repository no longer available)
 - **Shape:** 25 markdown + 4 Python. Generates 30 files including stale-reporting scripts.
 - **Strength:** Explicitly covers the "AI remembers nothing in new sessions" pain point in its README.
 - **Gap:** No HTML viewer. No multi-agent.
