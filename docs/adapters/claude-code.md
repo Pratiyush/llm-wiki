@@ -113,6 +113,6 @@ python3 -m llmwiki sync --dry-run --project ai-newsletter
 
 ## Reference
 
-- [Claude Code session format](https://docs.claude.com/claude-code/session-history) (if the docs page exists — TODO verify)
+- [Claude Code directory and session transcript storage](https://code.claude.com/docs/en/claude-directory)
 - [`llmwiki/adapters/claude_code.py`](../../llmwiki/adapters/claude_code.py) — the adapter source
 - [`llmwiki/convert.py`](../../llmwiki/convert.py) — the shared converter
